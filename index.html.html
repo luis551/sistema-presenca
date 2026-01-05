@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel RH - v4 (Com Pix)</title>
+    <title>Painel RH - Online (Firebase)</title>
     <style>
         :root {
             --primary: #2c3e50;
@@ -69,6 +69,9 @@
             margin-top: auto;
             border-top: 1px solid var(--secondary);
             padding-top: 20px;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #bdc3c7;
         }
 
         /* Main Content */
@@ -149,7 +152,6 @@
         button.action-btn:hover { filter: brightness(1.1); }
         
         button.btn-save { background-color: var(--success); width: 100%; margin-top: 10px; }
-        button.btn-load { background-color: var(--warning); width: 100%; margin-top: 5px; }
         button.btn-add-func { background-color: var(--success); margin-top: 15px; width: 100%; }
         
         button.btn-copy {
@@ -197,6 +199,14 @@
             font-weight: 500;
         }
 
+        /* Status Conexão */
+        #status-connection {
+            font-size: 0.8rem;
+            margin-top: 10px;
+            color: #f39c12;
+            font-weight: bold;
+        }
+
     </style>
 </head>
 <body>
@@ -208,9 +218,8 @@
         <button class="menu-btn" onclick="showSection('pagamentos')">💰 Pagamentos</button>
         
         <div class="system-controls">
-            <button class="action-btn btn-save" onclick="salvarDados()">💾 Baixar Backup</button>
-            <input type="file" id="fileInput" style="display: none;" onchange="carregarDados(this)">
-            <button class="action-btn btn-load" onclick="document.getElementById('fileInput').click()">📂 Carregar Backup</button>
+            <div id="status-connection">⏳ Conectando...</div>
+            <p><small>Sistema v5.0 - Cloud</small></p>
         </div>
     </div>
 
@@ -354,9 +363,78 @@
 
     </div>
 
+    <script type="module">
+        // Importando Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // SUA CONFIGURAÇÃO DO FIREBASE
+        const firebaseConfig = {
+            apiKey: "AIzaSyBQFsxlyyyLVTpIAdbjdoIOyFA6zIj9Ka4",
+            authDomain: "sistema-presenca-99791.firebaseapp.com",
+            projectId: "sistema-presenca-99791",
+            storageBucket: "sistema-presenca-99791.firebasestorage.app",
+            messagingSenderId: "205211862116",
+            appId: "1:205211862116:web:090e6efe0ec4d8c71a8b71",
+            measurementId: "G-JKHE7BNDP5"
+        };
+
+        // Inicializa o Firebase
+        const app = initializeApp(firebaseConfig);
+        const dbFirestore = getFirestore(app);
+
+        // Referência do documento único onde guardaremos TUDO (Modo Simples)
+        const docRef = doc(dbFirestore, "sistema_rh", "dados_gerais");
+
+        // Escuta em tempo real (Assim que abrir a pagina, baixa os dados. Se mudar lá, atualiza aqui)
+        onSnapshot(docRef, (docSnap) => {
+            const statusEl = document.getElementById('status-connection');
+            if (docSnap.exists()) {
+                const cloudData = docSnap.data();
+                
+                // Atualiza a memória local com o que veio da nuvem
+                window.db = cloudData;
+                
+                // Garante que as estruturas existam
+                if(!window.db.funcionarios) window.db.funcionarios = [];
+                if(!window.db.presencas) window.db.presencas = {};
+                if(!window.db.pagamentos) window.db.pagamentos = [];
+                
+                statusEl.innerHTML = "🟢 Online e Sincronizado";
+                statusEl.style.color = "#27ae60";
+                
+                window.atualizarInterface();
+            } else {
+                // Se for a primeira vez e não tiver nada lá
+                statusEl.innerHTML = "🟡 Criando Banco de Dados...";
+                // Cria um banco vazio
+                salvarNuvem();
+            }
+        }, (error) => {
+            document.getElementById('status-connection').innerHTML = "🔴 Erro de Conexão";
+            console.error(error);
+        });
+
+        // Função para Salvar na Nuvem (Substitui o salvarLocal)
+        window.salvarNuvem = async function() {
+            const statusEl = document.getElementById('status-connection');
+            statusEl.innerHTML = "🔄 Salvando...";
+            try {
+                // Salva o objeto DB inteiro no Firestore
+                await setDoc(docRef, window.db);
+                statusEl.innerHTML = "🟢 Online e Sincronizado";
+            } catch (e) {
+                console.error("Erro ao salvar: ", e);
+                statusEl.innerHTML = "🔴 Erro ao Salvar!";
+                alert("Erro ao salvar na nuvem! Verifique sua internet.");
+            }
+        }
+
+    </script>
+
     <script>
-        // --- BASE DE DADOS ---
-        let db = {
+        // --- BASE DE DADOS LOCAL (Será sobrescrita pelo Firebase) ---
+        window.db = {
             funcionarios: [],
             presencas: {},
             pagamentos: []
@@ -364,29 +442,16 @@
 
         // --- STARTUP ---
         window.onload = () => {
-            const dataSalva = localStorage.getItem('rh_db_v4'); // Versão 4
-            if (dataSalva) {
-                db = JSON.parse(dataSalva);
-                // Migração segura
-                db.funcionarios.forEach(f => {
-                    if(!f.cpf) f.cpf = '';
-                    if(!f.tel) f.tel = '';
-                    if(!f.end) f.end = '';
-                    if(!f.pix) f.pix = ''; // Garante que existe o campo pix
-                    if(!f.nasc) f.nasc = '';
-                    if(!f.entrada) f.entrada = '';
-                });
-            }
             document.getElementById('dataPresenca').valueAsDate = new Date();
             document.getElementById('dataPagamento').valueAsDate = new Date();
-            atualizarInterface();
+            // A atualização da interface agora acontece dentro do onSnapshot do Firebase
         };
 
         // --- FORMATADORES ---
         const fmtMoeda = (v) => v.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
         const fmtData = (d) => { if(!d) return '-'; return new Date(d).toLocaleDateString('pt-BR', {timeZone: 'UTC'}); };
 
-        function showSection(id) {
+        window.showSection = function(id) {
             document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
             document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
             document.getElementById(id).classList.add('active');
@@ -394,25 +459,22 @@
         }
 
         // --- UTILITÁRIO DE CÓPIA ---
-        function copiarTexto(texto) {
-            // Cria um elemento temporário para copiar
+        window.copiarTexto = function(texto) {
             const el = document.createElement('textarea');
             el.value = texto;
             document.body.appendChild(el);
             el.select();
             document.execCommand('copy');
             document.body.removeChild(el);
-            alert('Chave Pix copiada: ' + texto);
+            alert('Chave Pix copiada!');
         }
 
         // --- FUNCIONÁRIOS ---
-        function adicionarFuncionario() {
-            // Pegando valores
+        window.adicionarFuncionario = function() {
             const nome = document.getElementById('fNome').value;
             const cargo = document.getElementById('fCargo').value;
             const salario = parseFloat(document.getElementById('fSalario').value);
             
-            // Campos Opcionais
             const pix = document.getElementById('fPix').value;
             const cpf = document.getElementById('fCpf').value;
             const tel = document.getElementById('fTel').value;
@@ -428,26 +490,24 @@
                 pix, cpf, tel, nasc, entrada, end
             };
 
-            db.funcionarios.push(novoFunc);
+            window.db.funcionarios.push(novoFunc);
             
             // Limpar formulário
             document.querySelectorAll('#funcionarios input').forEach(input => input.value = '');
             
-            salvarLocal();
-            atualizarInterface();
+            window.salvarNuvem(); // Salva no Firebase
             alert("Funcionário cadastrado!");
         }
 
-        function removerFuncionario(id) {
-            if(confirm("Deseja realmente remover este funcionário da lista ativa?")) {
-                db.funcionarios = db.funcionarios.filter(f => f.id !== id);
-                salvarLocal();
-                atualizarInterface();
+        window.removerFuncionario = function(id) {
+            if(confirm("Deseja realmente remover este funcionário?")) {
+                window.db.funcionarios = window.db.funcionarios.filter(f => f.id !== id);
+                window.salvarNuvem(); // Salva no Firebase
             }
         }
 
         // --- PRESENÇA ---
-        function carregarListaPresenca() {
+        window.carregarListaPresenca = function() {
             const data = document.getElementById('dataPresenca').value;
             if(!data) return alert("Selecione uma data");
 
@@ -455,9 +515,9 @@
             tbody.innerHTML = '';
             document.getElementById('areaPresenca').style.display = 'block';
 
-            const registroDia = db.presencas[data] || [];
+            const registroDia = window.db.presencas[data] || [];
 
-            db.funcionarios.forEach(f => {
+            window.db.funcionarios.forEach(f => {
                 const saved = registroDia.find(r => r.id === f.id);
                 const status = saved ? saved.status : 'Presente';
                 const obs = saved ? saved.obs : '';
@@ -479,7 +539,7 @@
             });
         }
 
-        function salvarPresencaDia() {
+        window.salvarPresencaDia = function() {
             const data = document.getElementById('dataPresenca').value;
             const linhas = document.querySelectorAll('#tbodyPresenca tr');
             const listaDia = [];
@@ -494,18 +554,18 @@
                 });
             });
 
-            db.presencas[data] = listaDia;
-            salvarLocal();
+            window.db.presencas[data] = listaDia;
+            window.salvarNuvem(); // Salva no Firebase
             alert(`Presença salva para ${fmtData(data)}!`);
         }
 
         // --- PAGAMENTOS ---
-        function getTotalPagoNoMes(idFunc, dataReferencia) {
+        window.getTotalPagoNoMes = function(idFunc, dataReferencia) {
             const dataRef = new Date(dataReferencia);
             const mesRef = dataRef.getUTCMonth();
             const anoRef = dataRef.getUTCFullYear();
 
-            return db.pagamentos
+            return window.db.pagamentos
                 .filter(p => {
                     const d = new Date(p.data);
                     return p.idFunc == idFunc && d.getUTCMonth() == mesRef && d.getUTCFullYear() == anoRef;
@@ -513,7 +573,7 @@
                 .reduce((acc, p) => acc + p.valor, 0);
         }
 
-        function mostrarSaldoRestante() {
+        window.mostrarSaldoRestante = function() {
             const idFunc = document.getElementById('selectFuncionarioPagamento').value;
             const data = document.getElementById('dataPagamento').value;
             const divAviso = document.getElementById('avisoSaldo');
@@ -523,8 +583,10 @@
                 return;
             }
 
-            const func = db.funcionarios.find(f => f.id == idFunc);
-            const totalPago = getTotalPagoNoMes(idFunc, data);
+            const func = window.db.funcionarios.find(f => f.id == idFunc);
+            if(!func) return; 
+
+            const totalPago = window.getTotalPagoNoMes(idFunc, data);
             const restante = func.salario - totalPago;
 
             let extraInfo = '';
@@ -544,7 +606,7 @@
             }
         }
 
-        function lancarPagamento() {
+        window.lancarPagamento = function() {
             const idFunc = document.getElementById('selectFuncionarioPagamento').value;
             const valorInput = document.getElementById('valorPagamento').value;
             const data = document.getElementById('dataPagamento').value;
@@ -553,15 +615,15 @@
             if(!idFunc || !valorInput || !data) return alert("Preencha Funcionario, Valor e Data!");
 
             const valor = parseFloat(valorInput);
-            const func = db.funcionarios.find(f => f.id == idFunc);
-            const totalJaPago = getTotalPagoNoMes(idFunc, data);
+            const func = window.db.funcionarios.find(f => f.id == idFunc);
+            const totalJaPago = window.getTotalPagoNoMes(idFunc, data);
             
             if (totalJaPago + valor > func.salario) {
                 const restante = func.salario - totalJaPago;
                 return alert(`BLOQUEADO: O valor excede o salário mensal.\n\nDisponível: ${fmtMoeda(restante)}\nTentativa: ${fmtMoeda(valor)}`);
             }
 
-            db.pagamentos.push({
+            window.db.pagamentos.push({
                 id: Date.now(),
                 idFunc: parseInt(idFunc),
                 nomeFunc: func.nome,
@@ -570,26 +632,23 @@
                 desc: desc
             });
 
-            salvarLocal();
-            atualizarInterface();
-            mostrarSaldoRestante();
+            window.salvarNuvem(); // Salva no Firebase
             
             document.getElementById('valorPagamento').value = '';
             document.getElementById('descPagamento').value = '';
+            window.mostrarSaldoRestante();
             alert("Pagamento registrado!");
         }
 
-        function removerPagamento(id) {
+        window.removerPagamento = function(id) {
             if(confirm("Cancelar este pagamento?")) {
-                db.pagamentos = db.pagamentos.filter(p => p.id !== id);
-                salvarLocal();
-                atualizarInterface();
-                mostrarSaldoRestante();
+                window.db.pagamentos = window.db.pagamentos.filter(p => p.id !== id);
+                window.salvarNuvem(); // Salva no Firebase
             }
         }
 
         // --- UI UPDATES ---
-        function atualizarInterface() {
+        window.atualizarInterface = function() {
             // TABELA FUNCIONARIOS
             const tbFunc = document.getElementById('tabelaFuncionarios').querySelector('tbody');
             tbFunc.innerHTML = '';
@@ -598,13 +657,12 @@
             const selectionAtual = selectPag.value; 
             selectPag.innerHTML = '<option value="">Selecione o Funcionário...</option>';
 
-            db.funcionarios.forEach(f => {
+            window.db.funcionarios.forEach(f => {
                 const cpfDisplay = f.cpf ? `<br><span class="info-sub">CPF: ${f.cpf}</span>` : '';
                 const contatoDisplay = f.tel ? `📞 ${f.tel}` : '<span style="color:#ccc">Sem tel</span>';
                 const endDisplay = f.end ? `<br><span class="info-sub">🏠 ${f.end}</span>` : '';
                 const dataEntrada = f.entrada ? `<br><span class="info-sub">Entrou: ${fmtData(f.entrada)}</span>` : '';
                 
-                // Exibição do PIX com botão de copiar
                 const pixDisplay = f.pix ? 
                     `<br><div class="info-pix">Pix: ${f.pix}</div> <button class="btn-copy" onclick="copiarTexto('${f.pix}')">Copiar</button>` : '';
 
@@ -625,7 +683,7 @@
             // TABELA PAGAMENTOS
             const tbPag = document.getElementById('tabelaPagamentos').querySelector('tbody');
             tbPag.innerHTML = '';
-            const pagsOrdenados = [...db.pagamentos].sort((a, b) => new Date(b.data) - new Date(a.data));
+            const pagsOrdenados = [...window.db.pagamentos].sort((a, b) => new Date(b.data) - new Date(a.data));
 
             pagsOrdenados.forEach(p => {
                 tbPag.innerHTML += `
@@ -638,39 +696,7 @@
                     </tr>
                 `;
             });
-        }
-
-        // --- SISTEMA ---
-        function salvarLocal() { localStorage.setItem('rh_db_v4', JSON.stringify(db)); }
-
-        function salvarDados() {
-            const dataStr = JSON.stringify(db, null, 2);
-            const blob = new Blob([dataStr], {type: "application/json"});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `backup_rh_pix_${new Date().toISOString().slice(0,10)}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-        }
-
-        function carregarDados(input) {
-            const file = input.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    db = JSON.parse(e.target.result);
-                    db.funcionarios.forEach(f => {
-                         if(!f.cpf) f.cpf = ''; if(!f.tel) f.tel = ''; if(!f.end) f.end = ''; 
-                         if(!f.nasc) f.nasc = ''; if(!f.entrada) f.entrada = ''; if(!f.pix) f.pix = '';
-                    });
-                    salvarLocal();
-                    atualizarInterface();
-                    alert("Backup restaurado!");
-                } catch (err) { alert("Erro ao ler arquivo."); }
-            };
-            reader.readAsText(file);
+            window.mostrarSaldoRestante();
         }
     </script>
 </body>

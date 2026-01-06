@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel RH - Online (Firebase)</title>
+    <title>Painel RH - v12 (Filtro e Ordem)</title>
     <style>
         :root {
             --primary: #2c3e50;
@@ -152,7 +152,15 @@
         button.action-btn:hover { filter: brightness(1.1); }
         
         button.btn-save { background-color: var(--success); width: 100%; margin-top: 10px; }
-        button.btn-add-func { background-color: var(--success); margin-top: 15px; width: 100%; }
+        
+        .form-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        button.btn-add-func { background-color: var(--success); flex: 1; }
+        button.btn-cancel-edit { background-color: #95a5a6; display: none; }
         
         button.btn-copy {
             background-color: #ecf0f1;
@@ -188,6 +196,10 @@
         tr:hover { background-color: #f8f9fa; }
 
         .info-sub { display: block; font-size: 0.8em; color: #7f8c8d; margin-top: 2px; }
+        .info-empresa { display: block; font-size: 0.85em; color: var(--accent); font-weight: bold; margin-top: 4px; }
+        .tag-tipo { display: inline-block; font-size: 0.7em; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-left: 5px; text-transform: uppercase;}
+        .tag-mensal { background: #e8f6f3; color: #1abc9c; border: 1px solid #1abc9c; }
+        .tag-diaria { background: #fff8e1; color: #f39c12; border: 1px solid #f39c12; }
         .info-pix { display: inline-block; font-size: 0.8em; color: #27ae60; background: #e8f8f5; padding: 2px 6px; border-radius: 4px; margin-top: 4px; font-weight: bold;}
 
         /* Alerts */
@@ -207,19 +219,103 @@
             font-weight: bold;
         }
 
+        /* --- GRIDS --- */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            padding-top: 10px;
+        }
+
+        /* Card Presença */
+        .presenca-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border-left: 6px solid #ccc;
+            transition: transform 0.2s;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .presenca-card:hover { transform: translateY(-3px); box-shadow: 0 8px 15px rgba(0,0,0,0.1); }
+        .presenca-card h4 { margin: 0; color: var(--dark); font-size: 1.1rem; }
+        .presenca-card span { font-size: 0.85rem; color: #7f8c8d; margin-bottom: 5px; display: block; }
+        
+        .card-Presente { border-left-color: var(--success) !important; }
+        .card-Atrasado { border-left-color: var(--warning) !important; }
+        .card-Falta { border-left-color: var(--danger) !important; }
+        .card-Atestado { border-left-color: var(--accent) !important; }
+        .card-Folga { border-left-color: #95a5a6 !important; }
+
+        .presenca-card select { font-weight: bold; padding: 8px; border-radius: 6px; border: 1px solid #eee; background-color: #f9f9f9; }
+        .presenca-card input { font-size: 0.9rem; padding: 8px; border: none; border-bottom: 1px solid #eee; }
+        .presenca-card input:focus { border-bottom-color: var(--accent); }
+
+        /* Card Pagamento */
+        .pagamento-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border-top: 4px solid #ccc;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+        }
+        .pag-salario { border-top-color: var(--success) !important; }
+        .pag-vale { border-top-color: var(--warning) !important; }
+
+        .pag-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .pag-date { font-size: 0.75rem; color: #95a5a6; background: #f8f9fa; padding: 4px 8px; border-radius: 20px; font-weight: bold; }
+        .pag-nome { font-size: 1.1rem; font-weight: bold; color: var(--dark); }
+        .pag-desc { font-size: 0.9rem; color: #7f8c8d; margin-bottom: 15px; font-style: italic; }
+        .pag-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f1f1; padding-top: 15px; margin-top: auto; }
+        .pag-valor { font-size: 1.4rem; font-weight: 800; }
+        
+        .valor-salario { color: var(--success); }
+        .valor-vale { color: var(--warning); }
+        
+        .btn-delete-pag { background: #ffecec; color: #e74c3c; border: none; padding: 8px; border-radius: 6px; cursor: pointer; transition: 0.2s; }
+        .btn-delete-pag:hover { background: #e74c3c; color: white; }
+
+        /* Botões de Ação na Tabela */
+        .table-actions { display: flex; gap: 5px; }
+        .btn-edit { background: #d6eaf8; color: #2980b9; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; }
+        .btn-edit:hover { background: #2980b9; color: white; }
+        .btn-del { background: #fadbd8; color: #c0392b; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; }
+        .btn-del:hover { background: #c0392b; color: white; }
+
+        /* Resumo Financeiro */
+        .resumo-financeiro {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            background: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .resumo-item { flex: 1; text-align: center; border-right: 1px solid #eee; }
+        .resumo-item:last-child { border-right: none; }
+        .resumo-label { display: block; font-size: 0.8rem; color: #7f8c8d; margin-bottom: 5px; text-transform: uppercase; font-weight: bold; }
+        .resumo-valor { font-size: 1.2rem; font-weight: bold; }
+
     </style>
 </head>
 <body>
 
     <div class="sidebar">
         <h2>🚀 Admin RH</h2>
-        <button class="menu-btn active" onclick="showSection('funcionarios')">👥 Funcionários</button>
-        <button class="menu-btn" onclick="showSection('presenca')">📅 Lista de Presença</button>
-        <button class="menu-btn" onclick="showSection('pagamentos')">💰 Pagamentos</button>
+        <button class="menu-btn active" onclick="showSection('funcionarios', this)">👥 Funcionários</button>
+        <button class="menu-btn" onclick="showSection('presenca', this)">📅 Lista de Presença</button>
+        <button class="menu-btn" onclick="showSection('pagamentos', this)">💰 Pagamentos</button>
         
         <div class="system-controls">
             <div id="status-connection">⏳ Conectando...</div>
-            <p><small>Sistema v5.0 - Cloud</small></p>
+            <p><small>Sistema v12.0 - Cloud</small></p>
         </div>
     </div>
 
@@ -228,20 +324,47 @@
         <div id="funcionarios" class="section active">
             <h1>Gestão de Equipe</h1>
             
-            <div class="card">
-                <h3 style="margin-top:0">Cadastrar Novo Funcionário</h3>
+            <div class="card" id="formFuncionarioCard">
+                <h3 style="margin-top:0" id="tituloFormFunc">Cadastrar Novo Funcionário</h3>
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Nome Completo *</label>
                         <input type="text" id="fNome" placeholder="Ex: João da Silva">
                     </div>
+
+                    <div class="form-group">
+                        <label>Empresa *</label>
+                        <select id="fEmpresa">
+                            <option value="">Selecione...</option>
+                            <option value="Bar Araújo">Bar Araújo</option>
+                            <option value="Ventura">Ventura</option>
+                            <option value="Armazem do Bras">Armazem do Bras</option>
+                            <option value="Bar de colegio">Bar de colegio</option>
+                            <option value="Escritorio">Escritorio</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Tipo de Pagamento *</label>
+                        <select id="fTipo" onchange="togglePassagem(this.value)">
+                            <option value="Mensal">📅 Mensalista (Fixo)</option>
+                            <option value="Diaria">☀️ Diarista (Por dia)</option>
+                        </select>
+                    </div>
+
                     <div class="form-group">
                         <label>Cargo / Função *</label>
                         <input type="text" id="fCargo" placeholder="Ex: Vendedor">
                     </div>
+
                     <div class="form-group">
-                        <label>Salário Base (R$) *</label>
+                        <label id="lblSalario">Salário Mensal (R$) *</label>
                         <input type="number" id="fSalario" placeholder="0.00">
+                    </div>
+
+                    <div class="form-group" id="divPassagem">
+                        <label>Valor Passagem Diária (R$) *</label>
+                        <input type="number" id="fPassagem" placeholder="Ex: 10.00">
                     </div>
 
                     <div class="form-group">
@@ -269,21 +392,24 @@
                         <input type="text" id="fEnd" placeholder="Rua, Número, Bairro...">
                     </div>
                 </div>
-                <button class="action-btn btn-add-func" onclick="adicionarFuncionario()">+ Cadastrar Funcionário</button>
+                
+                <div class="form-buttons">
+                    <button class="action-btn btn-add-func" id="btnSalvarFunc" onclick="processarFormularioFuncionario()">+ Cadastrar Funcionário</button>
+                    <button class="action-btn btn-cancel-edit" id="btnCancelarEdit" onclick="cancelarEdicao()">Cancelar</button>
+                </div>
             </div>
             
             <table id="tabelaFuncionarios">
                 <thead>
                     <tr>
                         <th width="30%">Funcionário / CPF</th>
-                        <th width="20%">Cargo / Entrada</th>
+                        <th width="20%">Cargo / Empresa</th>
                         <th width="25%">Contato / Pix</th>
-                        <th width="15%">Salário Base</th>
+                        <th width="15%">Pagamento</th>
                         <th width="10%">Ação</th>
                     </tr>
                 </thead>
-                <tbody>
-                    </tbody>
+                <tbody></tbody>
             </table>
         </div>
 
@@ -296,23 +422,28 @@
                         <label>Selecione a Data</label>
                         <input type="date" id="dataPresenca">
                     </div>
+                    
+                    <div class="form-group" style="flex:1">
+                        <label>Filtrar por Empresa</label>
+                        <select id="filtroEmpresaPresenca">
+                            <option value="">Todas as Empresas</option>
+                            <option value="Bar Araújo">Bar Araújo</option>
+                            <option value="Ventura">Ventura</option>
+                            <option value="Armazem do Bras">Armazem do Bras</option>
+                            <option value="Bar de colegio">Bar de colegio</option>
+                            <option value="Escritorio">Escritorio</option>
+                        </select>
+                    </div>
+
                     <button class="action-btn" style="height: 42px;" onclick="carregarListaPresenca()">Carregar Lista</button>
                 </div>
             </div>
 
             <div id="areaPresenca" style="display: none;">
-                <table id="tabelaPresenca">
-                    <thead>
-                        <tr>
-                            <th>Funcionário</th>
-                            <th>Status</th>
-                            <th>Observação</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tbodyPresenca">
-                        </tbody>
-                </table>
-                <button class="action-btn btn-save" style="margin-top: 20px;" onclick="salvarPresencaDia()">✅ Confirmar e Salvar</button>
+                <div id="gridCards" class="grid-container"></div>
+                <button class="action-btn btn-save" style="margin-top: 20px; height: 50px; font-size: 1.1rem;" onclick="salvarPresencaDia()">
+                    ✅ Confirmar e Salvar Lista
+                </button>
             </div>
         </div>
 
@@ -323,142 +454,75 @@
                 
                 <div class="form-grid">
                     <div class="form-group">
-                        <label>Funcionário</label>
-                        <select id="selectFuncionarioPagamento" onchange="mostrarSaldoRestante()">
+                        <label>Funcionário (Filtra o Histórico)</label>
+                        <select id="selectFuncionarioPagamento" onchange="atualizarPainelPagamentos()">
                             <option value="">Selecione...</option>
                         </select>
                     </div>
+                    
                     <div class="form-group">
-                        <label>Data do Pagamento</label>
-                        <input type="date" id="dataPagamento" onchange="mostrarSaldoRestante()">
+                        <label>Tipo de Operação</label>
+                        <select id="tipoLancamento">
+                            <option value="Pagamento">💰 Pagamento de Salário</option>
+                            <option value="Vale">🎫 Vale / Adiantamento</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Data</label>
+                        <input type="date" id="dataPagamento" onchange="atualizarPainelPagamentos()">
                     </div>
                     <div class="form-group">
                         <label>Valor (R$)</label>
                         <input type="number" id="valorPagamento" placeholder="0.00">
                     </div>
-                    <div class="form-group" style="grid-column: span 3;">
+                    <div class="form-group" style="grid-column: span 2;">
                         <label>Descrição</label>
-                        <input type="text" id="descPagamento" placeholder="Ex: Adiantamento Quinzenal">
+                        <input type="text" id="descPagamento" placeholder="Ex: Adiantamento, Vale Loja...">
                     </div>
                 </div>
                 
                 <div id="avisoSaldo" class="alert-box"></div>
-                <button class="action-btn" style="width: 100%; margin-top:15px;" onclick="lancarPagamento()">Registrar Pagamento</button>
+                <button class="action-btn" style="width: 100%; margin-top:15px;" onclick="lancarPagamento()">Registrar Operação</button>
             </div>
 
-            <table id="tabelaPagamentos">
-                <thead>
-                    <tr>
-                        <th>Data</th>
-                        <th>Beneficiário</th>
-                        <th>Descrição</th>
-                        <th>Valor Pago</th>
-                        <th>Ação</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    </tbody>
-            </table>
+            <h3 style="color: #7f8c8d; border-bottom: 1px solid #ccc; padding-bottom:10px;">Histórico Financeiro</h3>
+            
+            <div id="resumoFinanceiro" class="resumo-financeiro" style="display: none;">
+                <div class="resumo-item">
+                    <span class="resumo-label">Salários Pagos</span>
+                    <span class="resumo-valor" style="color: var(--success);" id="resumoSalario">R$ 0,00</span>
+                </div>
+                <div class="resumo-item">
+                    <span class="resumo-label">Vales Retirados</span>
+                    <span class="resumo-valor" style="color: var(--warning);" id="resumoVale">R$ 0,00</span>
+                </div>
+            </div>
+
+            <div id="gridPagamentos" class="grid-container"></div>
         </div>
 
     </div>
 
-    <script type="module">
-        // Importando Firebase
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-        // SUA CONFIGURAÇÃO DO FIREBASE
-        const firebaseConfig = {
-            apiKey: "AIzaSyBQFsxlyyyLVTpIAdbjdoIOyFA6zIj9Ka4",
-            authDomain: "sistema-presenca-99791.firebaseapp.com",
-            projectId: "sistema-presenca-99791",
-            storageBucket: "sistema-presenca-99791.firebasestorage.app",
-            messagingSenderId: "205211862116",
-            appId: "1:205211862116:web:090e6efe0ec4d8c71a8b71",
-            measurementId: "G-JKHE7BNDP5"
-        };
-
-        // Inicializa o Firebase
-        const app = initializeApp(firebaseConfig);
-        const dbFirestore = getFirestore(app);
-
-        // Referência do documento único onde guardaremos TUDO (Modo Simples)
-        const docRef = doc(dbFirestore, "sistema_rh", "dados_gerais");
-
-        // Escuta em tempo real (Assim que abrir a pagina, baixa os dados. Se mudar lá, atualiza aqui)
-        onSnapshot(docRef, (docSnap) => {
-            const statusEl = document.getElementById('status-connection');
-            if (docSnap.exists()) {
-                const cloudData = docSnap.data();
-                
-                // Atualiza a memória local com o que veio da nuvem
-                window.db = cloudData;
-                
-                // Garante que as estruturas existam
-                if(!window.db.funcionarios) window.db.funcionarios = [];
-                if(!window.db.presencas) window.db.presencas = {};
-                if(!window.db.pagamentos) window.db.pagamentos = [];
-                
-                statusEl.innerHTML = "🟢 Online e Sincronizado";
-                statusEl.style.color = "#27ae60";
-                
-                window.atualizarInterface();
-            } else {
-                // Se for a primeira vez e não tiver nada lá
-                statusEl.innerHTML = "🟡 Criando Banco de Dados...";
-                // Cria um banco vazio
-                salvarNuvem();
-            }
-        }, (error) => {
-            document.getElementById('status-connection').innerHTML = "🔴 Erro de Conexão";
-            console.error(error);
-        });
-
-        // Função para Salvar na Nuvem (Substitui o salvarLocal)
-        window.salvarNuvem = async function() {
-            const statusEl = document.getElementById('status-connection');
-            statusEl.innerHTML = "🔄 Salvando...";
-            try {
-                // Salva o objeto DB inteiro no Firestore
-                await setDoc(docRef, window.db);
-                statusEl.innerHTML = "🟢 Online e Sincronizado";
-            } catch (e) {
-                console.error("Erro ao salvar: ", e);
-                statusEl.innerHTML = "🔴 Erro ao Salvar!";
-                alert("Erro ao salvar na nuvem! Verifique sua internet.");
-            }
-        }
-
-    </script>
-
     <script>
-        // --- BASE DE DADOS LOCAL (Será sobrescrita pelo Firebase) ---
-        window.db = {
-            funcionarios: [],
-            presencas: {},
-            pagamentos: []
-        };
+        window.db = { funcionarios: [], presencas: {}, pagamentos: [] };
+        let editingId = null;
 
-        // --- STARTUP ---
         window.onload = () => {
             document.getElementById('dataPresenca').valueAsDate = new Date();
             document.getElementById('dataPagamento').valueAsDate = new Date();
-            // A atualização da interface agora acontece dentro do onSnapshot do Firebase
         };
 
-        // --- FORMATADORES ---
         const fmtMoeda = (v) => v.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
         const fmtData = (d) => { if(!d) return '-'; return new Date(d).toLocaleDateString('pt-BR', {timeZone: 'UTC'}); };
 
-        window.showSection = function(id) {
+        window.showSection = function(id, btnElement) {
             document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
             document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
             document.getElementById(id).classList.add('active');
-            event.target.classList.add('active');
+            if(btnElement) btnElement.classList.add('active');
         }
 
-        // --- UTILITÁRIO DE CÓPIA ---
         window.copiarTexto = function(texto) {
             const el = document.createElement('textarea');
             el.value = texto;
@@ -469,11 +533,29 @@
             alert('Chave Pix copiada!');
         }
 
-        // --- FUNCIONÁRIOS ---
-        window.adicionarFuncionario = function() {
+        // --- LÓGICA FUNCIONÁRIOS ---
+        
+        window.togglePassagem = function(tipo) {
+            const div = document.getElementById('divPassagem');
+            const lbl = document.getElementById('lblSalario');
+            
+            if(tipo === 'Mensal') {
+                div.style.display = 'flex';
+                lbl.innerText = "Salário Mensal (R$) *";
+            } else {
+                div.style.display = 'none';
+                lbl.innerText = "Valor da Diária (R$) *";
+            }
+        }
+
+        window.processarFormularioFuncionario = function() {
             const nome = document.getElementById('fNome').value;
+            const empresa = document.getElementById('fEmpresa').value;
+            const tipo = document.getElementById('fTipo').value;
             const cargo = document.getElementById('fCargo').value;
             const salario = parseFloat(document.getElementById('fSalario').value);
+            const passagemInput = document.getElementById('fPassagem').value;
+            const passagem = (tipo === 'Mensal' && passagemInput) ? parseFloat(passagemInput) : 0;
             
             const pix = document.getElementById('fPix').value;
             const cpf = document.getElementById('fCpf').value;
@@ -482,132 +564,308 @@
             const entrada = document.getElementById('fEntrada').value;
             const end = document.getElementById('fEnd').value;
 
-            if (!nome || !cargo || isNaN(salario)) return alert("Preencha os campos obrigatórios (*)!");
+            if (!nome || !cargo || !empresa || isNaN(salario)) return alert("Preencha os campos obrigatórios!");
+            if (tipo === 'Mensal' && isNaN(passagem)) return alert("Preencha o valor da passagem!");
 
-            const novoFunc = {
-                id: Date.now(),
-                nome, cargo, salario,
-                pix, cpf, tel, nasc, entrada, end
-            };
+            if (editingId !== null) {
+                if(!confirm(`Salvar alterações para ${nome}?`)) return;
+                const index = window.db.funcionarios.findIndex(f => f.id === editingId);
+                if (index !== -1) {
+                    window.db.funcionarios[index] = {
+                        id: editingId,
+                        nome, empresa, tipo, cargo, salario, passagem,
+                        pix, cpf, tel, nasc, entrada, end
+                    };
+                    alert("Atualizado!");
+                    window.cancelarEdicao();
+                }
+            } else {
+                const novoFunc = {
+                    id: Date.now(),
+                    nome, empresa, tipo, cargo, salario, passagem,
+                    pix, cpf, tel, nasc, entrada, end
+                };
+                window.db.funcionarios.push(novoFunc);
+                alert("Cadastrado!");
+                document.querySelectorAll('#funcionarios input, #funcionarios select').forEach(input => {
+                    if(input.id !== 'fTipo' && input.id !== 'fEmpresa') input.value = '';
+                });
+            }
+            if(window.salvarNuvem) window.salvarNuvem(); 
+        }
 
-            window.db.funcionarios.push(novoFunc);
+        window.prepararEdicao = function(id) {
+            const func = window.db.funcionarios.find(f => f.id === id);
+            if (!func) return;
+
+            document.getElementById('fNome').value = func.nome;
+            document.getElementById('fEmpresa').value = func.empresa;
+            document.getElementById('fTipo').value = func.tipo || 'Mensal';
+            document.getElementById('fCargo').value = func.cargo;
+            document.getElementById('fSalario').value = func.salario;
+            document.getElementById('fPassagem').value = func.passagem || '';
+            document.getElementById('fPix').value = func.pix || '';
+            document.getElementById('fCpf').value = func.cpf || '';
+            document.getElementById('fTel').value = func.tel || '';
+            document.getElementById('fNasc').value = func.nasc || '';
+            document.getElementById('fEntrada').value = func.entrada || '';
+            document.getElementById('fEnd').value = func.end || '';
+
+            togglePassagem(func.tipo || 'Mensal');
+
+            editingId = id;
+            document.getElementById('tituloFormFunc').innerText = "✏️ Editando Funcionário";
+            document.getElementById('tituloFormFunc').style.color = "#2980b9";
             
-            // Limpar formulário
+            const btnSalvar = document.getElementById('btnSalvarFunc');
+            btnSalvar.innerText = "💾 Salvar Alterações";
+            btnSalvar.style.backgroundColor = "#2980b9";
+            
+            document.getElementById('btnCancelarEdit').style.display = "block";
+            document.getElementById('formFuncionarioCard').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        window.cancelarEdicao = function() {
+            editingId = null;
             document.querySelectorAll('#funcionarios input').forEach(input => input.value = '');
+            togglePassagem('Mensal');
             
-            window.salvarNuvem(); // Salva no Firebase
-            alert("Funcionário cadastrado!");
+            document.getElementById('tituloFormFunc').innerText = "Cadastrar Novo Funcionário";
+            document.getElementById('tituloFormFunc').style.color = "var(--dark)";
+            
+            const btnSalvar = document.getElementById('btnSalvarFunc');
+            btnSalvar.innerText = "+ Cadastrar Funcionário";
+            btnSalvar.style.backgroundColor = "var(--success)";
+            
+            document.getElementById('btnCancelarEdit').style.display = "none";
         }
 
         window.removerFuncionario = function(id) {
-            if(confirm("Deseja realmente remover este funcionário?")) {
+            if(confirm("ATENÇÃO: Deseja realmente excluir este funcionário?")) {
                 window.db.funcionarios = window.db.funcionarios.filter(f => f.id !== id);
-                window.salvarNuvem(); // Salva no Firebase
+                if (editingId === id) window.cancelarEdicao();
+                if(window.salvarNuvem) window.salvarNuvem(); 
             }
         }
 
-        // --- PRESENÇA ---
+        // --- PRESENÇA (COM FILTRO E ORDEM) ---
         window.carregarListaPresenca = function() {
             const data = document.getElementById('dataPresenca').value;
+            const filtroEmpresa = document.getElementById('filtroEmpresaPresenca').value; // Pega o filtro
+
             if(!data) return alert("Selecione uma data");
 
-            const tbody = document.getElementById('tbodyPresenca');
-            tbody.innerHTML = '';
+            const grid = document.getElementById('gridCards');
+            grid.innerHTML = '';
             document.getElementById('areaPresenca').style.display = 'block';
 
             const registroDia = window.db.presencas[data] || [];
 
-            window.db.funcionarios.forEach(f => {
+            // 1. FILTRAR E 2. ORDENAR (A-Z)
+            const funcionariosFiltrados = window.db.funcionarios.filter(f => {
+                if (!filtroEmpresa) return true; // Se for vazio (Todas), mostra todos
+                return f.empresa === filtroEmpresa;
+            }).sort((a, b) => a.nome.localeCompare(b.nome)); // Ordem Alfabética
+
+            funcionariosFiltrados.forEach(f => {
                 const saved = registroDia.find(r => r.id === f.id);
                 const status = saved ? saved.status : 'Presente';
                 const obs = saved ? saved.obs : '';
 
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><strong>${f.nome}</strong><br><span class="info-sub">${f.cargo}</span></td>
-                    <td>
-                        <select class="status-presenca" data-id="${f.id}" style="width: 100%;">
-                            <option value="Presente" ${status === 'Presente' ? 'selected' : ''}>Presente</option>
-                            <option value="Falta" ${status === 'Falta' ? 'selected' : ''} style="color:red">Falta</option>
-                            <option value="Atestado" ${status === 'Atestado' ? 'selected' : ''} style="color:blue">Atestado</option>
-                            <option value="Folga" ${status === 'Folga' ? 'selected' : ''} style="color:green">Folga</option>
-                        </select>
-                    </td>
-                    <td><input type="text" class="obs-presenca" value="${obs}" placeholder="Obs..."></td>
+                const isDiaria = f.tipo === 'Diaria';
+                const tipoBadge = isDiaria 
+                    ? `<span class="tag-tipo tag-diaria">☀️ Diária: ${fmtMoeda(f.salario)}</span>` 
+                    : `<span class="tag-tipo tag-mensal">📅 Mensal + ${fmtMoeda(f.passagem || 0)}/dia</span>`;
+
+                const card = document.createElement('div');
+                card.className = `presenca-card card-${status}`;
+                card.setAttribute('data-id', f.id);
+
+                card.innerHTML = `
+                    <div>
+                        <h4>${f.nome} ${tipoBadge}</h4>
+                        <span style="font-size:0.8rem; color:var(--accent); font-weight:bold;">🏢 ${f.empresa || '-'}</span>
+                    </div>
+                    <select class="status-presenca" onchange="atualizarCorCard(this)">
+                        <option value="Presente" ${status === 'Presente' ? 'selected' : ''}>✅ Presente</option>
+                        <option value="Atrasado" ${status === 'Atrasado' ? 'selected' : ''}>⚠️ Atrasado</option>
+                        <option value="Falta" ${status === 'Falta' ? 'selected' : ''}>❌ Falta</option>
+                        <option value="Atestado" ${status === 'Atestado' ? 'selected' : ''}>🔵 Atestado</option>
+                        <option value="Folga" ${status === 'Folga' ? 'selected' : ''}>🟢 Folga</option>
+                    </select>
+                    <input type="text" class="obs-presenca" value="${obs}" placeholder="Alguma observação?">
                 `;
-                tbody.appendChild(tr);
+                grid.appendChild(card);
             });
+        }
+
+        window.atualizarCorCard = function(selectElement) {
+            const card = selectElement.closest('.presenca-card');
+            card.className = card.className.replace(/card-\w+/, `card-${selectElement.value}`);
         }
 
         window.salvarPresencaDia = function() {
             const data = document.getElementById('dataPresenca').value;
-            const linhas = document.querySelectorAll('#tbodyPresenca tr');
-            const listaDia = [];
+            const cards = document.querySelectorAll('.presenca-card');
+            
+            // Carrega o registro existente para não apagar quem está escondido pelo filtro
+            let listaDia = window.db.presencas[data] || []; 
 
-            linhas.forEach(tr => {
-                const select = tr.querySelector('.status-presenca');
-                const obsInput = tr.querySelector('.obs-presenca');
-                listaDia.push({
-                    id: parseInt(select.getAttribute('data-id')),
-                    status: select.value,
-                    obs: obsInput.value
-                });
+            cards.forEach(card => {
+                const idFunc = parseInt(card.getAttribute('data-id'));
+                const status = card.querySelector('.status-presenca').value;
+                const obs = card.querySelector('.obs-presenca').value;
+                
+                // Remove o registro antigo desse funcionário (se houver) e adiciona o novo
+                listaDia = listaDia.filter(r => r.id !== idFunc);
+                listaDia.push({ id: idFunc, status: status, obs: obs });
             });
 
             window.db.presencas[data] = listaDia;
-            window.salvarNuvem(); // Salva no Firebase
-            alert(`Presença salva para ${fmtData(data)}!`);
+            if(window.salvarNuvem) window.salvarNuvem(); 
+            alert(`Lista salva!`);
         }
 
-        // --- PAGAMENTOS ---
-        window.getTotalPagoNoMes = function(idFunc, dataReferencia) {
-            const dataRef = new Date(dataReferencia);
-            const mesRef = dataRef.getUTCMonth();
-            const anoRef = dataRef.getUTCFullYear();
+        // --- CÁLCULO FINANCEIRO ---
+        
+        window.calcularGanhosNoMes = function(idFunc, dataRefStr) {
+            const func = window.db.funcionarios.find(f => f.id == idFunc);
+            if (!func) return 0;
 
-            return window.db.pagamentos
-                .filter(p => {
-                    const d = new Date(p.data);
-                    return p.idFunc == idFunc && d.getUTCMonth() == mesRef && d.getUTCFullYear() == anoRef;
-                })
-                .reduce((acc, p) => acc + p.valor, 0);
+            let totalGanhos = 0;
+            const [anoRef, mesRef] = dataRefStr.split('-'); 
+
+            if (func.tipo === 'Mensal') {
+                totalGanhos = func.salario;
+            }
+
+            Object.keys(window.db.presencas).forEach(diaStr => {
+                if(diaStr.startsWith(`${anoRef}-${mesRef}`)) { 
+                    const listaDia = window.db.presencas[diaStr];
+                    const registro = listaDia.find(r => r.id == idFunc);
+                    
+                    if(registro) {
+                        if (func.tipo === 'Mensal') {
+                            if(registro.status === 'Presente' || registro.status === 'Atrasado') {
+                                totalGanhos += (func.passagem || 0);
+                            }
+                        } 
+                        else if (func.tipo === 'Diaria') {
+                            if(registro.status === 'Presente') totalGanhos += func.salario;
+                            else if(registro.status === 'Atrasado') totalGanhos += (func.salario / 2);
+                        }
+                    }
+                }
+            });
+
+            return totalGanhos;
         }
 
-        window.mostrarSaldoRestante = function() {
+        window.atualizarPainelPagamentos = function() {
             const idFunc = document.getElementById('selectFuncionarioPagamento').value;
-            const data = document.getElementById('dataPagamento').value;
+            const dataStr = document.getElementById('dataPagamento').value; 
             const divAviso = document.getElementById('avisoSaldo');
+            const divResumo = document.getElementById('resumoFinanceiro');
+            const gridPag = document.getElementById('gridPagamentos');
             
-            if (!idFunc || !data) {
+            gridPag.innerHTML = ''; 
+
+            if (!idFunc) {
                 divAviso.style.display = 'none';
+                divResumo.style.display = 'none';
+                const todosPag = [...window.db.pagamentos].sort((a, b) => new Date(b.data) - new Date(a.data));
+                window.renderizarCardsPagamento(todosPag);
                 return;
             }
 
-            const func = window.db.funcionarios.find(f => f.id == idFunc);
-            if(!func) return; 
+            divResumo.style.display = 'flex';
 
-            const totalPago = window.getTotalPagoNoMes(idFunc, data);
-            const restante = func.salario - totalPago;
+            const func = window.db.funcionarios.find(f => f.id == idFunc);
+            const pagsFuncionario = window.db.pagamentos.filter(p => p.idFunc == idFunc);
+            
+            let totalPagoSalario = 0;
+            let totalVales = 0;
+            const [anoRef, mesRef] = dataStr.split('-');
+            
+            pagsFuncionario.forEach(p => {
+                if (p.data.startsWith(`${anoRef}-${mesRef}`)) {
+                    if (p.tipo === 'Vale') totalVales += p.valor;
+                    else totalPagoSalario += p.valor;
+                }
+            });
+
+            document.getElementById('resumoSalario').innerText = fmtMoeda(totalPagoSalario);
+            document.getElementById('resumoVale').innerText = fmtMoeda(totalVales);
+
+            const historicoOrdenado = [...pagsFuncionario].sort((a, b) => new Date(b.data) - new Date(a.data));
+            window.renderizarCardsPagamento(historicoOrdenado);
+
+            if (!dataStr) return;
+
+            const valorDevido = window.calcularGanhosNoMes(idFunc, dataStr);
+            const totalJaRecebido = totalPagoSalario + totalVales; 
+            const restante = valorDevido - totalJaRecebido;
 
             let extraInfo = '';
             if(func.pix) extraInfo = `<br>🔑 <strong>Chave Pix:</strong> ${func.pix}`;
-
+            
             divAviso.style.display = 'block';
-            if (restante <= 0) {
-                divAviso.style.backgroundColor = '#f8d7da';
-                divAviso.style.color = '#721c24';
-                divAviso.style.border = '1px solid #f5c6cb';
-                divAviso.innerHTML = `🛑 <strong>Limite Atingido!</strong>${extraInfo}<br>Salário: ${fmtMoeda(func.salario)} | Pago no mês: ${fmtMoeda(totalPago)}`;
-            } else {
-                divAviso.style.backgroundColor = '#d4edda';
+            
+            if (restante > 0) {
+                divAviso.style.backgroundColor = '#d4edda'; 
                 divAviso.style.color = '#155724';
                 divAviso.style.border = '1px solid #c3e6cb';
-                divAviso.innerHTML = `✅ <strong>Disponível: ${fmtMoeda(restante)}</strong>${extraInfo}<br><small>Salário Base: ${fmtMoeda(func.salario)} | Já Pago: ${fmtMoeda(totalPago)}</small>`;
+                divAviso.innerHTML = `✅ <strong>Disponível: ${fmtMoeda(restante)}</strong>${extraInfo}<br><small>Ganhou: ${fmtMoeda(valorDevido)} | Recebeu (Salário+Vale): ${fmtMoeda(totalJaRecebido)}</small>`;
+            } else if (restante === 0) {
+                divAviso.style.backgroundColor = '#d1ecf1'; 
+                divAviso.style.color = '#0c5460';
+                divAviso.style.border = '1px solid #bee5eb';
+                divAviso.innerHTML = `🔷 <strong>Conta Zerada!</strong><br>Tudo que tinha para receber já foi pago.`;
+            } else {
+                divAviso.style.backgroundColor = '#f8d7da'; 
+                divAviso.style.color = '#721c24';
+                divAviso.style.border = '1px solid #f5c6cb';
+                divAviso.innerHTML = `🛑 <strong>DEVE À LOJA: ${fmtMoeda(Math.abs(restante))}</strong>${extraInfo}<br>Pegou mais vales do que trabalhou no mês.`;
             }
         }
 
+        window.renderizarCardsPagamento = function(listaPagamentos) {
+            const gridPag = document.getElementById('gridPagamentos');
+            
+            if (listaPagamentos.length === 0) {
+                gridPag.innerHTML = '<p style="color:#aaa; width:100%; text-align:center;">Nenhum registro encontrado.</p>';
+                return;
+            }
+
+            listaPagamentos.forEach(p => {
+                const isVale = p.tipo === 'Vale';
+                const cardClass = isVale ? 'pagamento-card pag-vale' : 'pagamento-card pag-salario';
+                const valorClass = isVale ? 'pag-valor valor-vale' : 'pag-valor valor-salario';
+                const icone = isVale ? '🎫 VALE' : '💰 PAGAMENTO';
+
+                const card = document.createElement('div');
+                card.className = cardClass;
+                card.innerHTML = `
+                    <div class="pag-header">
+                        <span class="pag-date">📅 ${fmtData(p.data)}</span>
+                        <div class="pag-nome">${p.nomeFunc}</div>
+                    </div>
+                    <div class="pag-desc" style="font-weight:bold; font-size:0.8em; color:#555;">${icone}</div>
+                    <div class="pag-desc">"${p.desc || 'Sem descrição'}"</div>
+                    <div class="pag-footer">
+                        <div class="${valorClass}">${fmtMoeda(p.valor)}</div>
+                        <button class="btn-delete-pag" onclick="removerPagamento(${p.id})">🗑️</button>
+                    </div>
+                `;
+                gridPag.appendChild(card);
+            });
+        }
+
+        window.mostrarSaldoRestante = window.atualizarPainelPagamentos;
+
         window.lancarPagamento = function() {
             const idFunc = document.getElementById('selectFuncionarioPagamento').value;
+            const tipo = document.getElementById('tipoLancamento').value;
             const valorInput = document.getElementById('valorPagamento').value;
             const data = document.getElementById('dataPagamento').value;
             const desc = document.getElementById('descPagamento').value;
@@ -616,38 +874,32 @@
 
             const valor = parseFloat(valorInput);
             const func = window.db.funcionarios.find(f => f.id == idFunc);
-            const totalJaPago = window.getTotalPagoNoMes(idFunc, data);
             
-            if (totalJaPago + valor > func.salario) {
-                const restante = func.salario - totalJaPago;
-                return alert(`BLOQUEADO: O valor excede o salário mensal.\n\nDisponível: ${fmtMoeda(restante)}\nTentativa: ${fmtMoeda(valor)}`);
-            }
-
             window.db.pagamentos.push({
                 id: Date.now(),
                 idFunc: parseInt(idFunc),
                 nomeFunc: func.nome,
+                tipo: tipo,
                 valor: valor,
                 data: data,
                 desc: desc
             });
 
-            window.salvarNuvem(); // Salva no Firebase
-            
+            if(window.salvarNuvem) window.salvarNuvem(); 
             document.getElementById('valorPagamento').value = '';
             document.getElementById('descPagamento').value = '';
-            window.mostrarSaldoRestante();
-            alert("Pagamento registrado!");
+            window.atualizarPainelPagamentos(); 
+            alert("Operação registrada!");
         }
 
         window.removerPagamento = function(id) {
-            if(confirm("Cancelar este pagamento?")) {
+            if(confirm("Cancelar este lançamento?")) {
                 window.db.pagamentos = window.db.pagamentos.filter(p => p.id !== id);
-                window.salvarNuvem(); // Salva no Firebase
+                if(window.salvarNuvem) window.salvarNuvem();
+                window.atualizarPainelPagamentos(); 
             }
         }
 
-        // --- UI UPDATES ---
         window.atualizarInterface = function() {
             // TABELA FUNCIONARIOS
             const tbFunc = document.getElementById('tabelaFuncionarios').querySelector('tbody');
@@ -655,48 +907,98 @@
             
             const selectPag = document.getElementById('selectFuncionarioPagamento');
             const selectionAtual = selectPag.value; 
-            selectPag.innerHTML = '<option value="">Selecione o Funcionário...</option>';
+            selectPag.innerHTML = '<option value="">Selecione...</option>';
 
-            window.db.funcionarios.forEach(f => {
+            // Ordena Funcionários A-Z na Tabela também
+            const funcsOrdenados = [...window.db.funcionarios].sort((a, b) => a.nome.localeCompare(b.nome));
+
+            funcsOrdenados.forEach(f => {
+                const isDiaria = f.tipo === 'Diaria';
+                const tag = isDiaria ? 'tag-diaria' : 'tag-mensal';
+                const tipoTexto = isDiaria ? 'DIARIA' : 'MENSAL';
+                const infoPagamento = isDiaria 
+                    ? `<span style="font-weight:bold; color:var(--warning)">${fmtMoeda(f.salario)}/dia</span>` 
+                    : `<span style="font-weight:bold; color:var(--success)">${fmtMoeda(f.salario)}</span><br><span style="font-size:0.8em">+ Passagem: ${fmtMoeda(f.passagem || 0)}</span>`;
+
                 const cpfDisplay = f.cpf ? `<br><span class="info-sub">CPF: ${f.cpf}</span>` : '';
                 const contatoDisplay = f.tel ? `📞 ${f.tel}` : '<span style="color:#ccc">Sem tel</span>';
-                const endDisplay = f.end ? `<br><span class="info-sub">🏠 ${f.end}</span>` : '';
-                const dataEntrada = f.entrada ? `<br><span class="info-sub">Entrou: ${fmtData(f.entrada)}</span>` : '';
-                
-                const pixDisplay = f.pix ? 
-                    `<br><div class="info-pix">Pix: ${f.pix}</div> <button class="btn-copy" onclick="copiarTexto('${f.pix}')">Copiar</button>` : '';
+                const pixDisplay = f.pix ? `<br><div class="info-pix">Pix: ${f.pix}</div> <button class="btn-copy" onclick="copiarTexto('${f.pix}')">Copiar</button>` : '';
 
                 tbFunc.innerHTML += `
                     <tr>
                         <td><strong>${f.nome}</strong>${cpfDisplay}</td>
-                        <td>${f.cargo}${dataEntrada}</td>
-                        <td>${contatoDisplay}${pixDisplay}${endDisplay}</td>
-                        <td style="color:var(--success); font-weight:bold;">${fmtMoeda(f.salario)}</td>
-                        <td><button class="action-btn" style="background:#e74c3c; padding: 5px 10px;" onclick="removerFuncionario(${f.id})">🗑️</button></td>
+                        <td>${f.cargo}
+                            <span class="info-empresa">🏢 ${f.empresa || '-'}</span>
+                        </td>
+                        <td>${contatoDisplay}${pixDisplay}</td>
+                        <td>
+                            <span class="tag-tipo ${tag}">${tipoTexto}</span>
+                            <br>${infoPagamento}
+                        </td>
+                        <td>
+                            <div class="table-actions">
+                                <button class="btn-edit" onclick="prepararEdicao(${f.id})" title="Editar">✏️</button>
+                                <button class="btn-del" onclick="removerFuncionario(${f.id})" title="Excluir">🗑️</button>
+                            </div>
+                        </td>
                     </tr>
                 `;
-                
                 selectPag.innerHTML += `<option value="${f.id}">${f.nome}</option>`;
             });
             selectPag.value = selectionAtual;
 
-            // TABELA PAGAMENTOS
-            const tbPag = document.getElementById('tabelaPagamentos').querySelector('tbody');
-            tbPag.innerHTML = '';
-            const pagsOrdenados = [...window.db.pagamentos].sort((a, b) => new Date(b.data) - new Date(a.data));
+            window.atualizarPainelPagamentos();
+        }
+    </script>
 
-            pagsOrdenados.forEach(p => {
-                tbPag.innerHTML += `
-                    <tr>
-                        <td>${fmtData(p.data)}</td>
-                        <td><strong>${p.nomeFunc}</strong></td>
-                        <td>${p.desc || '-'}</td>
-                        <td style="color: var(--success); font-weight:bold;">${fmtMoeda(p.valor)}</td>
-                        <td><button class="action-btn" style="background:#e74c3c; padding:4px 8px; font-size:0.8rem;" onclick="removerPagamento(${p.id})">X</button></td>
-                    </tr>
-                `;
-            });
-            window.mostrarSaldoRestante();
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBQFsxlyyyLVTpIAdbjdoIOyFA6zIj9Ka4",
+            authDomain: "sistema-presenca-99791.firebaseapp.com",
+            projectId: "sistema-presenca-99791",
+            storageBucket: "sistema-presenca-99791.firebasestorage.app",
+            messagingSenderId: "205211862116",
+            appId: "1:205211862116:web:090e6efe0ec4d8c71a8b71",
+            measurementId: "G-JKHE7BNDP5"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const dbFirestore = getFirestore(app);
+        const docRef = doc(dbFirestore, "sistema_rh", "dados_gerais");
+
+        onSnapshot(docRef, (docSnap) => {
+            const statusEl = document.getElementById('status-connection');
+            if (docSnap.exists()) {
+                window.db = docSnap.data();
+                if(!window.db.funcionarios) window.db.funcionarios = [];
+                if(!window.db.presencas) window.db.presencas = {};
+                if(!window.db.pagamentos) window.db.pagamentos = [];
+                
+                statusEl.innerHTML = "🟢 Online e Sincronizado";
+                statusEl.style.color = "#27ae60";
+                if(window.atualizarInterface) window.atualizarInterface();
+            } else {
+                statusEl.innerHTML = "🟡 Criando Banco de Dados...";
+                if(window.salvarNuvem) window.salvarNuvem();
+            }
+        }, (error) => {
+            document.getElementById('status-connection').innerHTML = "🔴 Erro de Conexão";
+            console.error(error);
+        });
+
+        window.salvarNuvem = async function() {
+            const statusEl = document.getElementById('status-connection');
+            statusEl.innerHTML = "🔄 Salvando...";
+            try {
+                await setDoc(docRef, window.db);
+                statusEl.innerHTML = "🟢 Online e Sincronizado";
+            } catch (e) {
+                console.error(e);
+                statusEl.innerHTML = "🔴 Erro ao Salvar!";
+            }
         }
     </script>
 </body>

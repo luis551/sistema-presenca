@@ -11,9 +11,16 @@ function registrarLog(acao, detalhes) {
         detalhes: detalhes
     };
     if(!window.db.audit) window.db.audit = [];
+    
+    // ADICIONA O NOVO LOG
     window.db.audit.push(log);
-}
 
+    // CORREÇÃO CRÍTICA: Manter apenas os últimos 200 registros para não travar o banco
+    if (window.db.audit.length > 200) {
+        // Mantém apenas os últimos 200 itens do array
+        window.db.audit = window.db.audit.slice(-200);
+    }
+}
 function renderizarAudit() {
     const tbody = document.getElementById('tbodyAudit');
     tbody.innerHTML = '';
@@ -380,24 +387,7 @@ const fmtMoeda = (v) => v.toLocaleString('pt-BR', {style: 'currency', currency: 
 const fmtData = (d) => { if(!d) return '-'; return new Date(d).toLocaleDateString('pt-BR', {timeZone: 'UTC'}); };
 const fmtDataSimples = (d) => { if(!d) return '--/--/--'; const [ano, mes, dia] = d.split('-'); return `${dia}/${mes}/${ano}`; };
 
-window.showSection = function(id, btnElement) {
-    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-    document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
-    if(btnElement) btnElement.classList.add('active');
-    if(id === 'previsao') window.atualizarPrevisao();
-    if(id === 'extras') window.renderizarExtras();
-    if(id === 'dashboard') window.atualizarDashboard();
-    if(id === 'seguranca') renderizarAudit();
-    if(id === 'motoboys') {
-        window.renderizarMotoboys();
-        const sel = document.getElementById('selMotoId');
-        sel.innerHTML = '<option value="">Selecione...</option>';
-        window.db.funcionarios.forEach(f => {
-            sel.innerHTML += `<option value="${f.id}">${f.nome}</option>`;
-        });
-    }
-}
+
 window.copiarTexto = function(texto) { const el = document.createElement('textarea'); el.value = texto; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); alert('Chave Pix copiada!'); }
 window.toggleTipoPagamento = function() {
     const tipoPrincipal = document.getElementById('fTipoPrincipal').value;
@@ -834,25 +824,105 @@ window.exportarExcel = function() {
     dados.forEach(row => { const dataFmt = new Date(row.data).toLocaleDateString('pt-BR'); const valorFmt = row.valor.toFixed(2).replace('.', ','); csvContent += `${dataFmt};${row.nomeFunc};${row.tipo};${valorFmt};${row.desc || ''}\n`; });
     const encodedUri = encodeURI(csvContent); const link = document.createElement("a"); link.setAttribute("href", encodedUri); link.setAttribute("download", "relatorio_pagamentos.csv"); document.body.appendChild(link); link.click(); document.body.removeChild(link);
 }
+// ============================================================
+// === NOVA OTIMIZAÇÃO DE RENDERIZAÇÃO (Para evitar travar) ===
+// ============================================================
+
+// Variável para saber qual seção está visível
+let secaoAtual = 'dashboard';
+
+// Substitui a antiga window.showSection
+window.showSection = function(id, btnElement) {
+    secaoAtual = id; // Atualiza a seção atual
+    
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    
+    if(btnElement) btnElement.classList.add('active');
+
+    // Só atualiza os dados da seção que foi aberta
+    atualizarSecaoEspecifica(id);
+}
+
+// Nova função auxiliar para atualizar apenas o necessário
+window.atualizarSecaoEspecifica = function(id) {
+    if(id === 'previsao') window.atualizarPrevisao();
+    if(id === 'extras') window.renderizarExtras();
+    if(id === 'dashboard') window.atualizarDashboard();
+    if(id === 'seguranca') renderizarAudit();
+    if(id === 'pagamentos') window.atualizarPainelPagamentos();
+    if(id === 'motoboys') {
+        window.renderizarMotoboys();
+        // Atualiza o select apenas se estiver vazio (para não pesar)
+        const sel = document.getElementById('selMotoId');
+        if (sel.options.length <= 1) {
+             sel.innerHTML = '<option value="">Selecione...</option>';
+             window.db.funcionarios.forEach(f => {
+                sel.innerHTML += `<option value="${f.id}">${f.nome}</option>`;
+            });
+        }
+    }
+}
+
+// Substitui a antiga window.atualizarInterface
 window.atualizarInterface = function() {
-    const tbFunc = document.getElementById('tabelaFuncionarios').querySelector('tbody'); tbFunc.innerHTML = '';
-    const selectPag = document.getElementById('selectFuncionarioPagamento'); const selVendedor = document.getElementById('selVendedorExtra'); const selFiltroExtras = document.getElementById('filtroExtras'); const selPrevisao = document.getElementById('filtroPrevisao');
-    const selectionAtualPag = selectPag.value; const selectionAtualExtra = selVendedor.value;
-    selectPag.innerHTML = '<option value="">Selecione...</option>'; selVendedor.innerHTML = '<option value="">Selecione...</option>'; selFiltroExtras.innerHTML = '<option value="">Todos (Geral)</option><option value="DESPESAS">🔸 Despesas / Eventos</option>'; selPrevisao.innerHTML = '<option value="">Todos da Equipe</option>';
+    // 1. Atualiza Tabela de Funcionários (leve e rápida)
+    const tbFunc = document.getElementById('tabelaFuncionarios').querySelector('tbody'); 
+    tbFunc.innerHTML = '';
+    
+    // Atualiza os Selects Globais (necessário para os formulários funcionarem)
+    const selectPag = document.getElementById('selectFuncionarioPagamento'); 
+    const selVendedor = document.getElementById('selVendedorExtra'); 
+    const selFiltroExtras = document.getElementById('filtroExtras'); 
+    const selPrevisao = document.getElementById('filtroPrevisao');
+    
+    // Guarda o valor selecionado para não perder a seleção ao atualizar
+    const selectionAtualPag = selectPag.value; 
+    const selectionAtualExtra = selVendedor.value;
+
+    // Limpa selects
+    selectPag.innerHTML = '<option value="">Selecione...</option>'; 
+    selVendedor.innerHTML = '<option value="">Selecione...</option>'; 
+    selFiltroExtras.innerHTML = '<option value="">Todos (Geral)</option><option value="DESPESAS">🔸 Despesas / Eventos</option>'; 
+    selPrevisao.innerHTML = '<option value="">Todos da Equipe</option>';
+
+    // Ordena funcionários
     const funcsOrdenados = [...window.db.funcionarios].sort((a, b) => a.nome.localeCompare(b.nome));
+    
     funcsOrdenados.forEach(f => {
         let tagClass = 'tag-mensal'; let tagText = 'MENSAL';
         if(f.tipo === 'Quinzenal') { tagClass = 'tag-quinzenal'; tagText = 'QUINZENAL'; } else if(f.tipo === 'Semanal') { tagClass = 'tag-semanal'; tagText = 'SEMANAL'; } else if(f.tipo === 'Diaria') { tagClass = 'tag-diaria'; tagText = 'DIÁRIA'; }
-        let infoPagamento = ''; if(f.tipo === 'Diaria') infoPagamento = `<span style="font-weight:bold; color:var(--warning)">${fmtMoeda(f.salario)}/dia</span>`; else infoPagamento = `<span style="font-weight:bold; color:var(--success)">${fmtMoeda(f.salario)}</span><br><span style="font-size:0.8em">+ Passagem: ${fmtMoeda(f.passagem || 0)}</span>`;
-        const cpfDisplay = f.cpf ? `<br><span class="info-sub">CPF: ${f.cpf}</span>` : ''; const contatoDisplay = f.tel ? `📞 ${f.tel}` : '<span style="color:#ccc">Sem tel</span>'; const pixDisplay = f.pix ? `<br><div class="info-pix">Pix: ${f.pix}</div> <button class="btn-copy" onclick="copiarTexto('${f.pix}')">Copiar</button>` : '';
-        const enderecoDisplay = f.end ? `<div class="info-sub">🏠 ${f.end}</div>` : ''; const nascDisplay = f.nasc ? `<div class="info-sub">🎂 ${fmtDataSimples(f.nasc)}</div>` : ''; const entradaDisplay = f.entrada ? `<div class="info-sub">Entrada: ${fmtDataSimples(f.entrada)}</div>` : '';
         
-        // Botão de Ponto adicionado na tabela
+        let infoPagamento = ''; 
+        if(f.tipo === 'Diaria') infoPagamento = `<span style="font-weight:bold; color:var(--warning)">${fmtMoeda(f.salario)}/dia</span>`; 
+        else infoPagamento = `<span style="font-weight:bold; color:var(--success)">${fmtMoeda(f.salario)}</span><br><span style="font-size:0.8em">+ Passagem: ${fmtMoeda(f.passagem || 0)}</span>`;
+        
+        const cpfDisplay = f.cpf ? `<br><span class="info-sub">CPF: ${f.cpf}</span>` : ''; 
+        const contatoDisplay = f.tel ? `📞 ${f.tel}` : '<span style="color:#ccc">Sem tel</span>'; 
+        const pixDisplay = f.pix ? `<br><div class="info-pix">Pix: ${f.pix}</div> <button class="btn-copy" onclick="copiarTexto('${f.pix}')">Copiar</button>` : '';
+        const enderecoDisplay = f.end ? `<div class="info-sub">🏠 ${f.end}</div>` : ''; 
+        const nascDisplay = f.nasc ? `<div class="info-sub">🎂 ${fmtDataSimples(f.nasc)}</div>` : ''; 
+        const entradaDisplay = f.entrada ? `<div class="info-sub">Entrada: ${fmtDataSimples(f.entrada)}</div>` : '';
+        
+        // Botão de Ponto
         const btnPonto = `<button class="btn-copy" style="background:var(--secondary); color:white; border:none; margin-left:5px;" onclick="imprimirFolhaPonto(${f.id})" title="Imprimir Ponto">⏰</button>`;
 
+        // Monta a linha da tabela
         tbFunc.innerHTML += `<tr><td><strong>${f.nome}</strong>${cpfDisplay}</td><td>${f.cargo}<span class="info-empresa">🏢 ${f.empresa || '-'}</span>${entradaDisplay}</td><td>${contatoDisplay}${pixDisplay}${enderecoDisplay}${nascDisplay}</td><td><span class="tag-tipo ${tagClass}">${tagText}</span><br>${infoPagamento}</td><td><div class="table-actions"><button class="btn-edit" onclick="prepararEdicao(${f.id})" title="Editar">✏️</button><button class="btn-del" onclick="removerFuncionario(${f.id})" title="Excluir">🗑️</button>${btnPonto}</div></td></tr>`;
-        selectPag.innerHTML += `<option value="${f.id}">${f.nome}</option>`; selVendedor.innerHTML += `<option value="${f.id}">${f.nome}</option>`; selFiltroExtras.innerHTML += `<option value="${f.id}">${f.nome}</option>`; selPrevisao.innerHTML += `<option value="${f.id}">${f.nome}</option>`;
+        
+        // Popula os selects novamente
+        selectPag.innerHTML += `<option value="${f.id}">${f.nome}</option>`; 
+        selVendedor.innerHTML += `<option value="${f.id}">${f.nome}</option>`; 
+        selFiltroExtras.innerHTML += `<option value="${f.id}">${f.nome}</option>`; 
+        selPrevisao.innerHTML += `<option value="${f.id}">${f.nome}</option>`;
     });
-    selectPag.value = selectionAtualPag; selVendedor.value = selectionAtualExtra;
-    window.atualizarPainelPagamentos(); window.renderizarExtras(); window.atualizarPrevisao(); window.atualizarDashboard();
+
+    // Restaura a seleção anterior dos selects
+    selectPag.value = selectionAtualPag; 
+    selVendedor.value = selectionAtualExtra;
+
+    // OTIMIZAÇÃO FINAL: Só atualiza os gráficos e tabelas pesadas da seção que o usuário está vendo AGORA
+    // Isso impede que o navegador tente desenhar tudo ao mesmo tempo.
+    atualizarSecaoEspecifica(secaoAtual);
 }

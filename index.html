@@ -305,24 +305,91 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-        const firebaseConfig = { apiKey: "AIzaSyBQFsxlyyyLVTpIAdbjdoIOyFA6zIj9Ka4", authDomain: "sistema-presenca-99791.firebaseapp.com", projectId: "sistema-presenca-99791", storageBucket: "sistema-presenca-99791.firebasestorage.app", messagingSenderId: "205211862116", appId: "1:205211862116:web:090e6efe0ec4d8c71a8b71", measurementId: "G-JKHE7BNDP5" };
-        const app = initializeApp(firebaseConfig); const dbFirestore = getFirestore(app); const docRef = doc(dbFirestore, "sistema_rh", "dados_gerais");
+
+        // As tuas configurações originais
+        const firebaseConfig = { 
+            apiKey: "AIzaSyBQFsxlyyyLVTpIAdbjdoIOyFA6zIj9Ka4", 
+            authDomain: "sistema-presenca-99791.firebaseapp.com", 
+            projectId: "sistema-presenca-99791", 
+            storageBucket: "sistema-presenca-99791.firebasestorage.app", 
+            messagingSenderId: "205211862116", 
+            appId: "1:205211862116:web:090e6efe0ec4d8c71a8b71", 
+            measurementId: "G-JKHE7BNDP5" 
+        };
+
+        const app = initializeApp(firebaseConfig); 
+        const dbFirestore = getFirestore(app); 
+        const docRef = doc(dbFirestore, "sistema_rh", "dados_gerais");
+
+        // --- AQUI ESTÁ A MÁGICA DA LIMPEZA ---
         onSnapshot(docRef, (docSnap) => {
             const statusEl = document.getElementById('status-connection');
+            
             if (docSnap.exists()) {
                 window.db = docSnap.data();
+
+                // Garantir que as listas existem para não dar erro
                 if(!window.db.funcionarios) window.db.funcionarios = [];
                 if(!window.db.presencas) window.db.presencas = {};
                 if(!window.db.pagamentos) window.db.pagamentos = [];
                 if(!window.db.extras) window.db.extras = [];
                 if(!window.db.entregas) window.db.entregas = []; 
-                if(!window.db.audit) window.db.audit = []; // Inicia Log
-                if(!window.db.users || window.db.users.length === 0) { window.db.users = [ { user: 'expeto', pass: '1511', isAdmin: true }, { user: 'josy', pass: '191407', isAdmin: false }, { user: 'bruna', pass: '26112021', isAdmin: false } ]; window.salvarNuvem(); }
-                statusEl.innerHTML = "🟢 Online e Sincronizado"; statusEl.style.color = "#27ae60";
+                if(!window.db.audit) window.db.audit = []; 
+
+                // === LIMPEZA DE EMERGÊNCIA ===
+                // Verifica se o histórico está gigante e trava o site
+                let houveLimpeza = false;
+                
+                // Se tiver mais de 200 logs, apaga os mais antigos
+                if(window.db.audit.length > 200) {
+                    window.db.audit = window.db.audit.slice(-200);
+                    houveLimpeza = true;
+                    console.log("🧹 Limpeza automática de logs realizada para evitar travamento.");
+                }
+
+                // Se limpou, salva a versão leve na nuvem imediatamente
+                if(houveLimpeza) {
+                    window.salvarNuvem();
+                }
+                // ==============================
+
+                // Cria usuários padrão se não existirem
+                if(!window.db.users || window.db.users.length === 0) { 
+                    window.db.users = [ 
+                        { user: 'expeto', pass: '1511', isAdmin: true }, 
+                        { user: 'josy', pass: '191407', isAdmin: false }, 
+                        { user: 'bruna', pass: '26112021', isAdmin: false } 
+                    ]; 
+                    window.salvarNuvem(); 
+                }
+
+                statusEl.innerHTML = "🟢 Online e Sincronizado"; 
+                statusEl.style.color = "#27ae60";
+
+                // Atualiza a tela (usando a nova função otimizada que criamos no passo 2)
                 if(window.atualizarInterface) window.atualizarInterface();
-            } else { statusEl.innerHTML = "🟡 Criando Banco de Dados..."; if(window.salvarNuvem) window.salvarNuvem(); }
-        }, (error) => { document.getElementById('status-connection').innerHTML = "🔴 Erro de Conexão"; console.error(error); });
-        window.salvarNuvem = async function() { const statusEl = document.getElementById('status-connection'); statusEl.innerHTML = "🔄 Salvando..."; try { await setDoc(docRef, window.db); statusEl.innerHTML = "🟢 Online e Sincronizado"; } catch (e) { console.error(e); statusEl.innerHTML = "🔴 Erro ao Salvar!"; } }
+
+            } else { 
+                statusEl.innerHTML = "🟡 Criando Banco de Dados..."; 
+                if(window.salvarNuvem) window.salvarNuvem(); 
+            }
+        }, (error) => { 
+            document.getElementById('status-connection').innerHTML = "🔴 Erro de Conexão"; 
+            console.error(error); 
+        });
+
+        // Função para Salvar na Nuvem
+        window.salvarNuvem = async function() { 
+            const statusEl = document.getElementById('status-connection'); 
+            statusEl.innerHTML = "🔄 Salvando..."; 
+            try { 
+                await setDoc(docRef, window.db); 
+                statusEl.innerHTML = "🟢 Online e Sincronizado"; 
+            } catch (e) { 
+                console.error(e); 
+                statusEl.innerHTML = "🔴 Erro ao Salvar!"; 
+            } 
+        }
     </script>
 </body>
 </html>

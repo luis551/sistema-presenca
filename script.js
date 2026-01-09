@@ -127,11 +127,20 @@ window.renderizarMotoboys = function() {
     const grid = document.getElementById('gridMotoboys');
     grid.innerHTML = '';
     if(!window.db.entregas) window.db.entregas = [];
+    
+    // Ordena do mais recente para o mais antigo
     const lista = [...window.db.entregas].sort((a,b) => new Date(b.data) - new Date(a.data));
 
-    if (lista.length === 0) { grid.innerHTML = '<p style="color:#aaa; width:100%; text-align:center;">Nenhuma entrega registrada.</p>'; return; }
+    if (lista.length === 0) { 
+        grid.innerHTML = '<p style="color:#aaa; width:100%; text-align:center;">Nenhuma entrega registrada.</p>'; 
+        return; 
+    }
 
-    lista.forEach(item => {
+    // OTIMIZAÇÃO: Mostra apenas os últimos 50 registros na tela para não travar
+    // O histórico completo continua salvo no banco.
+    const listaVisivel = lista.slice(0, 50);
+
+    listaVisivel.forEach(item => {
         const badgeClass = item.turno === 'Noite' ? 'shift-noite' : 'shift-dia';
         const icone = item.turno === 'Noite' ? '🌙' : '☀️';
         
@@ -151,6 +160,11 @@ window.renderizarMotoboys = function() {
         `;
         grid.innerHTML += html;
     });
+
+    // Aviso visual se houver mais itens escondidos
+    if(lista.length > 50) {
+        grid.innerHTML += `<div style="text-align:center; padding:10px; color:#aaa; width:100%;">Exibindo 50 de ${lista.length} registros. (Use filtros para ver antigos)</div>`;
+    }
 }
 
 window.removerEntrega = function(id) {
@@ -276,11 +290,13 @@ window.salvarUsuario = function() {
     
     if(editIndex === "" && window.db.users.find(u => u.user === user)) return alert("Usuário já existe!");
     
+    // --- PEGA AS PERMISSÕES (INCLUINDO A NOVA) ---
     const perms = {
         func: document.getElementById('p_func').checked,
         pres: document.getElementById('p_pres').checked,
         fin: document.getElementById('p_fin').checked,
-        moto: document.getElementById('p_moto').checked
+        moto: document.getElementById('p_moto').checked,
+        boletos: document.getElementById('p_boletos').checked // <--- AQUI
     };
 
     const novoObjeto = { user, pass, isAdmin, perms };
@@ -312,6 +328,7 @@ window.editarUsuario = function(index) {
         document.getElementById('p_pres').checked = u.perms.pres;
         document.getElementById('p_fin').checked = u.perms.fin;
         document.getElementById('p_moto').checked = u.perms.moto;
+        document.getElementById('p_boletos').checked = u.perms.boletos; // <--- AQUI
     } else {
         document.querySelectorAll('.perm-box input').forEach(c => c.checked = false);
     }
@@ -360,27 +377,45 @@ window.checkLogin = function() {
         document.getElementById('login-screen').style.display = 'none';
         
         const badge = document.getElementById('user-badge');
+        const btnSeguranca = document.getElementById('btnSeguranca');
+        const btnBoletos = document.getElementById('btnMenuBoletos'); // O botão novo
+
         if (usuarioEncontrado.isAdmin) {
             badge.innerHTML = `👑 ${inputUser.toUpperCase()} (ADMIN)`;
             badge.style.color = '#f1c40f';
-            document.getElementById('btnSeguranca').style.display = 'flex';
+            btnSeguranca.style.display = 'flex';
+            btnBoletos.style.display = 'flex'; // Admin vê tudo
         } else {
             badge.innerHTML = `👤 ${inputUser.toUpperCase()}`;
             badge.style.color = 'white';
-            document.getElementById('btnSeguranca').style.display = 'none';
+            btnSeguranca.style.display = 'none';
+
+            // Verifica se o usuário comum tem permissão
+            if(usuarioEncontrado.perms && usuarioEncontrado.perms.boletos) {
+                btnBoletos.style.display = 'flex';
+            } else {
+                btnBoletos.style.display = 'none';
+            }
         }
     } else {
         document.getElementById('loginError').style.display = 'block';
     }
 }
 
+// --- GARANTIR QUE ABRE NA SEGUNDA-FEIRA ---
 window.onload = () => {
-    const hoje = new Date().toISOString().split('T')[0];
-    document.getElementById('dataPresenca').value = hoje;
-    document.getElementById('dataPagamento').value = hoje;
-    document.getElementById('dataComissao').value = hoje;
-    document.getElementById('dataDespesa').value = hoje;
-    document.getElementById('dataMoto').value = hoje;
+    // Define as datas dos formulários para hoje
+    const hojeIso = new Date().toISOString().split('T')[0];
+    if(document.getElementById('dataPresenca')) document.getElementById('dataPresenca').value = hojeIso;
+    if(document.getElementById('dataPagamento')) document.getElementById('dataPagamento').value = hojeIso;
+    if(document.getElementById('dataComissao')) document.getElementById('dataComissao').value = hojeIso;
+    if(document.getElementById('dataDespesa')) document.getElementById('dataDespesa').value = hojeIso;
+    if(document.getElementById('dataMoto')) document.getElementById('dataMoto').value = hojeIso;
+
+    // --- AQUI ESTÁ A MÁGICA ---
+    // Assim que a tela carrega, ele já define o filtro para a Segunda-feira atual.
+    // Isso impede que apareçam contas da semana passada.
+    window.definirInicioSemana();
 };
 
 const fmtMoeda = (v) => v.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
@@ -569,92 +604,427 @@ window.renderizarExtras = function() {
     const grid = document.getElementById('gridExtras');
     const filtroId = document.getElementById('filtroExtras').value;
     grid.innerHTML = '';
+    
     let lista = [...window.db.extras];
+    
+    // Filtra primeiro
     if (filtroId) {
         const nomeFunc = window.db.funcionarios.find(f => f.id == filtroId)?.nome;
-        lista = lista.filter(item => { if (filtroId === 'DESPESAS') return item.tipo === 'Despesa'; const matchId = String(item.idFunc) === String(filtroId); const matchNome = item.beneficiario === nomeFunc && item.tipo === 'Comissao'; return matchId || matchNome; });
+        lista = lista.filter(item => { 
+            if (filtroId === 'DESPESAS') return item.tipo === 'Despesa'; 
+            const matchId = String(item.idFunc) === String(filtroId); 
+            const matchNome = item.beneficiario === nomeFunc && item.tipo === 'Comissao'; 
+            return matchId || matchNome; 
+        });
     }
+    
     lista.sort((a,b) => new Date(b.data) - new Date(a.data));
+
     if (lista.length === 0) { grid.innerHTML = '<p style="color:#aaa; width:100%; text-align:center;">Nenhum registro encontrado.</p>'; return; }
-    lista.forEach(item => {
+
+    // OTIMIZAÇÃO: Limita a visualização a 50 itens
+    const listaVisivel = lista.slice(0, 50);
+
+    listaVisivel.forEach(item => {
         const cor = item.tipo === 'Comissao' ? 'extra-comissao' : 'extra-despesa';
         const tituloCor = item.tipo === 'Comissao' ? 'txt-purple' : 'txt-orange';
         const html = `<div class="extra-card ${cor}"><div class="extra-info"><h4 class="${tituloCor}">${item.categoria} - ${item.beneficiario}</h4><span>📅 ${fmtData(item.data)} | ${item.obs}</span></div><div class="extra-val ${tituloCor}">${fmtMoeda(item.valor)}</div><button class="btn-delete-pag" onclick="removerExtra(${item.id})">🗑️</button></div>`;
         grid.innerHTML += html;
     });
 }
-window.calcularTetoLiberado = function(func, dataStr) {
-    const dia = parseInt(dataStr.split('-')[2]); 
-    if (func.tipo === 'Mensal') return func.salario; 
-    else if (func.tipo === 'Diaria') return 0; 
-    else if (func.tipo === 'Quinzenal') { if (dia <= 15) return func.salario / 2; return func.salario; }
-    else if (func.tipo === 'Semanal') { if (dia <= 7) return func.salario * 0.25; else if (dia <= 14) return func.salario * 0.50; else if (dia <= 21) return func.salario * 0.75; else return func.salario; }
-    return 0;
+
+window.definirInicioSemana = function() {
+    const hoje = new Date();
+    const diaSemana = hoje.getDay(); // 0 (Dom) a 6 (Sab)
+    
+    // Calcula quantos dias voltar para chegar à última segunda-feira
+    // Se for Domingo (0), volta 6. Se for Segunda (1), volta 0.
+    const diasParaVoltar = diaSemana === 0 ? 6 : (diaSemana - 1);
+    
+    const segunda = new Date(hoje);
+    segunda.setDate(hoje.getDate() - diasParaVoltar);
+    
+    // Formata manualmente para YYYY-MM-DD para não ter erro de fuso
+    const ano = segunda.getFullYear();
+    const mes = String(segunda.getMonth() + 1).padStart(2, '0');
+    const dia = String(segunda.getDate()).padStart(2, '0');
+    
+    const inputData = document.getElementById('dataInicioCiclo');
+    if (inputData) {
+        inputData.value = `${ano}-${mes}-${dia}`;
+        window.atualizarPrevisao(); // Recalcula a tela
+    }
 }
+window.calcularSaldoGlobal = function(f, dataRefStr) {
+    // Se não passar data, usa Hoje
+    if (!dataRefStr) dataRefStr = new Date().toISOString().split('T')[0];
+
+    let totalGanhos = 0;
+    let totalPagos = 0;
+
+    // 1. Soma Histórico de Pagamentos (Apenas o que foi pago ATÉ a data selecionada)
+    window.db.pagamentos.forEach(p => {
+        if (p.idFunc == f.id && p.data <= dataRefStr) {
+            totalPagos += p.valor;
+        }
+    });
+
+    // 2. Soma Histórico de Extras (Apenas ATÉ a data selecionada)
+    window.db.extras.forEach(e => {
+        if ((String(e.idFunc) === String(f.id) || e.beneficiario === f.nome) && e.data <= dataRefStr) {
+            totalGanhos += e.valor;
+        }
+    });
+
+    // --- CÁLCULO INTELIGENTE (BASEADO NA DATA ESCOLHIDA) ---
+    // Define o "Mês Atual" baseado na data do formulário, não no dia de hoje
+    const mesAtualStr = dataRefStr.slice(0, 7); // Ex: "2026-01"
+    
+    let semanasPassadasContadas = new Set();
+    let mesesPassadosContados = new Set();
+
+    Object.keys(window.db.presencas).forEach(diaStr => {
+        // Só olha presenças até a data selecionada
+        if (diaStr <= dataRefStr) {
+            const registro = window.db.presencas[diaStr].find(r => r.id == f.id);
+            
+            if (registro && ['Presente', 'Atrasado'].includes(registro.status)) {
+                const mesRegistro = diaStr.slice(0, 7);
+                
+                // A. PASSAGEM (Sempre soma)
+                if (f.tipo !== 'Diaria') {
+                    totalGanhos += (f.passagem || 0);
+                }
+
+                // B. DIARISTA (Soma o dia)
+                if (f.tipo === 'Diaria') {
+                    totalGanhos += f.salario;
+                }
+
+                // C. RASTREAR PASSADO (Se a presença for de um mês ANTERIOR ao selecionado)
+                if (mesRegistro < mesAtualStr) {
+                    if (f.tipo === 'Semanal') {
+                        const diaDoMes = parseInt(diaStr.split('-')[2]);
+                        const numSemana = Math.ceil(diaDoMes / 7); 
+                        semanasPassadasContadas.add(`${mesRegistro}-W${numSemana}`);
+                    } else {
+                        mesesPassadosContados.add(mesRegistro);
+                    }
+                }
+            }
+        }
+    });
+
+    // 3. APLICAR SALÁRIOS
+    if (f.tipo !== 'Diaria') {
+        
+        // A. Passado: Cobra semanas/meses fechados anteriores à data escolhida
+        if (f.tipo === 'Semanal') {
+            const qtdSemanas = semanasPassadasContadas.size;
+            totalGanhos += qtdSemanas * (f.salario * 0.25);
+        } else {
+            mesesPassadosContados.forEach(() => {
+                totalGanhos += f.salario;
+            });
+        }
+
+        // B. Mês "Atual" (Da data selecionada): Usa a regra do calendário
+        // Aqui ele vai ver se é dia 1, dia 8 ou dia 15 DA DATA QUE ESCOLHESTE
+        totalGanhos += window.calcularTetoLiberado(f, dataRefStr);
+    }
+
+    return totalGanhos - totalPagos;
+};
+// 2. Atualiza a Tela (Mostra a Semana + Pendências Antigas)
+// ============================================================
+// === MÓDULO DE PAGAMENTOS (RESTAURADO - LÓGICA MENSAL) ===
+// ============================================================
+
+// 1. Regra de Liberação (Semanal/Quinzenal/Mensal)
+// --- NOVA LÓGICA: ATUALIZAÇÃO ÀS SEGUNDAS-FEIRAS ---
+window.calcularTetoLiberado = function(func, dataStr) {
+    if (func.tipo === 'Mensal') return func.salario; 
+    if (func.tipo === 'Diaria') return 0; 
+    
+    // QUINZENAL (Dia 1 e Dia 16)
+    if (func.tipo === 'Quinzenal') { 
+        const dia = parseInt(dataStr.split('-')[2]);
+        if (dia <= 15) return func.salario / 2; 
+        return func.salario; 
+    }
+    
+    // --- CORREÇÃO SEMANAL (TRAVADO ATÉ SEGUNDA) ---
+    if (func.tipo === 'Semanal') { 
+        const dataAtual = new Date(dataStr + 'T12:00:00');
+        const ano = dataAtual.getFullYear();
+        const mes = dataAtual.getMonth(); 
+        const diaAtual = dataAtual.getDate();
+
+        // Encontrar todas as Segundas-feiras do mês
+        let segundas = [];
+        let d = new Date(ano, mes, 1);
+        while (d.getDay() !== 1) { d.setDate(d.getDate() + 1); } // Acha a 1ª
+        while (d.getMonth() === mes) {
+            segundas.push(d.getDate());
+            d.setDate(d.getDate() + 7);
+        }
+
+        // REGRA DE OURO:
+        // 1. Antes da 1ª Segunda-feira = ZERO (0%)
+        if (diaAtual < segundas[0]) return 0;
+
+        // 2. Da 1ª Segunda até antes da 2ª = 25%
+        if (diaAtual < segundas[1]) return func.salario * 0.25;
+
+        // 3. Da 2ª Segunda até antes da 3ª = 50%
+        if (diaAtual < segundas[2]) return func.salario * 0.50;
+
+        // 4. Da 3ª Segunda até antes da 4ª (se houver) = 75%
+        // Nota: Se não houver 4ª segunda (fevereiro as vezes), libera tudo no passo final
+        if (segundas[3] && diaAtual < segundas[3]) return func.salario * 0.75;
+
+        // 5. Da 4ª Segunda em diante = 100%
+        return func.salario; 
+    }
+    return 0;
+}   
+
+// 2. Auxiliar de Comissões
 window.getTotalComissoesMes = function(idFunc, dataRefStr) {
-    const parts = dataRefStr.split('-'); const anoRef = parseInt(parts[0]); const mesRef = parseInt(parts[1]) - 1;
-    const func = window.db.funcionarios.find(f => f.id == idFunc); const nomeFunc = func ? func.nome : "";
+    const parts = dataRefStr.split('-'); 
+    const anoRef = parseInt(parts[0]); 
+    const mesRef = parseInt(parts[1]) - 1;
+    const func = window.db.funcionarios.find(f => f.id == idFunc); 
+    const nomeFunc = func ? func.nome : "";
+    
     return window.db.extras.reduce((acc, e) => {
         if (e.tipo !== 'Comissao') return acc;
-        const eParts = e.data.split('-'); const eAno = parseInt(eParts[0]); const eMes = parseInt(eParts[1]) - 1;
+        const eParts = e.data.split('-'); 
+        const eAno = parseInt(eParts[0]); 
+        const eMes = parseInt(eParts[1]) - 1;
         if (eAno !== anoRef || eMes !== mesRef) return acc;
-        const isIdMatch = String(e.idFunc) === String(idFunc); const isNameMatch = e.beneficiario === nomeFunc;
+        
+        const isIdMatch = String(e.idFunc) === String(idFunc); 
+        const isNameMatch = e.beneficiario === nomeFunc;
         if (isIdMatch || isNameMatch) return acc + e.valor;
         return acc;
     }, 0);
 }
+
+// 3. Calcula Ganhos do Mês (Sem olhar passado)
 window.calcularGanhosNoMes = function(idFunc, dataRefStr) {
-    const func = window.db.funcionarios.find(f => f.id == idFunc); if (!func) return 0;
-    let totalGanhos = 0; const [anoRef, mesRef] = dataRefStr.split('-'); 
+    const func = window.db.funcionarios.find(f => f.id == idFunc); 
+    if (!func) return 0;
+    
+    let totalGanhos = 0; 
+    const [anoRef, mesRef] = dataRefStr.split('-'); 
+    
+    // Salário Base (Teto)
     if (func.tipo !== 'Diaria') totalGanhos = window.calcularTetoLiberado(func, dataRefStr);
+    
+    // Presenças (Passagens ou Diárias)
     Object.keys(window.db.presencas).forEach(diaStr => {
         if(diaStr.startsWith(`${anoRef}-${mesRef}`)) { 
-            const listaDia = window.db.presencas[diaStr]; const registro = listaDia.find(r => r.id == idFunc);
+            const listaDia = window.db.presencas[diaStr]; 
+            const registro = listaDia.find(r => r.id == idFunc);
             if(registro) {
-                if (func.tipo !== 'Diaria') { if(registro.status === 'Presente' || registro.status === 'Atrasado') totalGanhos += (func.passagem || 0); } 
-                else { if(registro.status === 'Presente') totalGanhos += func.salario; else if(registro.status === 'Atrasado') totalGanhos += (func.salario / 2); }
+                if (func.tipo !== 'Diaria') { 
+                    if(registro.status === 'Presente' || registro.status === 'Atrasado') totalGanhos += (func.passagem || 0); 
+                } else { 
+                    if(registro.status === 'Presente') totalGanhos += func.salario; 
+                    else if(registro.status === 'Atrasado') totalGanhos += (func.salario / 2); 
+                }
             }
         }
     });
+    
     const totalComissoes = window.getTotalComissoesMes(idFunc, dataRefStr);
     return totalGanhos + totalComissoes;
 }
+
+// 4. Calcula Pagamentos Feitos no Mês
 window.getTotalPagoNoMes = function(idFunc, dataReferencia) {
-    const dataRef = new Date(dataReferencia); const mesRef = dataRef.getUTCMonth(); const anoRef = dataRef.getUTCFullYear();
-    return window.db.pagamentos.filter(p => { const d = new Date(p.data); return p.idFunc == idFunc && d.getUTCMonth() == mesRef && d.getUTCFullYear() == anoRef; }).reduce((acc, p) => acc + p.valor, 0);
+    const dataRef = new Date(dataReferencia); 
+    const mesRef = dataRef.getUTCMonth(); 
+    const anoRef = dataRef.getUTCFullYear();
+    
+    return window.db.pagamentos.filter(p => { 
+        const d = new Date(p.data); 
+        return p.idFunc == idFunc && d.getUTCMonth() == mesRef && d.getUTCFullYear() == anoRef; 
+    }).reduce((acc, p) => acc + p.valor, 0);
 }
-window.atualizarPainelPagamentos = function() {
+
+// 5. Atualiza a Tela de Pagamentos (Caixa Verde Original)
+ window.atualizarPainelPagamentos = function() {
     const idFunc = document.getElementById('selectFuncionarioPagamento').value;
     const dataStr = document.getElementById('dataPagamento').value; 
     const divAviso = document.getElementById('avisoSaldo');
     const divResumo = document.getElementById('resumoFinanceiro');
     const gridPag = document.getElementById('gridPagamentos');
+    
     gridPag.innerHTML = ''; 
+    
     if (!idFunc) {
         divAviso.style.display = 'none'; divResumo.style.display = 'none';
         const todosPag = [...window.db.pagamentos].sort((a, b) => new Date(b.data) - new Date(a.data));
         window.renderizarCardsPagamento(todosPag);
         return;
     }
+    
     divResumo.style.display = 'flex';
     const func = window.db.funcionarios.find(f => f.id == idFunc);
     const pagsFuncionario = window.db.pagamentos.filter(p => p.idFunc == idFunc);
-    let totalPagoSalario = 0; let totalVales = 0;
+    
+    let totalPagoSalario = 0; 
+    let totalVales = 0;
     const [anoRef, mesRef] = dataStr.split('-');
-    pagsFuncionario.forEach(p => { if (p.data.startsWith(`${anoRef}-${mesRef}`)) { if (p.tipo === 'Vale') totalVales += p.valor; else totalPagoSalario += p.valor; } });
+    
+    pagsFuncionario.forEach(p => { 
+        if (p.data.startsWith(`${anoRef}-${mesRef}`)) { 
+            if (p.tipo === 'Vale') totalVales += p.valor; 
+            else totalPagoSalario += p.valor; 
+        } 
+    });
+    
     document.getElementById('resumoSalario').innerText = fmtMoeda(totalPagoSalario);
     document.getElementById('resumoVale').innerText = fmtMoeda(totalVales);
+    
     const historicoOrdenado = [...pagsFuncionario].sort((a, b) => new Date(b.data) - new Date(a.data));
     window.renderizarCardsPagamento(historicoOrdenado);
+    
     if (!dataStr) return;
-    const ganhosBase = window.calcularGanhosNoMes(idFunc, dataStr); const valorDevido = ganhosBase; const totalJaRecebido = totalPagoSalario + totalVales; const restante = valorDevido - totalJaRecebido;
-    let extraInfo = ''; if(func.pix) extraInfo = `<br>🔑 <strong>Chave Pix:</strong> ${func.pix}`;
-    const comissoes = window.getTotalComissoesMes(idFunc, dataStr); let extrasTxt = comissoes > 0 ? ` (Inclui ${fmtMoeda(comissoes)} de Extras)` : '';
+    
+    // --- PREPARAÇÃO DOS DADOS PARA O DETALHAMENTO ---
+    const salarioBaseLiberado = window.calcularTetoLiberado(func, dataStr);
+    
+    // Calcula Passagens (conta quantos dias "Presente" ou "Atrasado")
+    let totalPassagens = 0;
+    let diasTrabalhados = 0;
+    Object.keys(window.db.presencas).forEach(diaStr => {
+        if(diaStr.startsWith(`${anoRef}-${mesRef}`)) { 
+            const registro = window.db.presencas[diaStr].find(r => r.id == idFunc);
+            if(registro && ['Presente', 'Atrasado'].includes(registro.status)) {
+                 if (func.tipo !== 'Diaria') { totalPassagens += (func.passagem || 0); diasTrabalhados++; }
+            }
+        }
+    });
+
+    const totalComissoes = window.getTotalComissoesMes(idFunc, dataStr); 
+    const ganhosTotal = salarioBaseLiberado + totalPassagens + totalComissoes;
+    const totalJaRecebido = totalPagoSalario + totalVales; 
+    const restante = ganhosTotal - totalJaRecebido;
+    
+    let extraInfo = func.pix ? `<br><small>🔑 Pix: ${func.pix}</small>` : '';
+
+    // --- CRIAÇÃO DO BOTÃO [?] ---
+    // Passamos todos os valores calculados para a função que abre o modal
+    const btnDetalhes = `<button class="btn-info" onclick="abrirDetalhesFinanceiros('${func.nome}', ${salarioBaseLiberado}, ${totalPassagens}, ${diasTrabalhados}, ${totalComissoes}, ${totalJaRecebido}, ${restante})" title="Ver Detalhes">?</button>`;
+    
     divAviso.style.display = 'block';
-    if (restante > 0) { divAviso.style.backgroundColor = '#d4edda'; divAviso.style.color = '#155724'; divAviso.style.border = '1px solid #c3e6cb'; divAviso.innerHTML = `✅ <strong>Disponível: ${fmtMoeda(restante)}</strong>${extraInfo}<br><small>Ganhou: ${fmtMoeda(valorDevido)}${extrasTxt} | Recebeu: ${fmtMoeda(totalJaRecebido)}</small>`; } 
-    else if (restante === 0) { divAviso.style.backgroundColor = '#d1ecf1'; divAviso.style.color = '#0c5460'; divAviso.style.border = '1px solid #bee5eb'; divAviso.innerHTML = `🔷 <strong>Conta Zerada!</strong><br>Tudo pago até o momento.`; } 
-    else { divAviso.style.backgroundColor = '#f8d7da'; divAviso.style.color = '#721c24'; divAviso.style.border = '1px solid #f5c6cb'; divAviso.innerHTML = `🛑 <strong>DEVE À LOJA: ${fmtMoeda(Math.abs(restante))}</strong>${extraInfo}<br>Pegou mais do que o liberado.`; }
+    let corFundo, corTexto, corBorda, icone;
+    
+    if (restante > 0) {
+        corFundo = '#d4edda'; corTexto = '#155724'; corBorda = '#c3e6cb'; icone = '✅';
+    } else if (restante === 0) {
+        corFundo = '#d1ecf1'; corTexto = '#0c5460'; corBorda = '#bee5eb'; icone = '🔷';
+    } else {
+        corFundo = '#f8d7da'; corTexto = '#721c24'; corBorda = '#f5c6cb'; icone = '🛑';
+    }
+
+    divAviso.style.backgroundColor = corFundo; 
+    divAviso.style.color = corTexto; 
+    divAviso.style.border = `1px solid ${corBorda}`; 
+    
+    divAviso.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:1.1rem;">${icone} <strong>Disponível: ${fmtMoeda(restante)}</strong>${btnDetalhes}</span>
+            <span style="font-size:0.85rem; opacity:0.8;">Total Ganho: ${fmtMoeda(ganhosTotal)}</span>
+        </div>
+        ${extraInfo}
+    `;
 }
+
+// FUNÇÃO PARA ABRIR O MODAL
+window.abrirDetalhesFinanceiros = function(nome, base, passagens, dias, extras, recebido, saldo) {
+    const el = document.getElementById('corpoDetalhes');
+    const corSaldo = saldo >= 0 ? 'var(--success)' : 'var(--danger)';
+    
+    el.innerHTML = `
+        <div style="text-align:center; font-weight:bold; color:#7f8c8d; margin-bottom:15px;">${nome}</div>
+        
+        <div class="detalhes-linha">
+            <span>📅 Salário Base (Liberado até hoje)</span>
+            <span class="detalhes-destaque">${fmtMoeda(base)}</span>
+        </div>
+        
+        <div class="detalhes-linha">
+            <span>🚌 Passagem (${dias} dias)</span>
+            <span class="detalhes-destaque">+ ${fmtMoeda(passagens)}</span>
+        </div>
+        
+        <div class="detalhes-linha">
+            <span>⭐ Comissões / Extras</span>
+            <span class="detalhes-destaque">+ ${fmtMoeda(extras)}</span>
+        </div>
+        
+        <div class="detalhes-linha" style="color:#c0392b;">
+            <span>💸 Adiantamentos / Vales</span>
+            <strong>- ${fmtMoeda(recebido)}</strong>
+        </div>
+        
+        <div class="detalhes-total" style="color:${corSaldo}">
+            <span>SALDO FINAL</span>
+            <span>${fmtMoeda(saldo)}</span>
+        </div>
+        <p style="font-size:0.75rem; color:#aaa; text-align:center; margin-top:10px;">
+            * Para Semanal, o salário libera a cada Segunda-feira.
+        </p>
+    `;
+    
+    document.getElementById('modalDetalhes').style.display = 'flex';
+}
+
+// NOVA FUNÇÃO PARA ABRIR O MODAL
+window.abrirDetalhesFinanceiros = function(nome, base, passagens, dias, extras, recebido, saldo) {
+    const corpo = document.getElementById('corpoDetalhes');
+    
+    let html = `
+        <div style="text-align:center; font-weight:bold; margin-bottom:15px; color:#555;">${nome}</div>
+        
+        <div class="detalhes-linha">
+            <span>💼 Salário Base Liberado</span>
+            <span>+ ${fmtMoeda(base)}</span>
+        </div>
+        
+        <div class="detalhes-linha">
+            <span>🚌 Vale Transporte (${dias} dias)</span>
+            <span>+ ${fmtMoeda(passagens)}</span>
+        </div>
+        
+        <div class="detalhes-linha">
+            <span>⭐ Extras / Comissões</span>
+            <span>+ ${fmtMoeda(extras)}</span>
+        </div>
+        
+        <div class="detalhes-linha" style="color:var(--danger); font-weight:bold;">
+            <span>💸 Já Recebeu (Vales/Salário)</span>
+            <span>- ${fmtMoeda(recebido)}</span>
+        </div>
+        
+        <div class="detalhes-total" style="color:${saldo >= 0 ? 'var(--success)' : 'var(--danger)'}">
+            <span>SALDO FINAL</span>
+            <span>${fmtMoeda(saldo)}</span>
+        </div>
+        <p style="font-size:0.8rem; color:#888; margin-top:10px; text-align:center;">
+            * O Salário Base Semanal atualiza a cada Segunda-feira.
+        </p>
+    `;
+    
+    corpo.innerHTML = html;
+    document.getElementById('modalDetalhes').style.display = 'flex';
+}
+
+// 6. Renderizar Cards (Visual dos Pagamentos)
 window.renderizarCardsPagamento = function(listaPagamentos) {
     const gridPag = document.getElementById('gridPagamentos');
     if (listaPagamentos.length === 0) { gridPag.innerHTML = '<p style="color:#aaa; width:100%; text-align:center;">Nenhum registro encontrado.</p>'; return; }
@@ -668,6 +1038,8 @@ window.renderizarCardsPagamento = function(listaPagamentos) {
         gridPag.appendChild(card);
     });
 }
+
+// 7. Lançar Pagamento (Verificação Mensal)
 window.lancarPagamento = function() {
     if(!checkPerm('fin')) return; 
 
@@ -676,21 +1048,33 @@ window.lancarPagamento = function() {
     const valorInput = document.getElementById('valorPagamento').value;
     const data = document.getElementById('dataPagamento').value;
     const desc = document.getElementById('descPagamento').value;
+    
     if(!idFunc || !valorInput || !data) return alert("Preencha Funcionario, Valor e Data!");
+    
     const valor = parseFloat(valorInput);
     const func = window.db.funcionarios.find(f => f.id == idFunc);
+    
+    // VERIFICA LIMITE MENSAL
     const ganhosTotal = window.calcularGanhosNoMes(idFunc, data);
     const totalJaRecebido = window.getTotalPagoNoMes(idFunc, data); 
+    
     if ((totalJaRecebido + valor) > ganhosTotal) {
         const disponivel = ganhosTotal - totalJaRecebido;
         if(!confirm(`⚠️ ATENÇÃO: O valor excede o permitido!\n\nLiberado: ${fmtMoeda(ganhosTotal)}\nJá Recebeu: ${fmtMoeda(totalJaRecebido)}\nDisponível: ${fmtMoeda(disponivel > 0 ? disponivel : 0)}\n\nDeseja lançar mesmo assim como VALE?`)) return;
     }
+    
     window.db.pagamentos.push({ id: Date.now(), idFunc: parseInt(idFunc), nomeFunc: func.nome, tipo: tipo, valor: valor, data: data, desc: desc });
     registrarLog('Financeiro', `Lançou ${tipo} de ${fmtMoeda(valor)} para ${func.nome}`);
+    
     if(window.salvarNuvem) window.salvarNuvem(); 
-    document.getElementById('valorPagamento').value = ''; document.getElementById('descPagamento').value = '';
-    window.atualizarPainelPagamentos(); alert("Operação registrada!");
+    
+    document.getElementById('valorPagamento').value = ''; 
+    document.getElementById('descPagamento').value = '';
+    window.atualizarPainelPagamentos(); 
+    alert("Operação registrada!");
 }
+
+// 8. Remover Pagamento
 window.removerPagamento = function(id) {
     if(!checkPerm('fin')) return; 
     if(confirm("Cancelar este lançamento?")) {
@@ -701,67 +1085,6 @@ window.removerPagamento = function(id) {
         if(window.salvarNuvem) window.salvarNuvem();
         window.atualizarPainelPagamentos(); 
     }
-}
-window.atualizarPrevisao = function() {
-    const hoje = new Date().toISOString().split('T')[0];
-    const filtroId = document.getElementById('filtroPrevisao').value;
-    const filtroTipo = document.getElementById('filtroTipoPrevisao').value; 
-
-    const gridCurto = document.getElementById('gridPrevisaoCurto');
-    const gridLongo = document.getElementById('gridPrevisaoLongo');
-    const headCurto = document.getElementById('headCurto');
-    const headLongo = document.getElementById('headLongo');
-    const totalGeralEl = document.getElementById('totalDividaGeral');
-    
-    gridCurto.innerHTML = ''; gridLongo.innerHTML = '';
-    let dividaTotal = 0;
-    
-    const showCurto = (filtroTipo === 'TODOS' || filtroTipo === 'SEMANAL');
-    const showLongo = (filtroTipo === 'TODOS' || filtroTipo === 'MENSAL');
-
-    headCurto.style.display = showCurto ? 'block' : 'none';
-    gridCurto.style.display = showCurto ? 'grid' : 'none';
-    headLongo.style.display = showLongo ? 'block' : 'none';
-    gridLongo.style.display = showLongo ? 'grid' : 'none';
-
-    let funcs = [...window.db.funcionarios].sort((a, b) => a.nome.localeCompare(b.nome));
-    if (filtroId) funcs = funcs.filter(f => f.id == filtroId);
-    
-    funcs.forEach(f => {
-        let ganhosBase = 0;
-        if(f.tipo !== 'Diaria') {
-            ganhosBase = window.calcularTetoLiberado(f, hoje);
-            const [anoRef, mesRef] = hoje.split('-');
-            Object.keys(window.db.presencas).forEach(diaStr => { if(diaStr.startsWith(`${anoRef}-${mesRef}`)) { const registro = window.db.presencas[diaStr].find(r => r.id == f.id); if(registro && (registro.status === 'Presente' || registro.status === 'Atrasado')) { ganhosBase += (f.passagem || 0); } } });
-        } else {
-            const [anoRef, mesRef] = hoje.split('-');
-            Object.keys(window.db.presencas).forEach(diaStr => { if(diaStr.startsWith(`${anoRef}-${mesRef}`)) { const listaDia = window.db.presencas[diaStr]; const registro = listaDia.find(r => r.id == f.id); if(registro) { if(registro.status === 'Presente') ganhosBase += f.salario; else if(registro.status === 'Atrasado') ganhosBase += (f.salario / 2); } } });
-        }
-        const comissoes = window.getTotalComissoesMes(f.id, hoje);
-        const pagos = window.getTotalPagoNoMes(f.id, hoje);
-        const totalGanhos = ganhosBase + comissoes;
-        const saldo = totalGanhos - pagos;
-        
-        if (saldo > 0) {
-            const isCurto = (f.tipo === 'Diaria' || f.tipo === 'Semanal');
-            let deveMostrar = false;
-            if (isCurto && showCurto) deveMostrar = true;
-            if (!isCurto && showLongo) deveMostrar = true;
-
-            if (deveMostrar) {
-                dividaTotal += saldo;
-                const cardClass = isCurto ? 'prev-card prev-urgent' : 'prev-card prev-normal';
-                const targetGrid = isCurto ? gridCurto : gridLongo;
-                const tipoLabel = f.tipo.toUpperCase();
-                const html = `<div class="${cardClass}"><div class="prev-info"><h4>${f.nome} <span class="prev-status">${tipoLabel}</span></h4><span>🏢 ${f.empresa}</span><div class="prev-details"><span class="prev-base">💼 Base: ${fmtMoeda(ganhosBase)}</span>${ comissoes > 0 ? `<span class="prev-extra-line">🟣 Extras: ${fmtMoeda(comissoes)}</span>` : '' }${ pagos > 0 ? `<span class="prev-pago">🟢 Pago: -${fmtMoeda(pagos)}</span>` : '' }</div></div><div class="prev-value">${fmtMoeda(saldo)}</div></div>`;
-                targetGrid.innerHTML += html;
-            }
-        }
-    });
-    
-    totalGeralEl.innerText = fmtMoeda(dividaTotal);
-    if(showCurto && gridCurto.innerHTML === '') gridCurto.innerHTML = '<p style="color:#aaa; font-style:italic;">Ninguém para receber.</p>';
-    if(showLongo && gridLongo.innerHTML === '') gridLongo.innerHTML = '<p style="color:#aaa; font-style:italic;">Ninguém para receber.</p>';
 }
 
 let chartPizza = null; let chartBarra = null;
@@ -852,9 +1175,12 @@ window.atualizarSecaoEspecifica = function(id) {
     if(id === 'dashboard') window.atualizarDashboard();
     if(id === 'seguranca') renderizarAudit();
     if(id === 'pagamentos') window.atualizarPainelPagamentos();
+    
+    // --- LINHA NOVA PARA OS BOLETOS ---
+    if(id === 'boletos') window.renderizarBoletos();
+
     if(id === 'motoboys') {
         window.renderizarMotoboys();
-        // Atualiza o select apenas se estiver vazio (para não pesar)
         const sel = document.getElementById('selMotoId');
         if (sel.options.length <= 1) {
              sel.innerHTML = '<option value="">Selecione...</option>';
@@ -865,32 +1191,74 @@ window.atualizarSecaoEspecifica = function(id) {
     }
 }
 
+// Variável de controle (Fica fora da função para lembrar se clicou no botão)
+let mostrarTodosFuncionarios = false;
+
+window.alternarVisualizacao = function() {
+    mostrarTodosFuncionarios = !mostrarTodosFuncionarios; // Inverte (Sim/Não)
+    window.atualizarInterface(); // Atualiza a tela
+}
+
 // Substitui a antiga window.atualizarInterface
 window.atualizarInterface = function() {
-    // 1. Atualiza Tabela de Funcionários (leve e rápida)
+    // 1. Prepara a Tabela e os Selects
     const tbFunc = document.getElementById('tabelaFuncionarios').querySelector('tbody'); 
     tbFunc.innerHTML = '';
     
-    // Atualiza os Selects Globais (necessário para os formulários funcionarem)
+    const inputBusca = document.getElementById('buscaFuncionario');
+    const termoBusca = inputBusca ? inputBusca.value.toLowerCase() : '';
+
     const selectPag = document.getElementById('selectFuncionarioPagamento'); 
     const selVendedor = document.getElementById('selVendedorExtra'); 
     const selFiltroExtras = document.getElementById('filtroExtras'); 
     const selPrevisao = document.getElementById('filtroPrevisao');
     
-    // Guarda o valor selecionado para não perder a seleção ao atualizar
-    const selectionAtualPag = selectPag.value; 
-    const selectionAtualExtra = selVendedor.value;
+    const selectionAtualPag = selectPag ? selectPag.value : ''; 
+    const selectionAtualExtra = selVendedor ? selVendedor.value : '';
 
-    // Limpa selects
-    selectPag.innerHTML = '<option value="">Selecione...</option>'; 
-    selVendedor.innerHTML = '<option value="">Selecione...</option>'; 
-    selFiltroExtras.innerHTML = '<option value="">Todos (Geral)</option><option value="DESPESAS">🔸 Despesas / Eventos</option>'; 
-    selPrevisao.innerHTML = '<option value="">Todos da Equipe</option>';
+    if(selectPag) selectPag.innerHTML = '<option value="">Selecione...</option>'; 
+    if(selVendedor) selVendedor.innerHTML = '<option value="">Selecione...</option>'; 
+    if(selFiltroExtras) selFiltroExtras.innerHTML = '<option value="">Todos (Geral)</option><option value="DESPESAS">🔸 Despesas / Eventos</option>'; 
+    if(selPrevisao) selPrevisao.innerHTML = '<option value="">Todos da Equipe</option>';
 
-    // Ordena funcionários
+    // Pega todos os funcionários e ordena por nome
     const funcsOrdenados = [...window.db.funcionarios].sort((a, b) => a.nome.localeCompare(b.nome));
     
+    // --- PARTE 1: Preencher os Menus (Carrega TODOS) ---
     funcsOrdenados.forEach(f => {
+        if(selectPag) selectPag.innerHTML += `<option value="${f.id}">${f.nome}</option>`; 
+        if(selVendedor) selVendedor.innerHTML += `<option value="${f.id}">${f.nome}</option>`; 
+        if(selFiltroExtras) selFiltroExtras.innerHTML += `<option value="${f.id}">${f.nome}</option>`; 
+        if(selPrevisao) selPrevisao.innerHTML += `<option value="${f.id}">${f.nome}</option>`;
+    });
+
+    // --- PARTE 2: Lógica Inteligente de Exibição ---
+    let listaParaTabela = [];
+    let mensagemRodape = '';
+
+    if (termoBusca !== "") {
+        // SE ESTIVER PESQUISANDO: Filtra pelo nome e mostra tudo que achar
+        listaParaTabela = funcsOrdenados.filter(f => f.nome.toLowerCase().includes(termoBusca));
+        if (listaParaTabela.length === 0) mensagemRodape = `<span style="color:red">Ninguém encontrado com "${termoBusca}"</span>`;
+    } 
+    else {
+        // SE NÃO ESTIVER PESQUISANDO:
+        if (mostrarTodosFuncionarios) {
+            // Se o botão "Ver Todos" foi clicado, mostra TODO MUNDO
+            listaParaTabela = funcsOrdenados;
+            mensagemRodape = `<button onclick="window.alternarVisualizacao()" style="cursor:pointer; background:none; border:none; color:#e67e22; font-weight:bold; padding:10px; width:100%;">⬆️ Ocultar Lista (Voltar ao modo rápido)</button>`;
+        } else {
+            // Modo Padrão: Mostra apenas os 5 primeiros
+            listaParaTabela = funcsOrdenados.slice(0, 5);
+            const totalOcultos = funcsOrdenados.length - 5;
+            if (totalOcultos > 0) {
+                mensagemRodape = `<button onclick="window.alternarVisualizacao()" style="cursor:pointer; background:var(--secondary); border:none; color:white; border-radius:4px; padding:10px 20px; font-size:0.9rem; margin-top:5px;">⬇️ Ver Lista Completa (+${totalOcultos} funcionários)</button><br><small style="color:#7f8c8d;">(Pode demorar um pouquinho para carregar)</small>`;
+            }
+        }
+    }
+
+    // --- PARTE 3: Desenhar a Tabela ---
+    listaParaTabela.forEach(f => {
         let tagClass = 'tag-mensal'; let tagText = 'MENSAL';
         if(f.tipo === 'Quinzenal') { tagClass = 'tag-quinzenal'; tagText = 'QUINZENAL'; } else if(f.tipo === 'Semanal') { tagClass = 'tag-semanal'; tagText = 'SEMANAL'; } else if(f.tipo === 'Diaria') { tagClass = 'tag-diaria'; tagText = 'DIÁRIA'; }
         
@@ -905,24 +1273,251 @@ window.atualizarInterface = function() {
         const nascDisplay = f.nasc ? `<div class="info-sub">🎂 ${fmtDataSimples(f.nasc)}</div>` : ''; 
         const entradaDisplay = f.entrada ? `<div class="info-sub">Entrada: ${fmtDataSimples(f.entrada)}</div>` : '';
         
-        // Botão de Ponto
         const btnPonto = `<button class="btn-copy" style="background:var(--secondary); color:white; border:none; margin-left:5px;" onclick="imprimirFolhaPonto(${f.id})" title="Imprimir Ponto">⏰</button>`;
 
-        // Monta a linha da tabela
         tbFunc.innerHTML += `<tr><td><strong>${f.nome}</strong>${cpfDisplay}</td><td>${f.cargo}<span class="info-empresa">🏢 ${f.empresa || '-'}</span>${entradaDisplay}</td><td>${contatoDisplay}${pixDisplay}${enderecoDisplay}${nascDisplay}</td><td><span class="tag-tipo ${tagClass}">${tagText}</span><br>${infoPagamento}</td><td><div class="table-actions"><button class="btn-edit" onclick="prepararEdicao(${f.id})" title="Editar">✏️</button><button class="btn-del" onclick="removerFuncionario(${f.id})" title="Excluir">🗑️</button>${btnPonto}</div></td></tr>`;
-        
-        // Popula os selects novamente
-        selectPag.innerHTML += `<option value="${f.id}">${f.nome}</option>`; 
-        selVendedor.innerHTML += `<option value="${f.id}">${f.nome}</option>`; 
-        selFiltroExtras.innerHTML += `<option value="${f.id}">${f.nome}</option>`; 
-        selPrevisao.innerHTML += `<option value="${f.id}">${f.nome}</option>`;
     });
 
-    // Restaura a seleção anterior dos selects
-    selectPag.value = selectionAtualPag; 
-    selVendedor.value = selectionAtualExtra;
+    // Adiciona o Botão ou Mensagem no final da tabela
+    if (mensagemRodape) {
+        tbFunc.innerHTML += `<tr><td colspan="5" style="text-align:center; padding:15px;">${mensagemRodape}</td></tr>`;
+    }
 
-    // OTIMIZAÇÃO FINAL: Só atualiza os gráficos e tabelas pesadas da seção que o usuário está vendo AGORA
-    // Isso impede que o navegador tente desenhar tudo ao mesmo tempo.
-    atualizarSecaoEspecifica(secaoAtual);
+    if(selectPag) selectPag.value = selectionAtualPag; 
+    if(selVendedor) selVendedor.value = selectionAtualExtra;
+
+    if(typeof atualizarSecaoEspecifica === 'function') atualizarSecaoEspecifica(secaoAtual);
+}
+// ============================================================
+// === MÓDULO DE BOLETOS E CONTAS A PAGAR (NOVO) ===
+// ============================================================
+
+window.lancarBoleto = function() {
+    if(!checkPerm('boletos')) return; // Verifica permissão
+
+    const desc = document.getElementById('bolDesc').value;
+    const valor = parseFloat(document.getElementById('bolValor').value);
+    const data = document.getElementById('bolData').value;
+    const codigo = document.getElementById('bolCodigo').value;
+
+    if(!desc || !valor || !data) return alert("Preencha Descrição, Valor e Vencimento!");
+
+    const novoBoleto = {
+        id: Date.now(),
+        desc: desc,
+        valor: valor,
+        vencimento: data,
+        codigo: codigo,
+        status: 'PENDENTE', 
+        dataPagamento: null
+    };
+
+    if(!window.db.boletos) window.db.boletos = [];
+    window.db.boletos.push(novoBoleto);
+
+    registrarLog('Boletos', `Cadastrou conta: ${desc} (${fmtMoeda(valor)})`);
+    if(window.salvarNuvem) window.salvarNuvem();
+
+    alert("Conta Registrada!");
+    // Limpa o formulário
+    document.getElementById('bolDesc').value = '';
+    document.getElementById('bolValor').value = '';
+    document.getElementById('bolCodigo').value = '';
+    
+    window.renderizarBoletos();
+}
+
+window.renderizarBoletos = function() {
+    const grid = document.getElementById('gridBoletos');
+    const filtro = document.getElementById('filtroBoletos').value;
+    grid.innerHTML = '';
+
+    if(!window.db.boletos) window.db.boletos = [];
+
+    let totalVencido = 0;
+    let totalAberto = 0;
+    let totalPago = 0;
+    
+    // Data de hoje (zerada para comparação correta)
+    const hoje = new Date();
+    hoje.setHours(0,0,0,0);
+
+    // Ordena por data
+    const listaOrdenada = [...window.db.boletos].sort((a,b) => new Date(a.vencimento) - new Date(b.vencimento));
+
+    listaOrdenada.forEach(b => {
+        const dataVenc = new Date(b.vencimento + 'T12:00:00'); // Fuso horário corrigido
+        const diffTempo = dataVenc - hoje;
+        const diasRestantes = Math.ceil(diffTempo / (1000 * 60 * 60 * 24)); 
+
+        // Somas
+        if(b.status === 'PAGO') {
+            totalPago += b.valor;
+        } else {
+            totalAberto += b.valor;
+            if(diasRestantes < 0) totalVencido += b.valor;
+        }
+
+        // Filtros Visuais
+        if(filtro === 'PENDENTE' && b.status === 'PAGO') return;
+        if(filtro === 'PAGO' && b.status !== 'PAGO') return;
+
+        // Cores e Etiquetas
+        let classeBorda = '';
+        let badgeData = '';
+        let textoData = '';
+
+        if (b.status === 'PAGO') {
+            classeBorda = 'b-pago'; badgeData = 'badge-green'; textoData = '✅ PAGO';
+        } else {
+            if (diasRestantes < 0) {
+                classeBorda = 'b-vencido'; badgeData = 'badge-red'; textoData = `🚨 Venceu há ${Math.abs(diasRestantes)} dias`;
+            } else if (diasRestantes === 0) {
+                classeBorda = 'b-vencido'; badgeData = 'badge-red'; textoData = `⚠️ VENCE HOJE!`;
+            } else if (diasRestantes <= 3) {
+                classeBorda = 'b-atencao'; badgeData = 'badge-yellow'; textoData = `⏳ Vence em ${diasRestantes} dias`;
+            } else {
+                classeBorda = 'b-dia'; badgeData = 'badge-blue'; textoData = `📅 Vence dia ${fmtDataSimples(b.vencimento)}`;
+            }
+        }
+
+        const btnAcao = b.status === 'PENDENTE' 
+            ? `<button class="btn-pagar pendente" onclick="toggleStatusBoleto(${b.id})">💸 Confirmar Pagamento</button>`
+            : `<button class="btn-pagar desfazer" onclick="toggleStatusBoleto(${b.id})">↩️ Desfazer (Tornar Pendente)</button>`;
+
+        const html = `
+            <div class="boleto-card ${classeBorda}">
+                <div>
+                    <div class="bol-header">
+                        <span style="font-weight:bold; color:var(--text-sub); font-size:0.8rem;">#${b.id.toString().slice(-4)}</span>
+                        <span class="bol-data ${badgeData}">${textoData}</span>
+                    </div>
+                    <div style="font-weight:bold; font-size:1.1rem; margin-bottom:5px;">${b.desc}</div>
+                    ${b.codigo ? `<div style="font-size:0.75rem; color:#aaa; overflow:hidden; text-overflow:ellipsis; margin-bottom:5px;">📠 ${b.codigo}</div>` : ''}
+                </div>
+                <div>
+                    <div class="bol-valor">${fmtMoeda(b.valor)}</div>
+                    ${btnAcao}
+                    <button onclick="removerBoleto(${b.id})" style="background:none; border:none; color:#e74c3c; width:100%; margin-top:5px; cursor:pointer; font-size:0.8rem;">Excluir</button>
+                </div>
+            </div>`;
+        grid.innerHTML += html;
+    });
+
+    // Atualiza os números no topo
+    document.getElementById('bolTotalVencido').innerText = fmtMoeda(totalVencido);
+    document.getElementById('bolTotalAberto').innerText = fmtMoeda(totalAberto);
+    document.getElementById('bolTotalPago').innerText = fmtMoeda(totalPago);
+}
+
+window.toggleStatusBoleto = function(id) {
+    if(!checkPerm('boletos')) return;
+    const b = window.db.boletos.find(x => x.id === id);
+    if(b) {
+        if(b.status === 'PENDENTE') {
+            b.status = 'PAGO';
+            b.dataPagamento = new Date().toISOString();
+            registrarLog('Boletos', `Pagou conta: ${b.desc}`);
+            
+            // Pergunta se quer lançar nas despesas também
+            if(confirm("Deseja lançar esse valor também nas Despesas/Extras para abater do caixa da loja?")) {
+                window.db.extras.push({ id: Date.now(), tipo: 'Despesa', categoria: 'Contas', idFunc: 'BOLETOS', beneficiario: b.desc, valor: b.valor, data: new Date().toISOString().split('T')[0], obs: 'Pagamento de Boleto' });
+            }
+        } else {
+            b.status = 'PENDENTE';
+            b.dataPagamento = null;
+            registrarLog('Boletos', `Reabriu conta: ${b.desc}`);
+        }
+        if(window.salvarNuvem) window.salvarNuvem();
+        window.renderizarBoletos();
+        window.atualizarSecaoEspecifica('extras'); 
+    }
+}
+
+window.removerBoleto = function(id) {
+    if(!checkPerm('boletos')) return;
+    if(confirm("Tem certeza que deseja apagar essa conta?")) {
+        window.db.boletos = window.db.boletos.filter(x => x.id !== id);
+        if(window.salvarNuvem) window.salvarNuvem();
+        window.renderizarBoletos();
+    }
+}
+// ============================================================
+// === MÓDULO DE PREVISÃO (RESTAURADO) ===
+// ============================================================
+
+window.atualizarPrevisao = function() {
+    // 1. PEGAR A DATA (Sem erro se estiver vazia)
+    const elData = document.getElementById('dataInicioCiclo');
+    // Se o usuário não escolheu data, usa HOJE como referência
+    let dataRef = elData && elData.value ? elData.value : new Date().toISOString().split('T')[0];
+
+    // 2. PREPARAR A TELA
+    const gridCurto = document.getElementById('gridPrevisaoCurto');
+    const gridLongo = document.getElementById('gridPrevisaoLongo');
+    const totalEl = document.getElementById('totalDividaGeral');
+    
+    // Proteção: Se a tela ainda não carregou, não faz nada
+    if(!gridCurto || !gridLongo) return;
+
+    gridCurto.innerHTML = ''; 
+    gridLongo.innerHTML = '';
+    let dividaTotal = 0;
+
+    // 3. FILTRO DE FUNCIONÁRIO (Opcional)
+    const elFiltro = document.getElementById('filtroPrevisao');
+    const filtroId = elFiltro ? elFiltro.value : "";
+    
+    let funcs = [...window.db.funcionarios];
+    if (filtroId) funcs = funcs.filter(f => f.id == filtroId);
+
+    // 4. CALCULAR (Usando a MESMA lógica do Pagamento)
+    funcs.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(f => {
+        
+        // AQUI ESTÁ O SEGREDO: Usamos as funções do Módulo de Pagamento
+        // Assim o valor da Previsão vai bater EXATAMENTE com o valor do Pagamento
+        const ganhos = window.calcularGanhosNoMes(f.id, dataRef);
+        const pagos = window.getTotalPagoNoMes(f.id, dataRef);
+        
+        // Saldo é o que deveria ter ganho menos o que já recebeu
+        const saldo = ganhos - pagos;
+
+        // Só mostra se tiver saldo positivo (maior que 1 centavo)
+        if (saldo > 0.01) { 
+            dividaTotal += saldo;
+            
+            // Separa visualmente: Giro Rápido vs Acumulado
+            const isCurto = (f.tipo === 'Diaria' || f.tipo === 'Semanal');
+            const targetGrid = isCurto ? gridCurto : gridLongo;
+            const cardClass = isCurto ? 'prev-card prev-urgent' : 'prev-card prev-normal';
+            
+            const html = `
+            <div class="${cardClass}">
+                <div class="prev-info">
+                    <h4>${f.nome} <span class="prev-status">${f.tipo}</span></h4>
+                    <span>🏢 ${f.empresa || '-'}</span>
+                    <div class="prev-details">
+                        <span class="prev-base">💼 Ganho Mês: ${fmtMoeda(ganhos)}</span>
+                        <span class="prev-pago">🟢 Já Pago: -${fmtMoeda(pagos)}</span>
+                    </div>
+                </div>
+                <div class="prev-value">${fmtMoeda(saldo)}</div>
+            </div>`;
+            
+            targetGrid.innerHTML += html;
+        }
+    });
+
+    // 5. ATUALIZAR TOTAIS
+    if(totalEl) totalEl.innerText = fmtMoeda(dividaTotal);
+    
+    // Mensagens de vazio
+    if(gridCurto.innerHTML === '') gridCurto.innerHTML = '<p style="color:#aaa; font-style:italic; padding:10px;">Nada pendente no Giro Rápido.</p>';
+    if(gridLongo.innerHTML === '') gridLongo.innerHTML = '<p style="color:#aaa; font-style:italic; padding:10px;">Nada pendente no Acumulado.</p>';
+    
+    // Garante que os títulos aparecem
+    const hCurto = document.getElementById('headCurto');
+    const hLongo = document.getElementById('headLongo');
+    if(hCurto) hCurto.style.display = 'block';
+    if(hLongo) hLongo.style.display = 'block';
 }

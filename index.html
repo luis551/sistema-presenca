@@ -75,6 +75,8 @@
                     <label><input type="checkbox" id="p_pres"> Presença</label>
                     <label><input type="checkbox" id="p_fin"> Financeiro</label>
                     <label><input type="checkbox" id="p_moto"> Motoboys</label>
+                    
+                    <label><input type="checkbox" id="p_boletos"> Contas a Pagar</label>
                 </div>
 
                 <div style="display: flex; gap: 10px; margin-top: 10px;">
@@ -103,21 +105,30 @@
     <div class="sidebar">
         <h2>🚀 Admin RH</h2>
         <div id="user-badge">Visitante</div>
+
+        <div class="menu-category">Principal</div>
         <button class="menu-btn active" onclick="showSection('dashboard', this)">📊 Visão Geral</button>
-        <button class="menu-btn" onclick="showSection('motoboys', this)">🏍️ Motoboys</button>
+
+        <div class="menu-category">Operacional</div>
         <button class="menu-btn" onclick="showSection('funcionarios', this)">👥 Funcionários</button>
         <button class="menu-btn" onclick="showSection('presenca', this)">📅 Lista de Presença</button>
-        <button class="menu-btn" onclick="showSection('extras', this)">💸 Extras</button>
+
+        <div class="menu-category">Financeiro</div>
+        <button class="menu-btn" onclick="showSection('motoboys', this)">🏍️ Motoboys</button>
+        <button class="menu-btn" onclick="showSection('extras', this)">💸 Extras & Despesas</button>
         <button class="menu-btn" onclick="showSection('pagamentos', this)">💰 Pagamentos</button>
+        
+        <button class="menu-btn" id="btnMenuBoletos" onclick="showSection('boletos', this)" style="display:none;">🧾 Contas & Boletos</button>
+        
         <button class="menu-btn" onclick="showSection('previsao', this)">🔮 Previsão</button>
-        
-        <button class="menu-btn" id="btnSeguranca" onclick="showSection('seguranca', this)" style="display:none;">🛡️ Segurança</button>
-        
-        <button class="menu-btn" onclick="toggleDarkMode()" style="margin-top:20px;">🌙 Modo Escuro</button>
+
+        <div class="menu-category">Sistema</div>
+        <button class="menu-btn" id="btnSeguranca" onclick="showSection('seguranca', this)" style="display:none;">🛡️ Segurança (Audit)</button>
+        <button class="menu-btn" onclick="toggleDarkMode()">🌙 Modo Escuro</button>
 
         <div class="system-controls">
             <div id="status-connection">⏳ Conectando...</div>
-            <p><small>Sistema v38.0 - Audit & Ponto</small></p>
+            <p><small>Sistema v39.1</small></p>
         </div>
     </div>
 
@@ -187,7 +198,22 @@
                 </div>
                 <div class="form-buttons"><button class="action-btn btn-add-func" id="btnSalvarFunc" onclick="processarFormularioFuncionario()">+ Cadastrar Funcionário</button><button class="action-btn btn-cancel-edit" id="btnCancelarEdit" onclick="cancelarEdicao()">Cancelar</button></div>
             </div>
-            <table id="tabelaFuncionarios"><thead><tr><th width="30%">Funcionário / CPF</th><th width="20%">Cargo / Empresa</th><th width="25%">Contato / Endereço</th><th width="15%">Pagamento</th><th width="10%">Ação</th></tr></thead><tbody></tbody></table>
+              <div style="margin: 20px 0;">
+                <input type="text" id="buscaFuncionario" placeholder="🔍 Digite o nome para buscar..." onkeyup="window.atualizarInterface()" style="padding: 12px; width: 100%; box-sizing: border-box; font-size: 1rem; border: 2px solid var(--border-color); border-radius: 6px;">
+            </div>
+
+            <table id="tabelaFuncionarios">
+                <thead>
+                    <tr>
+                        <th width="30%">Funcionário / CPF</th>
+                        <th width="20%">Cargo / Empresa</th>
+                        <th width="25%">Contato / Endereço</th>
+                        <th width="15%">Pagamento</th>
+                        <th width="10%">Ação</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
         </div>
 
         <div id="presenca" class="section">
@@ -251,20 +277,28 @@
 
         <div id="previsao" class="section">
             <h1>Previsão de Pagamento 🔮</h1>
-            <div style="display: flex; gap: 20px; align-items: flex-end; margin-bottom: 20px;">
-                <div class="form-group" style="flex: 1;">
-                    <label>Filtrar por Funcionário:</label>
+            <div style="background: var(--bg-card); padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 5px solid var(--accent); display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+                
+                <div class="form-group" style="flex: 1; min-width: 200px;">
+                    <label style="color: var(--accent); font-weight: bold;">📅 Calcular valores a partir de:</label>
+                    <div style="display: flex; gap: 5px;">
+                        <input type="date" id="dataInicioCiclo" onchange="atualizarPrevisao()" style="font-weight: bold; color: var(--text-main);">
+                        <button onclick="definirInicioSemana()" style="background: var(--secondary); color: white; border: none; padding: 0 15px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;" title="Definir para última Segunda-feira">⏮️ Esta Semana</button>
+                    </div>
+                </div>
+
+                <div class="form-group" style="flex: 1; min-width: 200px;">
+                    <label>Filtrar Equipe:</label>
                     <select id="filtroPrevisao" onchange="atualizarPrevisao()"><option value="">Todos da Equipe</option></select>
                 </div>
-                <div class="form-group" style="flex: 1;">
-                    <label>Filtrar por Regime:</label>
-                    <select id="filtroTipoPrevisao" onchange="atualizarPrevisao()">
-                        <option value="TODOS">🌐 Ver Tudo</option>
-                        <option value="SEMANAL">🔥 Giro Rápido (Semanal/Diária)</option>
-                        <option value="MENSAL">📅 Acumulando (Mensal/Quinzenal)</option>
-                    </select>
+
+                <div style="text-align: right; min-width: 150px;">
+                    <span style="font-size: 0.8rem; color: var(--text-sub); display: block;">Total Pendente no Período</span>
+                    <span id="totalDividaGeral" style="font-size: 1.8rem; font-weight: 800; color: var(--danger);">R$ 0,00</span>
                 </div>
             </div>
+
+            <div class="grid-container" id="gridPrevisao"></div>
             
             <div class="card" style="text-align: center; border-left: 5px solid var(--danger);">
                 <h3 style="margin:0; color:var(--text-sub); font-size:0.9rem; text-transform:uppercase;">Dívida Total (Salários + Extras - Pagos)</h3>
@@ -297,16 +331,53 @@
                 </div>
             </div>
         </div>
+<div id="boletos" class="section">
+            <h1>Gestão de Contas a Pagar 🧾</h1>
+            
+            <div class="dash-grid">
+                <div class="dash-card">
+                    <div class="dash-title">🔴 Vencidos (Urgente)</div>
+                    <div class="dash-number dash-red" id="bolTotalVencido">R$ 0,00</div>
+                </div>
+                <div class="dash-card">
+                    <div class="dash-title">🟡 A Pagar (Aberto)</div>
+                    <div class="dash-number" style="color:var(--warning)" id="bolTotalAberto">R$ 0,00</div>
+                </div>
+                <div class="dash-card">
+                    <div class="dash-title">🟢 Total Pago</div>
+                    <div class="dash-number dash-green" id="bolTotalPago">R$ 0,00</div>
+                </div>
+            </div>
 
+            <div class="card">
+                <h3>Novo Boleto / Conta</h3>
+                <div class="form-grid">
+                    <div class="form-group"><label>Descrição / Fornecedor</label><input type="text" id="bolDesc" placeholder="Ex: Conta de Luz, Aluguel..."></div>
+                    <div class="form-group"><label>Valor (R$)</label><input type="number" id="bolValor" placeholder="0.00"></div>
+                    <div class="form-group"><label>Data de Vencimento</label><input type="date" id="bolData"></div>
+                    <div class="form-group"><label>Código de Barras (Opcional)</label><input type="text" id="bolCodigo"></div>
+                </div>
+                <button class="action-btn" onclick="lancarBoleto()" style="width:100%; margin-top:15px; background:var(--primary);">Registrar Conta</button>
+            </div>
+
+            <div style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0;">Minhas Contas</h3>
+                <select id="filtroBoletos" onchange="renderizarBoletos()" style="width:200px; padding:5px;">
+                    <option value="TODOS">Ver Tudo</option>
+                    <option value="PENDENTE">⏳ A Pagar / Vencidos</option>
+                    <option value="PAGO">✅ Já Pagos</option>
+                </select>
+            </div>
+
+            <div id="gridBoletos" class="grid-container"></div>
+        </div>
     </div>
-
     <script src="script.js"></script>
 
-    <script type="module">
+   <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // As tuas configurações originais
         const firebaseConfig = { 
             apiKey: "AIzaSyBQFsxlyyyLVTpIAdbjdoIOyFA6zIj9Ka4", 
             authDomain: "sistema-presenca-99791.firebaseapp.com", 
@@ -321,14 +392,16 @@
         const dbFirestore = getFirestore(app); 
         const docRef = doc(dbFirestore, "sistema_rh", "dados_gerais");
 
-        // --- AQUI ESTÁ A MÁGICA DA LIMPEZA ---
         onSnapshot(docRef, (docSnap) => {
+            // Se a mudança foi local (fui eu que salvei), ignora para não piscar a tela
+            if (docSnap.metadata.hasPendingWrites) return;
+
             const statusEl = document.getElementById('status-connection');
             
             if (docSnap.exists()) {
                 window.db = docSnap.data();
 
-                // Garantir que as listas existem para não dar erro
+                // Inicializa arrays se não existirem
                 if(!window.db.funcionarios) window.db.funcionarios = [];
                 if(!window.db.presencas) window.db.presencas = {};
                 if(!window.db.pagamentos) window.db.pagamentos = [];
@@ -336,60 +409,60 @@
                 if(!window.db.entregas) window.db.entregas = []; 
                 if(!window.db.audit) window.db.audit = []; 
 
-                // === LIMPEZA DE EMERGÊNCIA ===
-                // Verifica se o histórico está gigante e trava o site
-                let houveLimpeza = false;
-                
-                // Se tiver mais de 200 logs, apaga os mais antigos
-                if(window.db.audit.length > 200) {
-                    window.db.audit = window.db.audit.slice(-200);
-                    houveLimpeza = true;
-                    console.log("🧹 Limpeza automática de logs realizada para evitar travamento.");
+                // --- LIMPEZA SEGURA (SÓ LOGS TÉCNICOS) ---
+                // Apaga apenas registros de sistema antigos para manter a performance.
+                // DADOS DO RH (Pagamentos, Motoboys, Presença) NÃO SÃO TOCADOS.
+                if(window.db.audit.length > 150) {
+                    window.db.audit = window.db.audit.slice(-150);
+                    // Salva silenciosamente a limpeza dos logs
+                    window.salvarNuvem(true);
                 }
 
-                // Se limpou, salva a versão leve na nuvem imediatamente
-                if(houveLimpeza) {
-                    window.salvarNuvem();
-                }
-                // ==============================
-
-                // Cria usuários padrão se não existirem
+                // Garante usuário padrão
                 if(!window.db.users || window.db.users.length === 0) { 
-                    window.db.users = [ 
-                        { user: 'expeto', pass: '1511', isAdmin: true }, 
-                        { user: 'josy', pass: '191407', isAdmin: false }, 
-                        { user: 'bruna', pass: '26112021', isAdmin: false } 
-                    ]; 
-                    window.salvarNuvem(); 
+                    window.db.users = [ { user: 'expeto', pass: '1511', isAdmin: true } ]; 
+                    window.salvarNuvem(true); 
                 }
 
-                statusEl.innerHTML = "🟢 Online e Sincronizado"; 
+                statusEl.innerHTML = "🟢 Online"; 
                 statusEl.style.color = "#27ae60";
 
-                // Atualiza a tela (usando a nova função otimizada que criamos no passo 2)
+                // Renderiza a tela
                 if(window.atualizarInterface) window.atualizarInterface();
 
             } else { 
-                statusEl.innerHTML = "🟡 Criando Banco de Dados..."; 
+                statusEl.innerHTML = "🟡 Criando BD..."; 
                 if(window.salvarNuvem) window.salvarNuvem(); 
             }
         }, (error) => { 
-            document.getElementById('status-connection').innerHTML = "🔴 Erro de Conexão"; 
             console.error(error); 
+            document.getElementById('status-connection').innerHTML = "🔴 Erro";
         });
 
-        // Função para Salvar na Nuvem
-        window.salvarNuvem = async function() { 
+        // Função de Salvar Otimizada
+        window.salvarNuvem = async function(silencioso = false) { 
             const statusEl = document.getElementById('status-connection'); 
-            statusEl.innerHTML = "🔄 Salvando..."; 
+            if(!silencioso) statusEl.innerHTML = "🔄 Salvando..."; 
+            
             try { 
                 await setDoc(docRef, window.db); 
-                statusEl.innerHTML = "🟢 Online e Sincronizado"; 
+                if(!silencioso) {
+                    statusEl.innerHTML = "🟢 Salvo!"; 
+                    // Volta para Online após 2 segundos
+                    setTimeout(() => { statusEl.innerHTML = "🟢 Online"; }, 2000);
+                }
             } catch (e) { 
                 console.error(e); 
                 statusEl.innerHTML = "🔴 Erro ao Salvar!"; 
             } 
         }
     </script>
+    <div id="modalDetalhes">
+    <div class="detalhes-content">
+        <h3 style="margin-top:0; border-bottom:2px solid var(--accent); padding-bottom:10px;">🧮 Detalhes do Cálculo</h3>
+        <div id="corpoDetalhes"></div>
+        <button onclick="document.getElementById('modalDetalhes').style.display='none'" style="width:100%; padding:10px; margin-top:20px; border:none; background:#ccc; cursor:pointer; border-radius:4px; font-weight:bold;">Fechar</button>
+    </div>
+</div>
 </body>
 </html>

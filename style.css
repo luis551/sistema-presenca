@@ -105,9 +105,53 @@ body {
 .perm-box input { width: auto; margin-right: 5px; }
 
 /* Sidebar */
-.sidebar { width: 260px; background-color: var(--primary); color: white; display: flex; flex-direction: column; padding: 20px; box-shadow: 2px 0 5px rgba(0,0,0,0.1); transition: background 0.3s; }
-.sidebar h2 { margin-bottom: 5px; font-size: 1.5rem; text-align: center; }
+/* --- SIDEBAR COM SCROLL (ATUALIZADO) --- */
+.sidebar {
+    width: 260px;
+    background-color: var(--primary);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+    transition: background 0.3s;
+    
+    /* O SEGREDO DO SCROLL ESTÁ AQUI: */
+    height: 100vh;           /* Força a barra a ter a altura total da tela */
+    overflow-y: auto;        /* Cria a rolagem se os botões não couberem */
+    box-sizing: border-box;  /* Garante que o tamanho não quebre */
+}
+
+/* --- ESTILO BONITO DA BARRA DE ROLAGEM --- */
+.sidebar::-webkit-scrollbar {
+    width: 6px; /* Barra fininha */
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: var(--primary); /* Fundo da mesma cor do menu */
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background-color: var(--secondary); /* A parte que mexe */
+    border-radius: 10px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+    background-color: var(--accent); /* Cor quando passa o mouse */
+}
 #user-badge { text-align: center; font-size: 0.9rem; color: #bdc3c7; margin-bottom: 30px; border-bottom: 1px solid var(--secondary); padding-bottom: 20px; text-transform: uppercase; font-weight: bold; }
+/* --- ESTILO DAS CATEGORIAS (NOVO) --- */
+.menu-category {
+    font-size: 0.75rem;       /* Letra pequena */
+    text-transform: uppercase; /* Tudo MAIÚSCULO */
+    color: #95a5a6;            /* Cor cinza discreta */
+    margin-top: 20px;          /* Espaço em cima */
+    margin-bottom: 5px;        /* Espaço em baixo */
+    padding-left: 15px;        /* Alinhado com o texto dos botões */
+    font-weight: bold;         /* Negrito */
+    letter-spacing: 1px;       /* Letras um pouco separadas */
+    pointer-events: none;      /* Não é clicável */
+}
 .menu-btn { background: none; border: none; color: #bdc3c7; padding: 15px; text-align: left; cursor: pointer; font-size: 1rem; transition: 0.3s; border-radius: 5px; margin-bottom: 5px; display: flex; align-items: center; gap: 10px; }
 .menu-btn:hover, .menu-btn.active { background-color: var(--secondary); color: white; padding-left: 20px; }
 .system-controls { margin-top: auto; border-top: 1px solid var(--secondary); padding-top: 20px; text-align: center; font-size: 0.8rem; color: #bdc3c7; }
@@ -245,3 +289,71 @@ tr:hover { background-color: rgba(0,0,0,0.05); }
 .rank-1 { color: #f1c40f; } .rank-2 { color: #bdc3c7; } .rank-3 { color: #cd7f32; }
 .rank-name { flex: 1; font-weight: bold; }
 .rank-xp { color: var(--purple); font-weight: bold; }
+/* --- ESTILO DOS BOLETOS (NOVO) --- */
+.boleto-card {
+    background: var(--bg-card);
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    border-left: 5px solid #ccc;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
+    margin-bottom: 15px; /* Espaço entre os cartões */
+}
+
+/* Cores da borda lateral baseadas no status */
+.b-vencido { border-left-color: var(--danger); background: #fff5f5; } /* Vermelho */
+.b-atencao { border-left-color: var(--warning); } /* Amarelo */
+.b-dia { border-left-color: var(--accent); }      /* Azul */
+.b-pago { border-left-color: var(--success); opacity: 0.7; } /* Verde e meio transparente */
+
+.bol-header { display: flex; justify-content: space-between; margin-bottom: 10px; }
+.bol-valor { font-size: 1.3rem; font-weight: 800; color: var(--text-main); }
+.bol-data { font-size: 0.8rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; }
+
+/* Etiquetas de Data Coloridas */
+.badge-red { background: #e74c3c; color: white; }
+.badge-yellow { background: #f1c40f; color: black; }
+.badge-blue { background: #3498db; color: white; }
+.badge-green { background: #27ae60; color: white; }
+
+/* Botões de Ação */
+.btn-pagar { width: 100%; margin-top: 10px; padding: 8px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+.btn-pagar.pendente { background: var(--success); color: white; }
+.btn-pagar.desfazer { background: #95a5a6; color: white; }
+.btn-pagar:hover { opacity: 0.9; }
+
+/* --- MODAL DE DETALHES DO CÁLCULO --- */
+#modalDetalhes {
+    display: none;
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.6); z-index: 12000;
+    justify-content: center; align-items: center;
+}
+.detalhes-content {
+    background: white; width: 400px; padding: 25px;
+    border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    position: relative; animation: popIn 0.3s;
+}
+.detalhes-linha {
+    display: flex; justify-content: space-between;
+    padding: 8px 0; border-bottom: 1px dashed #eee;
+    font-size: 0.95rem;
+}
+.detalhes-total {
+    display: flex; justify-content: space-between;
+    padding: 15px 0 0 0; margin-top: 10px; border-top: 2px solid #333;
+    font-weight: 800; font-size: 1.2rem;
+}
+.btn-info-calc {
+    background: rgba(255,255,255,0.3); border: 1px solid rgba(0,0,0,0.1);
+    color: inherit; cursor: pointer; border-radius: 50%;
+    width: 24px; height: 24px; font-size: 0.8rem; margin-left: 10px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: bold;
+}
+.btn-info-calc:hover { background: rgba(255,255,255,0.6); transform: scale(1.1); }
+@keyframes popIn { from {opacity: 0; transform: scale(0.9);} to {opacity: 1; transform: scale(1);} }
+

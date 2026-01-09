@@ -810,7 +810,25 @@ window.getTotalComissoesMes = function(idFunc, dataRefStr) {
         return acc;
     }, 0);
 }
-
+// --- NOVA FUNÇÃO: SOMA ENTREGAS DO MÊS ---
+window.getTotalMotoboyMes = function(idFunc, dataRefStr) {
+    const parts = dataRefStr.split('-'); 
+    const anoRef = parseInt(parts[0]); 
+    const mesRef = parseInt(parts[1]) - 1; // Javascript conta meses de 0 a 11
+    
+    // Filtra a lista de entregas (db.entregas)
+    return window.db.entregas.reduce((acc, entrega) => {
+        const eParts = entrega.data.split('-'); 
+        const eAno = parseInt(eParts[0]); 
+        const eMes = parseInt(eParts[1]) - 1;
+        
+        // Verifica se é o Motoboy certo e o Mês certo
+        if (entrega.idFunc == idFunc && eAno === anoRef && eMes === mesRef) {
+            return acc + (entrega.valorTotal || 0);
+        }
+        return acc;
+    }, 0);
+}
 // 3. Calcula Ganhos do Mês (Sem olhar passado)
 window.calcularGanhosNoMes = function(idFunc, dataRefStr) {
     const func = window.db.funcionarios.find(f => f.id == idFunc); 
@@ -819,10 +837,10 @@ window.calcularGanhosNoMes = function(idFunc, dataRefStr) {
     let totalGanhos = 0; 
     const [anoRef, mesRef] = dataRefStr.split('-'); 
     
-    // Salário Base (Teto)
+    // 1. Salário Base (Se não for Diarista puro)
     if (func.tipo !== 'Diaria') totalGanhos = window.calcularTetoLiberado(func, dataRefStr);
     
-    // Presenças (Passagens ou Diárias)
+    // 2. Presenças (Passagens ou Diárias comuns)
     Object.keys(window.db.presencas).forEach(diaStr => {
         if(diaStr.startsWith(`${anoRef}-${mesRef}`)) { 
             const listaDia = window.db.presencas[diaStr]; 
@@ -831,6 +849,7 @@ window.calcularGanhosNoMes = function(idFunc, dataRefStr) {
                 if (func.tipo !== 'Diaria') { 
                     if(registro.status === 'Presente' || registro.status === 'Atrasado') totalGanhos += (func.passagem || 0); 
                 } else { 
+                    // Se for diarista comum (não motoboy de entrega), soma a diária fixa
                     if(registro.status === 'Presente') totalGanhos += func.salario; 
                     else if(registro.status === 'Atrasado') totalGanhos += (func.salario / 2); 
                 }
@@ -838,8 +857,13 @@ window.calcularGanhosNoMes = function(idFunc, dataRefStr) {
         }
     });
     
+    // 3. Comissões (Vendas)
     const totalComissoes = window.getTotalComissoesMes(idFunc, dataRefStr);
-    return totalGanhos + totalComissoes;
+
+    // 4. ENTREGAS MOTOBOY (NOVO!)
+    const totalEntregas = window.getTotalMotoboyMes(idFunc, dataRefStr);
+
+    return totalGanhos + totalComissoes + totalEntregas;
 }
 
 // 4. Calcula Pagamentos Feitos no Mês
@@ -855,7 +879,7 @@ window.getTotalPagoNoMes = function(idFunc, dataReferencia) {
 }
 
 // 5. Atualiza a Tela de Pagamentos (Caixa Verde Original)
- window.atualizarPainelPagamentos = function() {
+window.atualizarPainelPagamentos = function() {
     const idFunc = document.getElementById('selectFuncionarioPagamento').value;
     const dataStr = document.getElementById('dataPagamento').value; 
     const divAviso = document.getElementById('avisoSaldo');
@@ -894,10 +918,10 @@ window.getTotalPagoNoMes = function(idFunc, dataReferencia) {
     
     if (!dataStr) return;
     
-    // --- PREPARAÇÃO DOS DADOS PARA O DETALHAMENTO ---
+    // --- CÁLCULOS DETALHADOS ---
     const salarioBaseLiberado = window.calcularTetoLiberado(func, dataStr);
     
-    // Calcula Passagens (conta quantos dias "Presente" ou "Atrasado")
+    // Passagens
     let totalPassagens = 0;
     let diasTrabalhados = 0;
     Object.keys(window.db.presencas).forEach(diaStr => {
@@ -910,15 +934,17 @@ window.getTotalPagoNoMes = function(idFunc, dataReferencia) {
     });
 
     const totalComissoes = window.getTotalComissoesMes(idFunc, dataStr); 
-    const ganhosTotal = salarioBaseLiberado + totalPassagens + totalComissoes;
+    const totalEntregas = window.getTotalMotoboyMes(idFunc, dataStr); // <--- AQUI ESTÁ O NOVO VALOR
+    
+    // Soma tudo
+    const ganhosTotal = salarioBaseLiberado + totalPassagens + totalComissoes + totalEntregas;
     const totalJaRecebido = totalPagoSalario + totalVales; 
     const restante = ganhosTotal - totalJaRecebido;
     
     let extraInfo = func.pix ? `<br><small>🔑 Pix: ${func.pix}</small>` : '';
 
-    // --- CRIAÇÃO DO BOTÃO [?] ---
-    // Passamos todos os valores calculados para a função que abre o modal
-    const btnDetalhes = `<button class="btn-info" onclick="abrirDetalhesFinanceiros('${func.nome}', ${salarioBaseLiberado}, ${totalPassagens}, ${diasTrabalhados}, ${totalComissoes}, ${totalJaRecebido}, ${restante})" title="Ver Detalhes">?</button>`;
+    // Passamos o 'totalEntregas' para a função do Modal
+    const btnDetalhes = `<button class="btn-info" onclick="abrirDetalhesFinanceiros('${func.nome}', ${salarioBaseLiberado}, ${totalPassagens}, ${diasTrabalhados}, ${totalComissoes}, ${totalEntregas}, ${totalJaRecebido}, ${restante})" title="Ver Detalhes">?</button>`;
     
     divAviso.style.display = 'block';
     let corFundo, corTexto, corBorda, icone;
@@ -945,30 +971,36 @@ window.getTotalPagoNoMes = function(idFunc, dataReferencia) {
 }
 
 // FUNÇÃO PARA ABRIR O MODAL
-window.abrirDetalhesFinanceiros = function(nome, base, passagens, dias, extras, recebido, saldo) {
+// ATENÇÃO: Adicionei o parâmetro 'entregas' na função
+window.abrirDetalhesFinanceiros = function(nome, base, passagens, dias, extras, entregas, recebido, saldo) {
     const el = document.getElementById('corpoDetalhes');
     const corSaldo = saldo >= 0 ? 'var(--success)' : 'var(--danger)';
     
+    // Verifica se tem valor para mostrar, senão esconde a linha para não poluir
+    const htmlEntregas = entregas > 0 
+        ? `<div class="detalhes-linha"><span>🏍️ Entregas (Motoboy)</span><span class="detalhes-destaque">+ ${fmtMoeda(entregas)}</span></div>` 
+        : '';
+        
+    const htmlExtras = extras > 0
+        ? `<div class="detalhes-linha"><span>⭐ Comissões / Extras</span><span class="detalhes-destaque">+ ${fmtMoeda(extras)}</span></div>`
+        : '';
+
+    const htmlPassagem = passagens > 0
+        ? `<div class="detalhes-linha"><span>🚌 Passagem (${dias} dias)</span><span class="detalhes-destaque">+ ${fmtMoeda(passagens)}</span></div>`
+        : '';
+
+    const htmlSalario = base > 0
+        ? `<div class="detalhes-linha"><span>📅 Salário Base</span><span class="detalhes-destaque">${fmtMoeda(base)}</span></div>`
+        : '';
+
     el.innerHTML = `
         <div style="text-align:center; font-weight:bold; color:#7f8c8d; margin-bottom:15px;">${nome}</div>
         
-        <div class="detalhes-linha">
-            <span>📅 Salário Base (Liberado até hoje)</span>
-            <span class="detalhes-destaque">${fmtMoeda(base)}</span>
-        </div>
-        
-        <div class="detalhes-linha">
-            <span>🚌 Passagem (${dias} dias)</span>
-            <span class="detalhes-destaque">+ ${fmtMoeda(passagens)}</span>
-        </div>
-        
-        <div class="detalhes-linha">
-            <span>⭐ Comissões / Extras</span>
-            <span class="detalhes-destaque">+ ${fmtMoeda(extras)}</span>
-        </div>
-        
-        <div class="detalhes-linha" style="color:#c0392b;">
-            <span>💸 Adiantamentos / Vales</span>
+        ${htmlSalario}
+        ${htmlPassagem}
+        ${htmlExtras}
+        ${htmlEntregas} <div class="detalhes-linha" style="color:#c0392b;">
+            <span>💸 Já Recebeu (Vales)</span>
             <strong>- ${fmtMoeda(recebido)}</strong>
         </div>
         
@@ -977,50 +1009,10 @@ window.abrirDetalhesFinanceiros = function(nome, base, passagens, dias, extras, 
             <span>${fmtMoeda(saldo)}</span>
         </div>
         <p style="font-size:0.75rem; color:#aaa; text-align:center; margin-top:10px;">
-            * Para Semanal, o salário libera a cada Segunda-feira.
+            * Valores referentes ao mês selecionado.
         </p>
     `;
     
-    document.getElementById('modalDetalhes').style.display = 'flex';
-}
-
-// NOVA FUNÇÃO PARA ABRIR O MODAL
-window.abrirDetalhesFinanceiros = function(nome, base, passagens, dias, extras, recebido, saldo) {
-    const corpo = document.getElementById('corpoDetalhes');
-    
-    let html = `
-        <div style="text-align:center; font-weight:bold; margin-bottom:15px; color:#555;">${nome}</div>
-        
-        <div class="detalhes-linha">
-            <span>💼 Salário Base Liberado</span>
-            <span>+ ${fmtMoeda(base)}</span>
-        </div>
-        
-        <div class="detalhes-linha">
-            <span>🚌 Vale Transporte (${dias} dias)</span>
-            <span>+ ${fmtMoeda(passagens)}</span>
-        </div>
-        
-        <div class="detalhes-linha">
-            <span>⭐ Extras / Comissões</span>
-            <span>+ ${fmtMoeda(extras)}</span>
-        </div>
-        
-        <div class="detalhes-linha" style="color:var(--danger); font-weight:bold;">
-            <span>💸 Já Recebeu (Vales/Salário)</span>
-            <span>- ${fmtMoeda(recebido)}</span>
-        </div>
-        
-        <div class="detalhes-total" style="color:${saldo >= 0 ? 'var(--success)' : 'var(--danger)'}">
-            <span>SALDO FINAL</span>
-            <span>${fmtMoeda(saldo)}</span>
-        </div>
-        <p style="font-size:0.8rem; color:#888; margin-top:10px; text-align:center;">
-            * O Salário Base Semanal atualiza a cada Segunda-feira.
-        </p>
-    `;
-    
-    corpo.innerHTML = html;
     document.getElementById('modalDetalhes').style.display = 'flex';
 }
 

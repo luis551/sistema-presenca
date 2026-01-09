@@ -558,19 +558,55 @@ window.salvarPresencaDia = function() {
     if(window.salvarNuvem) window.salvarNuvem(); 
     alert(`Lista salva!`);
 }
+// --- NOVA FUNÇÃO: MOSTRAR O CÁLCULO ENQUANTO DIGITA ---
+window.atualizarPreviewComissao = function() {
+    const vendas = parseFloat(document.getElementById('valorVendasInput').value) || 0;
+    const comissao = vendas * 0.07; // Calcula 7%
+    
+    document.getElementById('previewComissaoValor').innerText = comissao.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+}
+
+// --- ATUALIZADA: LANÇAR COMISSÃO BASEADA EM VENDAS ---
 window.lancarComissao = function() {
     if(!checkPerm('fin')) return; 
 
     const idFunc = document.getElementById('selVendedorExtra').value;
     const data = document.getElementById('dataComissao').value;
-    const valor = parseFloat(document.getElementById('valorComissao').value);
-    if(!idFunc || !data || isNaN(valor)) return alert("Preencha todos os campos!");
+    
+    // Pega o valor das VENDAS
+    const valorVendas = parseFloat(document.getElementById('valorVendasInput').value);
+    
+    if(!idFunc || !data || isNaN(valorVendas)) return alert("Preencha o Vendedor, Data e Valor das Vendas!");
+    
+    // O SISTEMA CALCULA OS 7% AQUI
+    const valorComissao = valorVendas * 0.07;
+
     const func = window.db.funcionarios.find(f => f.id == idFunc);
-    window.db.extras.push({ id: Date.now(), tipo: 'Comissao', categoria: 'Vendas', idFunc: String(idFunc), beneficiario: func.nome, valor: valor, data: data, obs: 'Comissão 7%' });
-    registrarLog('Financeiro', `Lançou comissão ${fmtMoeda(valor)} para ${func.nome}`);
+    
+    // Salva no banco.
+    // DICA: No campo 'obs', guardamos quanto ele vendeu para consulta futura.
+    // O campo 'valor' guarda a comissão (o que ele vai receber).
+    window.db.extras.push({ 
+        id: Date.now(), 
+        tipo: 'Comissao', 
+        categoria: 'Vendas', 
+        idFunc: String(idFunc), 
+        beneficiario: func.nome, 
+        valor: valorComissao, // Salva os R$ 70,00
+        data: data, 
+        obs: `7% sobre ${fmtMoeda(valorVendas)}` // Salva "7% sobre R$ 1.000,00"
+    });
+
+    registrarLog('Financeiro', `Lançou comissão de ${fmtMoeda(valorComissao)} (Vendas: ${fmtMoeda(valorVendas)}) para ${func.nome}`);
+    
     if(window.salvarNuvem) window.salvarNuvem();
-    alert("Comissão lançada!");
-    document.getElementById('valorComissao').value = '';
+    
+    alert(`Comissão de ${fmtMoeda(valorComissao)} lançada com sucesso!`);
+    
+    // Limpa os campos
+    document.getElementById('valorVendasInput').value = '';
+    document.getElementById('previewComissaoValor').innerText = 'R$ 0,00';
+    
     window.renderizarExtras();
 }
 window.lancarDespesa = function() {
@@ -1403,29 +1439,30 @@ window.renderizarBoletos = function() {
 }
 
 window.toggleStatusBoleto = function(id) {
-    if(!checkPerm('boletos')) return;
+    if(!checkPerm('boletos')) return; // Verifica permissão
+    
     const b = window.db.boletos.find(x => x.id === id);
+    
     if(b) {
         if(b.status === 'PENDENTE') {
+            // MARCA COMO PAGO
             b.status = 'PAGO';
             b.dataPagamento = new Date().toISOString();
             registrarLog('Boletos', `Pagou conta: ${b.desc}`);
             
-            // Pergunta se quer lançar nas despesas também
-            if(confirm("Deseja lançar esse valor também nas Despesas/Extras para abater do caixa da loja?")) {
-                window.db.extras.push({ id: Date.now(), tipo: 'Despesa', categoria: 'Contas', idFunc: 'BOLETOS', beneficiario: b.desc, valor: b.valor, data: new Date().toISOString().split('T')[0], obs: 'Pagamento de Boleto' });
-            }
+            // --- REMOVI AQUI A PARTE QUE PERGUNTA SOBRE LANÇAR EM EXTRAS ---
+            
         } else {
+            // REABRE A CONTA (VOLTA PARA PENDENTE)
             b.status = 'PENDENTE';
             b.dataPagamento = null;
             registrarLog('Boletos', `Reabriu conta: ${b.desc}`);
         }
+        
         if(window.salvarNuvem) window.salvarNuvem();
         window.renderizarBoletos();
-        window.atualizarSecaoEspecifica('extras'); 
     }
 }
-
 window.removerBoleto = function(id) {
     if(!checkPerm('boletos')) return;
     if(confirm("Tem certeza que deseja apagar essa conta?")) {
@@ -1439,77 +1476,118 @@ window.removerBoleto = function(id) {
 // ============================================================
 
 window.atualizarPrevisao = function() {
-    // 1. PEGAR A DATA (Sem erro se estiver vazia)
-    const elData = document.getElementById('dataInicioCiclo');
-    // Se o usuário não escolheu data, usa HOJE como referência
-    let dataRef = elData && elData.value ? elData.value : new Date().toISOString().split('T')[0];
-
-    // 2. PREPARAR A TELA
-    const gridCurto = document.getElementById('gridPrevisaoCurto');
-    const gridLongo = document.getElementById('gridPrevisaoLongo');
-    const totalEl = document.getElementById('totalDividaGeral');
+    const listUrgent = document.getElementById('listUrgent');
+    const listWeekly = document.getElementById('listWeekly');
+    const listMonthly = document.getElementById('listMonthly');
+    const inputData = document.getElementById('dataPrevisaoBase');
     
-    // Proteção: Se a tela ainda não carregou, não faz nada
-    if(!gridCurto || !gridLongo) return;
-
-    gridCurto.innerHTML = ''; 
-    gridLongo.innerHTML = '';
-    let dividaTotal = 0;
-
-    // 3. FILTRO DE FUNCIONÁRIO (Opcional)
-    const elFiltro = document.getElementById('filtroPrevisao');
-    const filtroId = elFiltro ? elFiltro.value : "";
+    // Se não tiver data selecionada, usa HOJE
+    if (!inputData.value) {
+        inputData.value = new Date().toISOString().split('T')[0];
+    }
     
-    let funcs = [...window.db.funcionarios];
-    if (filtroId) funcs = funcs.filter(f => f.id == filtroId);
+    const dataRefStr = inputData.value; 
+    
+    // Limpa as colunas
+    listUrgent.innerHTML = ''; listWeekly.innerHTML = ''; listMonthly.innerHTML = '';
+    
+    let totalUrgent = 0;
+    let totalWeekly = 0;
+    let totalMonthly = 0;
 
-    // 4. CALCULAR (Usando a MESMA lógica do Pagamento)
-    funcs.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(f => {
+    // 1. PROCESSAR FUNCIONÁRIOS
+    window.db.funcionarios.forEach(f => {
         
-        // AQUI ESTÁ O SEGREDO: Usamos as funções do Módulo de Pagamento
-        // Assim o valor da Previsão vai bater EXATAMENTE com o valor do Pagamento
-        const ganhos = window.calcularGanhosNoMes(f.id, dataRef);
-        const pagos = window.getTotalPagoNoMes(f.id, dataRef);
+        // Calcula quanto ele DEVERIA ter recebido até a data selecionada
+        const totalGanhos = window.calcularGanhosNoMes(f.id, dataRefStr);
+        // Calcula quanto JÁ FOI PAGO
+        const totalPago = window.getTotalPagoNoMes(f.id, dataRefStr);
         
-        // Saldo é o que deveria ter ganho menos o que já recebeu
-        const saldo = ganhos - pagos;
+        const saldoDevedor = totalGanhos - totalPago;
 
-        // Só mostra se tiver saldo positivo (maior que 1 centavo)
-        if (saldo > 0.01) { 
-            dividaTotal += saldo;
-            
-            // Separa visualmente: Giro Rápido vs Acumulado
-            const isCurto = (f.tipo === 'Diaria' || f.tipo === 'Semanal');
-            const targetGrid = isCurto ? gridCurto : gridLongo;
-            const cardClass = isCurto ? 'prev-card prev-urgent' : 'prev-card prev-normal';
-            
-            const html = `
-            <div class="${cardClass}">
-                <div class="prev-info">
-                    <h4>${f.nome} <span class="prev-status">${f.tipo}</span></h4>
-                    <span>🏢 ${f.empresa || '-'}</span>
-                    <div class="prev-details">
-                        <span class="prev-base">💼 Ganho Mês: ${fmtMoeda(ganhos)}</span>
-                        <span class="prev-pago">🟢 Já Pago: -${fmtMoeda(pagos)}</span>
-                    </div>
-                </div>
-                <div class="prev-value">${fmtMoeda(saldo)}</div>
-            </div>`;
-            
-            targetGrid.innerHTML += html;
+        // Só mostra se tiver dívida (saldo > 0)
+        if (saldoDevedor > 0.1) {
+
+            // --- GRUPO 1: GIRO RÁPIDO (Diaristas / Motoboys) ---
+            // Coluna Vermelha
+            if (f.tipo === 'Diaria') {
+                totalUrgent += saldoDevedor;
+                listUrgent.innerHTML += `
+                    <div class="mini-card" style="border-left-color: var(--danger)">
+                        <div><strong>${f.nome}</strong><small>Saldo Real (Diárias)</small></div>
+                        <div class="mini-val">${fmtMoeda(saldoDevedor)}</div>
+                    </div>`;
+            }
+
+            // --- GRUPO 2: MÉDIO PRAZO (Semanais e QUINZENAIS) ---
+            // Coluna Azul (Agora inclui o Quinzenal!)
+            else if (f.tipo === 'Semanal' || f.tipo === 'Quinzenal') {
+                totalWeekly += saldoDevedor;
+                
+                // Define se a etiqueta é Semanal ou Quinzenal para ficar bonito
+                const tipoLabel = f.tipo === 'Quinzenal' ? 'Reserva Quinzenal' : 'Reserva Semanal';
+                
+                listWeekly.innerHTML += `
+                    <div class="mini-card" style="border-left-color: var(--accent)">
+                        <div><strong>${f.nome}</strong><small>${tipoLabel}</small></div>
+                        <div class="mini-val">${fmtMoeda(saldoDevedor)}</div>
+                    </div>`;
+            }
+
+            // --- GRUPO 3: LONGO PRAZO (Apenas Mensalistas) ---
+            // Coluna Verde
+            else {
+                totalMonthly += saldoDevedor;
+                listMonthly.innerHTML += `
+                    <div class="mini-card" style="border-left-color: var(--success)">
+                        <div><strong>${f.nome}</strong><small>Restante Mês</small></div>
+                        <div class="mini-val">${fmtMoeda(saldoDevedor)}</div>
+                    </div>`;
+            }
         }
     });
 
-    // 5. ATUALIZAR TOTAIS
-    if(totalEl) totalEl.innerText = fmtMoeda(dividaTotal);
+    // 2. ADICIONAR BOLETOS / CONTAS
+    if(window.db.boletos) {
+        const dataReferencia = new Date(dataRefStr + 'T12:00:00');
+        
+        window.db.boletos.forEach(b => {
+            if(b.status !== 'PAGO') {
+                const dataVenc = new Date(b.vencimento + 'T12:00:00');
+                const diffDias = Math.ceil((dataVenc - dataReferencia) / (1000 * 60 * 60 * 24));
+                
+                // Vence Hoje/Ontem -> Vermelho
+                if (diffDias <= 1) { 
+                    totalUrgent += b.valor;
+                    listUrgent.innerHTML += `
+                        <div class="mini-card" style="border-left-color: #e74c3c; background:#fff5f5;">
+                            <div><strong>${b.desc}</strong><small>Vence: ${fmtDataSimples(b.vencimento)}</small></div>
+                            <div class="mini-val">${fmtMoeda(b.valor)}</div>
+                        </div>`;
+                } 
+                // Vence na próxima semana -> Azul
+                else if (diffDias <= 7) { 
+                    totalWeekly += b.valor;
+                     listWeekly.innerHTML += `
+                        <div class="mini-card" style="border-left-color: #f39c12;">
+                            <div><strong>${b.desc}</strong><small>Vence: ${fmtDataSimples(b.vencimento)}</small></div>
+                            <div class="mini-val">${fmtMoeda(b.valor)}</div>
+                        </div>`;
+                }
+            }
+        });
+    }
+
+    // 3. ATUALIZAR TOTAIS
+    document.getElementById('sumUrgent').innerText = fmtMoeda(totalUrgent);
+    document.getElementById('sumWeekly').innerText = fmtMoeda(totalWeekly);
+    document.getElementById('sumMonthly').innerText = fmtMoeda(totalMonthly);
     
-    // Mensagens de vazio
-    if(gridCurto.innerHTML === '') gridCurto.innerHTML = '<p style="color:#aaa; font-style:italic; padding:10px;">Nada pendente no Giro Rápido.</p>';
-    if(gridLongo.innerHTML === '') gridLongo.innerHTML = '<p style="color:#aaa; font-style:italic; padding:10px;">Nada pendente no Acumulado.</p>';
+    document.getElementById('prevTotalGeral').innerText = fmtMoeda(totalUrgent + totalWeekly + totalMonthly);
+    document.getElementById('prevTotalSemana').innerText = fmtMoeda(totalUrgent + totalWeekly);
     
-    // Garante que os títulos aparecem
-    const hCurto = document.getElementById('headCurto');
-    const hLongo = document.getElementById('headLongo');
-    if(hCurto) hCurto.style.display = 'block';
-    if(hLongo) hLongo.style.display = 'block';
+    // Mensagens de Vazio
+    if(listUrgent.innerHTML === '') listUrgent.innerHTML = '<div style="text-align:center; color:#aaa; padding:20px;">Nada urgente.</div>';
+    if(listWeekly.innerHTML === '') listWeekly.innerHTML = '<div style="text-align:center; color:#aaa; padding:20px;">Sem pagamentos próximos.</div>';
+    if(listMonthly.innerHTML === '') listMonthly.innerHTML = '<div style="text-align:center; color:#aaa; padding:20px;">Tudo em dia.</div>';
 }

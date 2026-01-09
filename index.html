@@ -118,8 +118,8 @@
         <button class="menu-btn" onclick="showSection('extras', this)">💸 Extras & Despesas</button>
         <button class="menu-btn" onclick="showSection('pagamentos', this)">💰 Pagamentos</button>
         
-        <button class="menu-btn" id="btnMenuBoletos" onclick="showSection('boletos', this)" style="display:none;">🧾 Contas & Boletos</button>
-        
+<button class="menu-btn" id="btnMenuBoletos" onclick="showSection('boletos', this)">🧾 Contas & Boletos</button>
+
         <button class="menu-btn" onclick="showSection('previsao', this)">🔮 Previsão</button>
 
         <div class="menu-category">Sistema</div>
@@ -230,28 +230,122 @@
         </div>
 
         <div id="extras" class="section">
-            <h1>Extras e Despesas</h1>
-            <div class="form-group" style="margin-bottom:20px;"><label>Filtrar Histórico:</label><select id="filtroExtras" onchange="renderizarExtras()"><option value="">Todos (Geral)</option><option value="DESPESAS">🔸 Despesas / Eventos</option></select></div>
-            <div class="extra-split">
-                <div class="card" style="border-top: 4px solid var(--purple);">
-                    <h3 style="margin-top:0; color:var(--purple);">🟣 Comissão de Venda (7%)</h3>
-                    <div class="form-group"><label>Vendedor</label><select id="selVendedorExtra"><option value="">Selecione...</option></select></div>
-                    <div class="form-group" style="margin-top:10px;"><label>Data</label><input type="date" id="dataComissao"></div>
-                    <div class="form-group" style="margin-top:10px;"><label>Valor da Comissão (R$)</label><input type="number" id="valorComissao" placeholder="0.00"></div>
-                    <button class="action-btn" style="width:100%; margin-top:15px; background:var(--purple);" onclick="lancarComissao()">Lançar Comissão</button>
-                </div>
-                <div class="card" style="border-top: 4px solid var(--orange);">
-                    <h3 style="margin-top:0; color:var(--orange);">🟠 Despesas / Eventos</h3>
-                    <div class="form-group"><label>Tipo de Despesa</label><select id="tipoDespesa"><option value="DJ">🎧 DJ</option><option value="Musico">🎸 Músico</option><option value="Operador de Som">🔊 Operador de Som</option><option value="Seguranca">👮 Segurança</option><option value="Outros">📦 Outros</option></select></div>
-                    <div class="form-group" style="margin-top:10px;"><label>Data</label><input type="date" id="dataDespesa"></div>
-                    <div class="form-group" style="margin-top:10px;"><label>Valor (R$)</label><input type="number" id="valorDespesa" placeholder="0.00"></div>
-                    <div class="form-group" style="margin-top:10px;"><label>Obs (Opcional)</label><input type="text" id="obsDespesa"></div>
-                    <button class="action-btn" style="width:100%; margin-top:15px; background:var(--orange);" onclick="lancarDespesa()">Lançar Despesa</button>
-                </div>
+    <h1>Extras e Despesas</h1>
+    
+    <div class="form-group" style="margin-bottom:20px;">
+        <label>Filtrar Histórico:</label>
+        <select id="filtroExtras" onchange="renderizarExtras()">
+            <option value="">Todos (Geral)</option>
+            <option value="DESPESAS">🔸 Despesas / Eventos</option>
+        </select>
+    </div>
+
+    <div class="extra-split">
+        <div class="card" style="border-top: 4px solid var(--purple);">
+            <h3 style="margin-top:0; color:var(--purple);">🟣 Lançar Vendas (Gera 7%)</h3>
+            <div class="form-group">
+                <label>Vendedor</label>
+                <select id="selVendedorExtra"><option value="">Selecione...</option></select>
             </div>
-            <h3 style="color:var(--text-sub);">Histórico de Extras</h3>
-            <div id="gridExtras" class="grid-container"></div>
+            <div class="form-group" style="margin-top:10px;">
+                <label>Data</label>
+                <input type="date" id="dataComissao">
+            </div>
+            <div class="form-group" style="margin-top:10px;">
+                <label>Valor Total das Vendas (R$)</label>
+                <input type="number" id="valorVendasInput" placeholder="Ex: 1000.00" oninput="atualizarPreviewComissao()">
+            </div>
+            <div style="margin-top: 10px; background: #f3e5f5; padding: 10px; border-radius: 5px; color: var(--purple); font-weight: bold; display: flex; justify-content: space-between;">
+                <span>Comissão (7%):</span>
+                <span id="previewComissaoValor">R$ 0,00</span>
+            </div>
+            <button class="action-btn" style="width:100%; margin-top:15px; background:var(--purple);" onclick="lancarComissao()">Lançar Comissão</button>
         </div>
+
+        <div class="card" style="border-top: 4px solid var(--orange);">
+            <h3 style="margin-top:0; color:var(--orange);">🟠 Despesas / Eventos</h3>
+            <div class="form-group">
+                <label>Tipo de Despesa</label>
+                <select id="tipoDespesa">
+                    <option value="DJ">🎧 DJ</option>
+                    <option value="Limpeza">🧹 Limpeza / Faxina</option>
+                    <option value="Manutenção">🛠️ Manutenção</option>
+                    <option value="Compras">🛒 Compras Loja</option>
+                    <option value="Outros">📦 Outros</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-top:10px;">
+                <label>Data</label>
+                <input type="date" id="dataDespesa">
+            </div>
+            <div class="form-group" style="margin-top:10px;">
+                <label>Valor (R$)</label>
+                <input type="number" id="valorDespesa" placeholder="0.00">
+            </div>
+            <div class="form-group" style="margin-top:10px;">
+                <label>Obs (Opcional)</label>
+                <input type="text" id="obsDespesa">
+            </div>
+            <button class="action-btn" style="width:100%; margin-top:15px; background:var(--orange);" onclick="lancarDespesa()">Lançar Despesa</button>
+        </div>
+    </div> 
+
+    <h3>Histórico de Extras</h3>
+    <div id="gridExtras" class="grid-container"></div>
+</div>
+
+<div id="boletos" class="section">
+    <h1>Gestão de Contas a Pagar 🧾</h1>
+    
+    <div class="dash-grid">
+        <div class="dash-card">
+            <div class="dash-title">🔴 Vencidos (Urgente)</div>
+            <div class="dash-number dash-red" id="bolTotalVencido">R$ 0,00</div>
+        </div>
+        <div class="dash-card">
+            <div class="dash-title">🟡 A Pagar (Aberto)</div>
+            <div class="dash-number" style="color:var(--warning)" id="bolTotalAberto">R$ 0,00</div>
+        </div>
+        <div class="dash-card">
+            <div class="dash-title">🟢 Total Pago</div>
+            <div class="dash-number dash-green" id="bolTotalPago">R$ 0,00</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Novo Boleto / Conta</h3>
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Descrição / Fornecedor</label>
+                <input type="text" id="bolDesc" placeholder="Ex: Conta de Luz, Aluguel...">
+            </div>
+            <div class="form-group">
+                <label>Valor (R$)</label>
+                <input type="number" id="bolValor" placeholder="0.00">
+            </div>
+            <div class="form-group">
+                <label>Data de Vencimento</label>
+                <input type="date" id="bolData">
+            </div>
+            <div class="form-group">
+                <label>Código de Barras (Opcional)</label>
+                <input type="text" id="bolCodigo">
+            </div>
+        </div>
+        <button class="action-btn" onclick="lancarBoleto()" style="width:100%; margin-top:15px; background:var(--primary);">Registrar Conta</button>
+    </div>
+
+    <div style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0;">Minhas Contas</h3>
+        <select id="filtroBoletos" onchange="renderizarBoletos()" style="width:200px; padding:5px;">
+            <option value="TODOS">Ver Tudo</option>
+            <option value="PENDENTE">⏳ A Pagar / Vencidos</option>
+            <option value="PAGO">✅ Já Pagos</option>
+        </select>
+    </div>
+
+    <div id="gridBoletos" class="grid-container"></div>
+</div>
 
         <div id="pagamentos" class="section">
             <h1>Financeiro e Pagamentos</h1>
@@ -274,44 +368,44 @@
             </div>
             <div id="gridPagamentos" class="grid-container"></div>
         </div>
+        
 
-        <div id="previsao" class="section">
-            <h1>Previsão de Pagamento 🔮</h1>
-            <div style="background: var(--bg-card); padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 5px solid var(--accent); display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
-                
-                <div class="form-group" style="flex: 1; min-width: 200px;">
-                    <label style="color: var(--accent); font-weight: bold;">📅 Calcular valores a partir de:</label>
-                    <div style="display: flex; gap: 5px;">
-                        <input type="date" id="dataInicioCiclo" onchange="atualizarPrevisao()" style="font-weight: bold; color: var(--text-main);">
-                        <button onclick="definirInicioSemana()" style="background: var(--secondary); color: white; border: none; padding: 0 15px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;" title="Definir para última Segunda-feira">⏮️ Esta Semana</button>
-                    </div>
-                </div>
-
-                <div class="form-group" style="flex: 1; min-width: 200px;">
-                    <label>Filtrar Equipe:</label>
-                    <select id="filtroPrevisao" onchange="atualizarPrevisao()"><option value="">Todos da Equipe</option></select>
-                </div>
-
-                <div style="text-align: right; min-width: 150px;">
-                    <span style="font-size: 0.8rem; color: var(--text-sub); display: block;">Total Pendente no Período</span>
-                    <span id="totalDividaGeral" style="font-size: 1.8rem; font-weight: 800; color: var(--danger);">R$ 0,00</span>
-                </div>
-            </div>
-
-            <div class="grid-container" id="gridPrevisao"></div>
-            
-            <div class="card" style="text-align: center; border-left: 5px solid var(--danger);">
-                <h3 style="margin:0; color:var(--text-sub); font-size:0.9rem; text-transform:uppercase;">Dívida Total (Salários + Extras - Pagos)</h3>
-                <h1 id="totalDividaGeral" style="font-size: 3rem; color: var(--danger); margin: 10px 0;">R$ 0,00</h1>
-            </div>
-            
-            <h3 id="headCurto" style="margin-top:30px; color:#e67e22;">🔥 Giro Rápido (Semanal, Diaristas e Motoboys)</h3>
-            <div class="grid-container" id="gridPrevisaoCurto"></div>
-            
-            <h3 id="headLongo" style="margin-top:30px; color:#2980b9;">📅 Acumulando (Mensal e Quinzenal)</h3>
-            <div class="grid-container" id="gridPrevisaoLongo"></div>
+<div id="previsao" class="section">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 3px solid var(--accent); margin-bottom: 20px;">
+        <h1 style="border:none; margin:0;">🔮 Cronograma Financeiro</h1>
+        <div style="text-align:right;">
+            <label style="font-size:0.8rem; color:var(--text-sub); display:block;">Data Base da Previsão:</label>
+            <input type="date" id="dataPrevisaoBase" onchange="window.atualizarPrevisao()" style="padding:5px; font-weight:bold;">
         </div>
+    </div>
 
+<div class="previsao-board">
+    
+    <div class="prev-column">
+        <div class="prev-header header-urgent">
+            🔥 Giro Diário / Pendente
+            <span id="sumUrgent" style="float:right">R$ 0,00</span>
+        </div>
+        <div id="listUrgent" class="prev-list"></div>
+    </div>
+
+    <div class="prev-column">
+        <div class="prev-header header-weekly">
+    📅 Semanal / Quinzenal
+    <span id="sumWeekly" style="float:right">R$ 0,00</span>
+</div>
+        <div id="listWeekly" class="prev-list"></div>
+    </div>
+
+    <div class="prev-column">
+        <div class="prev-header header-monthly">
+            📆 Fechamento Mês
+            <span id="sumMonthly" style="float:right">R$ 0,00</span>
+        </div>
+        <div id="listMonthly" class="prev-list"></div>
+    </div>
+
+</div>
         <div id="seguranca" class="section">
             <h1>🛡️ Log de Auditoria</h1>
             <div class="card">
@@ -331,47 +425,6 @@
                 </div>
             </div>
         </div>
-<div id="boletos" class="section">
-            <h1>Gestão de Contas a Pagar 🧾</h1>
-            
-            <div class="dash-grid">
-                <div class="dash-card">
-                    <div class="dash-title">🔴 Vencidos (Urgente)</div>
-                    <div class="dash-number dash-red" id="bolTotalVencido">R$ 0,00</div>
-                </div>
-                <div class="dash-card">
-                    <div class="dash-title">🟡 A Pagar (Aberto)</div>
-                    <div class="dash-number" style="color:var(--warning)" id="bolTotalAberto">R$ 0,00</div>
-                </div>
-                <div class="dash-card">
-                    <div class="dash-title">🟢 Total Pago</div>
-                    <div class="dash-number dash-green" id="bolTotalPago">R$ 0,00</div>
-                </div>
-            </div>
-
-            <div class="card">
-                <h3>Novo Boleto / Conta</h3>
-                <div class="form-grid">
-                    <div class="form-group"><label>Descrição / Fornecedor</label><input type="text" id="bolDesc" placeholder="Ex: Conta de Luz, Aluguel..."></div>
-                    <div class="form-group"><label>Valor (R$)</label><input type="number" id="bolValor" placeholder="0.00"></div>
-                    <div class="form-group"><label>Data de Vencimento</label><input type="date" id="bolData"></div>
-                    <div class="form-group"><label>Código de Barras (Opcional)</label><input type="text" id="bolCodigo"></div>
-                </div>
-                <button class="action-btn" onclick="lancarBoleto()" style="width:100%; margin-top:15px; background:var(--primary);">Registrar Conta</button>
-            </div>
-
-            <div style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center;">
-                <h3 style="margin:0;">Minhas Contas</h3>
-                <select id="filtroBoletos" onchange="renderizarBoletos()" style="width:200px; padding:5px;">
-                    <option value="TODOS">Ver Tudo</option>
-                    <option value="PENDENTE">⏳ A Pagar / Vencidos</option>
-                    <option value="PAGO">✅ Já Pagos</option>
-                </select>
-            </div>
-
-            <div id="gridBoletos" class="grid-container"></div>
-        </div>
-    </div>
     <script src="script.js"></script>
 
    <script type="module">
@@ -464,5 +517,6 @@
         <button onclick="document.getElementById('modalDetalhes').style.display='none'" style="width:100%; padding:10px; margin-top:20px; border:none; background:#ccc; cursor:pointer; border-radius:4px; font-weight:bold;">Fechar</button>
     </div>
 </div>
+
 </body>
 </html>

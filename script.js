@@ -72,7 +72,7 @@ window.calcularMotoPreview = function() {
     let valorPorEntrega = 0;
 
     if (turno === 'Noite') {
-        valorFixo = 50;
+        valorFixo = 60;
         valorPorEntrega = 5;
     } else {
         valorFixo = 0;

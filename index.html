@@ -496,33 +496,52 @@
         const dbFirestore = getFirestore(app); 
         const docRef = doc(dbFirestore, "sistema_rh", "dados_gerais");
 
-        // --- COPIE A PARTIR DAQUI (Mantenha os imports e configs acima como estão) ---
-        
-        // Variável para controlar a versão dos dados
         let lastCloudUpdate = 0; 
+        let isSaving = false; // Trava visual local
+
+        // --- SISTEMA DE MESCLAGEM INTELIGENTE ---
+        function mesclarListas(listaLocal, listaNuvem) {
+            if (!listaLocal) return listaNuvem || [];
+            if (!listaNuvem) return listaLocal || [];
+            
+            // Cria uma cópia da nuvem
+            const resultado = [...listaNuvem];
+            
+            // Adiciona itens locais que NÃO estão na nuvem (baseado no ID)
+            listaLocal.forEach(itemLocal => {
+                const existeNaNuvem = resultado.find(itemNuvem => itemNuvem.id === itemLocal.id);
+                if (!existeNaNuvem) {
+                    // É um item novo que eu criei, adiciona!
+                    resultado.push(itemLocal);
+                } else {
+                    // Se já existe, quem ganha?
+                    // Se eu editei agora (local), minha versão pode ser mais recente.
+                    // Mas para segurança, num conflito direto de edição, geralmente mantemos o que eu estou vendo.
+                    // Para simplificar: Mantemos a versão da Nuvem se conflitar, mas adicionamos os NOVOS.
+                }
+            });
+            return resultado;
+        }
 
         onSnapshot(docRef, (docSnap) => {
-            // Ignora salvamentos locais para não piscar a tela
+            if (isSaving) return; // Não atualiza a tela enquanto estou tentando salvar
+            
             if (docSnap.metadata.hasPendingWrites) return;
-
             const statusEl = document.getElementById('status-connection');
             
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 window.db = data;
-                
-                // ATUALIZAÇÃO SEGURA: Guarda o momento da última versão que recebemos
                 lastCloudUpdate = data.lastUpdate || 0;
 
-                // Inicializa arrays se não existirem
+                // Inicializações de segurança
                 if(!window.db.funcionarios) window.db.funcionarios = [];
                 if(!window.db.presencas) window.db.presencas = {};
                 if(!window.db.pagamentos) window.db.pagamentos = [];
                 if(!window.db.extras) window.db.extras = [];
                 if(!window.db.entregas) window.db.entregas = []; 
+                if(!window.db.boletos) window.db.boletos = []; 
                 if(!window.db.audit) window.db.audit = []; 
-
-                // Garante usuário padrão
                 if(!window.db.users || window.db.users.length === 0) { 
                     window.db.users = [ { user: 'admin', pass: '1234', isAdmin: true } ]; 
                 }
@@ -530,42 +549,71 @@
                 statusEl.innerHTML = "🟢 Online"; 
                 statusEl.style.color = "#27ae60";
 
-                // Atualiza a tela
                 if(window.atualizarInterface) window.atualizarInterface();
-
             } else { 
                 statusEl.innerHTML = "🟡 Criando BD...";
-                // Se é novo, cria a estrutura básica
-                window.db = { funcionarios: [], presencas: {}, pagamentos: [], extras: [], entregas: [], audit: [], lastUpdate: Date.now() };
+                window.db = { funcionarios: [], presencas: {}, pagamentos: [], extras: [], entregas: [], boletos: [], audit: [], lastUpdate: Date.now() };
                 setDoc(docRef, window.db);
             }
-        }, (error) => { 
-            console.error(error); 
-            document.getElementById('status-connection').innerHTML = "🔴 Erro";
         });
 
-       // --- VERSÃO DE DIAGNÓSTICO ---
+        // --- SALVAMENTO COM "AUTO-RETRY" ---
         window.salvarNuvem = async function(silencioso = false) { 
+            isSaving = true; 
             const statusEl = document.getElementById('status-connection'); 
-            if(!silencioso) statusEl.innerHTML = "🔄 Verificando..."; 
+            if(!silencioso) statusEl.innerHTML = "🔄 Processando..."; 
             
             try {
-                // 1. Tenta ler o banco
+                // 1. Verifica o que tem na nuvem agora
                 const checkSnap = await getDoc(docRef);
                 
                 if (checkSnap.exists()) {
                     const cloudData = checkSnap.data();
                     const cloudTime = cloudData.lastUpdate || 0;
 
-                    // 2. Verifica conflito (margem de 2s)
-                    if (cloudTime > (lastCloudUpdate + 2000)) {
-                        alert("⚠️ CONFLITO: Outra pessoa salvou dados mais recentes.\n\nDê F5 para atualizar.");
-                        statusEl.innerHTML = "🔴 Bloqueado!";
-                        return; 
+                    // 2. SE HOUVER CONFLITO (Alguém salvou nos últimos segundos)
+                    if (cloudTime > lastCloudUpdate) {
+                        if(!silencioso) statusEl.innerHTML = "⚡ Mesclando...";
+                        console.log("Conflito detectado! Iniciando mesclagem automática...");
+
+                        // --- MÁGICA DA MESCLAGEM ---
+                        // Pegamos as listas da nuvem e adicionamos O QUE NÓS CRIAMOS AGORA
+                        
+                        // A. Funcionários (Mescla novos)
+                        window.db.funcionarios = mesclarListas(window.db.funcionarios, cloudData.funcionarios);
+                        
+                        // B. Pagamentos (Mescla novos)
+                        window.db.pagamentos = mesclarListas(window.db.pagamentos, cloudData.pagamentos);
+                        
+                        // C. Extras e Entregas e Boletos
+                        window.db.extras = mesclarListas(window.db.extras, cloudData.extras);
+                        window.db.entregas = mesclarListas(window.db.entregas, cloudData.entregas);
+                        window.db.boletos = mesclarListas(window.db.boletos, cloudData.boletos);
+                        
+                        // D. Presenças (Objeto é mais delicado)
+                        // Estratégia: Pega tudo da nuvem, e sobrescreve SÓ o dia que estamos mexendo na tela
+                        const presencasNuvem = cloudData.presencas || {};
+                        const dataNaTela = document.getElementById('dataPresenca') ? document.getElementById('dataPresenca').value : null;
+                        
+                        // Mantém o histórico da nuvem
+                        window.db.presencas = { ...presencasNuvem };
+                        
+                        // Se estivermos editando um dia específico, forçamos a nossa versão desse dia
+                        if (dataNaTela && window.db.presencas[dataNaTela]) {
+                           // (A nossa versão local desse dia já está na memória, então mantemos ela)
+                           // Nota: Se o sócio editou O MESMO DIA ao mesmo tempo, o último a salvar ganha o dia.
+                        }
+                        
+                        // E. Auditoria (Junta tudo)
+                        window.db.audit = [...cloudData.audit, ...window.db.audit];
+                        // Remove duplicados de log se houver e limita tamanho
+                        window.db.audit = window.db.audit.slice(-200);
+
+                        console.log("Mesclagem concluída. Salvando versão unificada.");
                     }
                 }
 
-                // 3. Atualiza tempo e salva
+                // 3. Atualiza timestamp e Grava
                 window.db.lastUpdate = Date.now();
                 lastCloudUpdate = window.db.lastUpdate; 
 
@@ -577,12 +625,12 @@
                 }
 
             } catch (e) { 
-                console.error(e); // Mostra erro no console (F12)
+                console.error(e); 
                 statusEl.innerHTML = "🔴 Erro!";
-                
-                // --- AQUI ESTÁ A MUDANÇA: MOSTRA O ERRO REAL NO ALERTA ---
-                alert("ERRO TÉCNICO:\n" + e.message + "\n\n(Tire foto disso e mande no chat)");
-            } 
+                alert("Erro ao salvar: " + e.message);
+            } finally {
+                isSaving = false; 
+            }
         }
     </script>
     

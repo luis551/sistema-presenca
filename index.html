@@ -496,14 +496,23 @@
         const dbFirestore = getFirestore(app); 
         const docRef = doc(dbFirestore, "sistema_rh", "dados_gerais");
 
+        // --- COPIE A PARTIR DAQUI (Mantenha os imports e configs acima como estão) ---
+        
+        // Variável para controlar a versão dos dados
+        let lastCloudUpdate = 0; 
+
         onSnapshot(docRef, (docSnap) => {
-            // Se a mudança foi local (fui eu que salvei), ignora para não piscar a tela
+            // Ignora salvamentos locais para não piscar a tela
             if (docSnap.metadata.hasPendingWrites) return;
 
             const statusEl = document.getElementById('status-connection');
             
             if (docSnap.exists()) {
-                window.db = docSnap.data();
+                const data = docSnap.data();
+                window.db = data;
+                
+                // ATUALIZAÇÃO SEGURA: Guarda o momento da última versão que recebemos
+                lastCloudUpdate = data.lastUpdate || 0;
 
                 // Inicializa arrays se não existirem
                 if(!window.db.funcionarios) window.db.funcionarios = [];
@@ -513,51 +522,66 @@
                 if(!window.db.entregas) window.db.entregas = []; 
                 if(!window.db.audit) window.db.audit = []; 
 
-                // --- LIMPEZA SEGURA (SÓ LOGS TÉCNICOS) ---
-                // Apaga apenas registros de sistema antigos para manter a performance.
-                // DADOS DO RH (Pagamentos, Motoboys, Presença) NÃO SÃO TOCADOS.
-                if(window.db.audit.length > 150) {
-                    window.db.audit = window.db.audit.slice(-150);
-                    // Salva silenciosamente a limpeza dos logs
-                    window.salvarNuvem(true);
-                }
-
                 // Garante usuário padrão
                 if(!window.db.users || window.db.users.length === 0) { 
-                    window.db.users = [ { user: 'expeto', pass: '1511', isAdmin: true } ]; 
-                    window.salvarNuvem(true); 
+                    window.db.users = [ { user: 'admin', pass: '1234', isAdmin: true } ]; 
                 }
 
                 statusEl.innerHTML = "🟢 Online"; 
                 statusEl.style.color = "#27ae60";
 
-                // Renderiza a tela
+                // Atualiza a tela
                 if(window.atualizarInterface) window.atualizarInterface();
 
             } else { 
-                statusEl.innerHTML = "🟡 Criando BD..."; 
-                if(window.salvarNuvem) window.salvarNuvem(); 
+                statusEl.innerHTML = "🟡 Criando BD...";
+                // Se é novo, cria a estrutura básica
+                window.db = { funcionarios: [], presencas: {}, pagamentos: [], extras: [], entregas: [], audit: [], lastUpdate: Date.now() };
+                setDoc(docRef, window.db);
             }
         }, (error) => { 
             console.error(error); 
             document.getElementById('status-connection').innerHTML = "🔴 Erro";
         });
 
-        // Função de Salvar Otimizada
+        // --- FUNÇÃO BLINDADA: VERIFICA ANTES DE SALVAR ---
         window.salvarNuvem = async function(silencioso = false) { 
             const statusEl = document.getElementById('status-connection'); 
-            if(!silencioso) statusEl.innerHTML = "🔄 Salvando..."; 
+            if(!silencioso) statusEl.innerHTML = "🔄 Verificando..."; 
             
-            try { 
+            try {
+                // 1. ESPREITA O BANCO ANTES DE GRAVAR
+                const checkSnap = await getDoc(docRef);
+                
+                if (checkSnap.exists()) {
+                    const cloudData = checkSnap.data();
+                    const cloudTime = cloudData.lastUpdate || 0;
+
+                    // 2. A MÁGICA: Se na nuvem for mais novo do que o que eu tenho na tela...
+                    // (Damos uma margem de 2 segundos para evitar conflito com o próprio PC)
+                    if (cloudTime > (lastCloudUpdate + 2000)) {
+                        alert("⚠️ ATENÇÃO: CONFLITO DE DADOS!\n\nOutra pessoa salvou dados recentemente.\nPara não perder o que ela fez, esta ação foi bloqueada.\n\n-> Dê OK, anote seus dados e atualize a página (F5).");
+                        statusEl.innerHTML = "🔴 Bloqueado!";
+                        return; // PARE TUDO! NÃO SALVA!
+                    }
+                }
+
+                // 3. Se passou no teste, ATUALIZA O CARIMBO DE TEMPO
+                window.db.lastUpdate = Date.now();
+                lastCloudUpdate = window.db.lastUpdate; // Atualiza a minha referência local
+
+                // 4. SALVA DE VERDADE
                 await setDoc(docRef, window.db); 
+                
                 if(!silencioso) {
                     statusEl.innerHTML = "🟢 Salvo!"; 
-                    // Volta para Online após 2 segundos
                     setTimeout(() => { statusEl.innerHTML = "🟢 Online"; }, 2000);
                 }
+
             } catch (e) { 
                 console.error(e); 
-                statusEl.innerHTML = "🔴 Erro ao Salvar!"; 
+                statusEl.innerHTML = "🔴 Erro ao Salvar!";
+                alert("Erro de conexão ao tentar salvar.");
             } 
         }
     </script>

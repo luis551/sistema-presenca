@@ -903,35 +903,45 @@ window.calcularGanhosNoMes = function(idFunc, dataRefStr) {
     let totalGanhos = 0; 
     const [anoRef, mesRef] = dataRefStr.split('-'); 
     
-    // 1. Salário Base (Se não for Diarista puro)
+    // Garante que o salário é um número
+    const valorDiaria = parseFloat(func.salario) || 0;
+    const valorPassagem = parseFloat(func.passagem) || 0;
+
+    // 1. Salário Base (Se NÃO for Diarista, pega o fixo proporcional)
     if (func.tipo !== 'Diaria') totalGanhos = window.calcularTetoLiberado(func, dataRefStr);
     
-    // 2. Presenças (Passagens ou Diárias comuns)
+    // 2. Presenças (Loop dia a dia)
     Object.keys(window.db.presencas).forEach(diaStr => {
         if(diaStr.startsWith(`${anoRef}-${mesRef}`)) { 
             const listaDia = window.db.presencas[diaStr]; 
+            // Usa '==' para garantir que pega mesmo se um for string e outro numero
             const registro = listaDia.find(r => r.id == idFunc);
+            
             if(registro) {
                 if (func.tipo !== 'Diaria') { 
-                    if(registro.status === 'Presente' || registro.status === 'Atrasado') totalGanhos += (func.passagem || 0); 
+                    // MENSALISTA: Ganha Passagem se veio
+                    if(registro.status === 'Presente' || registro.status === 'Atrasado') {
+                        totalGanhos += valorPassagem; 
+                    }
                 } else { 
-                    // Se for diarista comum (não motoboy de entrega), soma a diária fixa
-                    if(registro.status === 'Presente') totalGanhos += func.salario; 
-                    else if(registro.status === 'Atrasado') totalGanhos += (func.salario / 2); 
+                    // DIARISTA: Ganha Diária
+                    if(registro.status === 'Presente') {
+                        totalGanhos += valorDiaria; // Diária Cheia
+                    }
+                    else if(registro.status === 'Atrasado') {
+                        totalGanhos += (valorDiaria / 2); // Meia Diária
+                    }
                 }
             }
         }
     });
     
-    // 3. Comissões (Vendas)
+    // 3. Comissões e Entregas
     const totalComissoes = window.getTotalComissoesMes(idFunc, dataRefStr);
-
-    // 4. ENTREGAS MOTOBOY (NOVO!)
     const totalEntregas = window.getTotalMotoboyMes(idFunc, dataRefStr);
 
     return totalGanhos + totalComissoes + totalEntregas;
 }
-
 // --- COPIE DAQUI PARA BAIXO ---
 
 // 4. Calcula Pagamentos Feitos no Mês (RESTAURADA)
@@ -946,6 +956,7 @@ window.getTotalPagoNoMes = function(idFunc, dataReferencia) {
     }).reduce((acc, p) => acc + p.valor, 0);
 }
 
+// --- FUNÇÃO CORRIGIDA: PAINEL DE PAGAMENTOS (COM DIARISTA) ---
 window.atualizarPainelPagamentos = function() {
     const idFunc = document.getElementById('selectFuncionarioPagamento').value;
     const dataStr = document.getElementById('dataPagamento').value; 
@@ -987,20 +998,41 @@ window.atualizarPainelPagamentos = function() {
     
     if (!dataStr) return;
     
-    // --- 2. CÁLCULOS DOS GANHOS ---
+    // --- 2. CÁLCULOS DOS GANHOS (AGORA INCLUI DIARISTA CORRETAMENTE) ---
+    // A. Salário Base (Mensalistas)
     const salarioBaseLiberado = window.calcularTetoLiberado(func, dataStr);
     
-    let totalPassagens = 0;
+    // B. Presenças (Passagens OU Diárias)
+    let totalPassagens = 0; // Para Mensalistas
+    let totalDiarias = 0;   // Para Diaristas
     let diasPresenca = 0;
+    
+    // Garante que os valores são números
+    const valorDiaria = parseFloat(func.salario) || 0;
+    const valorPassagem = parseFloat(func.passagem) || 0;
 
     Object.keys(window.db.presencas).forEach(diaStr => {
         if(diaStr.startsWith(`${anoRef}-${mesRef}`)) { 
             const registro = window.db.presencas[diaStr].find(r => r.id == idFunc);
-            if(registro && ['Presente', 'Atrasado'].includes(registro.status)) {
-                 if (func.tipo !== 'Diaria') { 
-                     totalPassagens += (func.passagem || 0); 
-                 }
-                 diasPresenca++;
+            
+            if(registro) {
+                // SE FOR MENSALISTA
+                if (func.tipo !== 'Diaria') { 
+                    if(['Presente', 'Atrasado'].includes(registro.status)) {
+                        totalPassagens += valorPassagem; 
+                        diasPresenca++;
+                    }
+                } 
+                // SE FOR DIARISTA (A CORREÇÃO ESTÁ AQUI)
+                else {
+                    if(registro.status === 'Presente') {
+                        totalDiarias += valorDiaria;
+                        diasPresenca++;
+                    } else if(registro.status === 'Atrasado') {
+                        totalDiarias += (valorDiaria / 2);
+                        diasPresenca++;
+                    }
+                }
             }
         }
     });
@@ -1009,13 +1041,12 @@ window.atualizarPainelPagamentos = function() {
     const totalEntregas = window.getTotalMotoboyMes(idFunc, dataStr); 
     
     // Soma tudo
-    const ganhosTotal = salarioBaseLiberado + totalPassagens + totalComissoes + totalEntregas;
+    const ganhosTotal = salarioBaseLiberado + totalPassagens + totalDiarias + totalComissoes + totalEntregas;
     const totalJaRecebido = totalPagoSalario + totalVales; 
     const restante = ganhosTotal - totalJaRecebido;
     
     // --- 3. MONTAGEM DO EXTRATO VISUAL (Na caixa verde) ---
     
-    // Define as cores da caixa
     divAviso.style.display = 'block';
     let corFundo, corTexto, corBorda, icone;
     
@@ -1031,12 +1062,18 @@ window.atualizarPainelPagamentos = function() {
     divAviso.style.color = corTexto; 
     divAviso.style.border = `1px solid ${corBorda}`; 
 
-    // Cria a lista de detalhes (Só aparece o que tiver valor > 0)
+    // Cria a lista de detalhes
     let detalhesHTML = '<div style="margin-top:10px; padding-top:8px; border-top:1px solid rgba(0,0,0,0.1); font-size:0.85rem; line-height:1.6;">';
     
     if(totalEntregas > 0) detalhesHTML += `<div style="display:flex; justify-content:space-between;"><span>🏍️ Entregas Motoboy:</span> <strong>${fmtMoeda(totalEntregas)}</strong></div>`;
     if(totalComissoes > 0) detalhesHTML += `<div style="display:flex; justify-content:space-between;"><span>⭐ Comissões/Vendas:</span> <strong>${fmtMoeda(totalComissoes)}</strong></div>`;
+    
+    // Mostra Passagem se for mensalista
     if(totalPassagens > 0) detalhesHTML += `<div style="display:flex; justify-content:space-between;"><span>🚌 Presença/Passagem (${diasPresenca}d):</span> <strong>${fmtMoeda(totalPassagens)}</strong></div>`;
+    
+    // Mostra Diária se for diarista (NOVO!)
+    if(totalDiarias > 0) detalhesHTML += `<div style="display:flex; justify-content:space-between;"><span>☀️ Diárias Realizadas (${diasPresenca}d):</span> <strong>${fmtMoeda(totalDiarias)}</strong></div>`;
+
     if(salarioBaseLiberado > 0) detalhesHTML += `<div style="display:flex; justify-content:space-between;"><span>📅 Salário Base:</span> <strong>${fmtMoeda(salarioBaseLiberado)}</strong></div>`;
     
     // Mostra o total ganho e o que já foi pago
@@ -1054,6 +1091,7 @@ window.atualizarPainelPagamentos = function() {
             <span style="font-size:1.3rem;">
                 ${icone} <strong>Disponível: ${fmtMoeda(restante)}</strong>
             </span>
+            <button class="btn-info-calc" onclick="mostrarDetalhesCalculo(${idFunc}, '${dataStr}')" title="Ver detalhes do cálculo">?</button>
         </div>
         ${detalhesHTML}
         ${extraInfo}
@@ -1632,7 +1670,7 @@ window.atualizarPrevisao = function() {
     if(listMonthly.innerHTML === '') listMonthly.innerHTML = vazio;
 }
 
-// --- NOVA FUNÇÃO DE EXTRATO DETALHADO (Correção) ---
+// --- FUNÇÃO DE EXTRATO DETALHADO (CORRIGIDA PARA DIARISTA) ---
 window.mostrarDetalhesCalculo = function(idFunc, dataStr) {
     const func = window.db.funcionarios.find(f => f.id == idFunc);
     if(!func) return;
@@ -1640,18 +1678,39 @@ window.mostrarDetalhesCalculo = function(idFunc, dataStr) {
     // 1. Refaz os cálculos
     const [anoRef, mesRef] = dataStr.split('-');
     
-    // A. Salário / Diária Base
+    // A. Salário Base (Zero para diarista)
     const salarioBase = window.calcularTetoLiberado(func, dataStr);
 
-    // B. Presença / Passagem
-    let totalPassagens = 0;
+    // B. Presença / Passagem / Diárias
+    let totalPresencaValor = 0; // Nome genérico para (Passagem OU Diária)
     let diasPresenca = 0;
+    
+    const valorDiaria = parseFloat(func.salario) || 0;
+    const valorPassagem = parseFloat(func.passagem) || 0;
+
     Object.keys(window.db.presencas).forEach(diaStr => {
         if(diaStr.startsWith(`${anoRef}-${mesRef}`)) { 
             const registro = window.db.presencas[diaStr].find(r => r.id == idFunc);
-            if(registro && ['Presente', 'Atrasado'].includes(registro.status)) {
-                 if (func.tipo !== 'Diaria') totalPassagens += (func.passagem || 0); 
-                 diasPresenca++;
+            
+            if(registro) {
+                // LÓGICA MENSALISTA
+                if (func.tipo !== 'Diaria') {
+                    if(['Presente', 'Atrasado'].includes(registro.status)) {
+                        totalPresencaValor += valorPassagem; 
+                        diasPresenca++;
+                    }
+                } 
+                // LÓGICA DIARISTA (AQUI ESTAVA O ERRO ANTES)
+                else {
+                    if(registro.status === 'Presente') {
+                        totalPresencaValor += valorDiaria;
+                        diasPresenca++;
+                    }
+                    else if(registro.status === 'Atrasado') {
+                        totalPresencaValor += (valorDiaria / 2);
+                        diasPresenca++; // Conta como dia trabalhado, mas recebe metade
+                    }
+                }
             }
         }
     });
@@ -1664,14 +1723,13 @@ window.mostrarDetalhesCalculo = function(idFunc, dataStr) {
     const totalPago = window.getTotalPagoNoMes(idFunc, dataStr);
 
     // E. Totais
-    const totalGanho = salarioBase + totalPassagens + totalComissoes + totalEntregas;
+    const totalGanho = salarioBase + totalPresencaValor + totalComissoes + totalEntregas;
     const saldoDisponivel = totalGanho - totalPago;
     const corSaldo = saldoDisponivel >= 0 ? '#27ae60' : '#c0392b';
 
     // 2. Monta o HTML do Modal
     const el = document.getElementById('corpoDetalhes');
     
-    // Só mostra linhas que têm valor (> 0) para não poluir
     let html = `<div style="text-align:center; font-weight:bold; color:#7f8c8d; margin-bottom:15px; font-size:1.1rem; border-bottom:1px solid #eee; padding-bottom:10px;">
         ${func.nome}<br><small style="font-weight:normal; font-size:0.8rem">Referência: ${mesRef}/${anoRef}</small>
     </div>`;
@@ -1680,9 +1738,13 @@ window.mostrarDetalhesCalculo = function(idFunc, dataStr) {
     
     if(totalComissoes > 0) html += `<div class="detalhes-linha"><span>⭐ Comissões</span><span class="detalhes-destaque" style="color:#8e44ad;">+ ${fmtMoeda(totalComissoes)}</span></div>`;
     
-    if(totalPassagens > 0) html += `<div class="detalhes-linha"><span>🚌 Transporte/Presença (${diasPresenca} dias)</span><span class="detalhes-destaque">+ ${fmtMoeda(totalPassagens)}</span></div>`;
+    // LINHA INTELIGENTE: Muda o texto dependendo se é Diarista ou Mensalista
+    if(totalPresencaValor > 0) {
+        const textoLabel = func.tipo === 'Diaria' ? '☀️ Diárias Realizadas' : '🚌 Vale Transporte';
+        html += `<div class="detalhes-linha"><span>${textoLabel} (${diasPresenca} dias)</span><span class="detalhes-destaque">+ ${fmtMoeda(totalPresencaValor)}</span></div>`;
+    }
 
-    if(salarioBase > 0) html += `<div class="detalhes-linha"><span>📅 Salário Base / Diárias</span><span class="detalhes-destaque">+ ${fmtMoeda(salarioBase)}</span></div>`;
+    if(salarioBase > 0) html += `<div class="detalhes-linha"><span>📅 Salário Base Fixo</span><span class="detalhes-destaque">+ ${fmtMoeda(salarioBase)}</span></div>`;
 
     // Linha de Soma Total Ganho
     html += `<div class="detalhes-linha" style="background:#f9f9f9; font-weight:bold; margin-top:5px;"><span>∑ Total Ganho</span><span>${fmtMoeda(totalGanho)}</span></div>`;
@@ -1699,7 +1761,7 @@ window.mostrarDetalhesCalculo = function(idFunc, dataStr) {
             <span>${fmtMoeda(saldoDisponivel)}</span>
         </div>
         <p style="font-size:0.75rem; color:#aaa; text-align:center; margin-top:10px;">
-            * Valores calculados com base nos lançamentos até hoje.
+            * Para Diaristas: Presente = 100% | Atrasado = 50% da diária.
         </p>
     `;
 

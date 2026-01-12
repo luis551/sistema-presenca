@@ -522,3 +522,10 @@ tr:hover { background-color: rgba(0,0,0,0.05); }
 .border-weekly { border-left-color: #3498db; }
 .border-monthly { border-left-color: #27ae60; }
 .border-boleto { border-left-color: #f39c12; }
+
+/* Cartão quando ainda não foi selecionado nada */
+.card-Pendente { 
+    border-left-color: #bdc3c7 !important; /* Cinza */
+    background-color: #fdfdfd; 
+    opacity: 0.8;
+}

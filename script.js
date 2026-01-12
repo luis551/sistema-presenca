@@ -539,31 +539,81 @@ window.carregarListaPresenca = function() {
         grid.appendChild(card);
     });
 }
-window.atualizarCorCard = function(selectElement) { const card = selectElement.closest('.presenca-card'); card.className = card.className.replace(/card-\w+/, `card-${selectElement.value}`); }
-window.salvarPresencaDia = function() {
-    if(!checkPerm('pres')) return; 
-
-    const data = document.getElementById('dataPresenca').value;
-    const cards = document.querySelectorAll('.presenca-card');
-    let listaDia = window.db.presencas[data] || []; 
-    cards.forEach(card => {
-        const idFunc = parseInt(card.getAttribute('data-id'));
-        const status = card.querySelector('.status-presenca').value;
-        const obs = card.querySelector('.obs-presenca').value;
-        listaDia = listaDia.filter(r => r.id !== idFunc);
-        listaDia.push({ id: idFunc, status: status, obs: obs });
-    });
-    window.db.presencas[data] = listaDia;
-    registrarLog('Presenca', `Salvou lista de ${fmtData(data)}`);
-    if(window.salvarNuvem) window.salvarNuvem(); 
-    alert(`Lista salva!`);
-}
-// --- NOVA FUNÇÃO: MOSTRAR O CÁLCULO ENQUANTO DIGITA ---
-window.atualizarPreviewComissao = function() {
-    const vendas = parseFloat(document.getElementById('valorVendasInput').value) || 0;
-    const comissao = vendas * 0.07; // Calcula 7%
+// Função para mudar a cor do cartão dinamicamente
+window.atualizarCorCard = function(selectElement) { 
+    const card = selectElement.closest('.presenca-card'); 
+    const valor = selectElement.value;
     
-    document.getElementById('previewComissaoValor').innerText = comissao.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+    // Remove todas as classes de cor antigas para não bugar
+    card.classList.remove('card-Presente', 'card-Atrasado', 'card-Falta', 'card-Atestado', 'card-Folga', 'card-Pendente');
+    
+    // Adiciona a nova classe (se tiver valor, põe a cor; se não, põe cinza)
+    if(valor) {
+        card.classList.add(`card-${valor}`);
+    } else {
+        card.classList.add('card-Pendente');
+    }
+}
+
+// Função Principal de Carregar a Lista
+window.carregarListaPresenca = function() {
+    const data = document.getElementById('dataPresenca').value;
+    const filtroEmpresa = document.getElementById('filtroEmpresaPresenca').value;
+    
+    if(!data) return alert("Selecione uma data");
+    
+    const grid = document.getElementById('gridCards');
+    grid.innerHTML = '';
+    document.getElementById('areaPresenca').style.display = 'block';
+    
+    const registroDia = window.db.presencas[data] || [];
+    
+    // Filtra e Ordena os funcionários
+    const funcionariosFiltrados = window.db.funcionarios
+        .filter(f => { if (!filtroEmpresa) return true; return f.empresa === filtroEmpresa; })
+        .sort((a, b) => a.nome.localeCompare(b.nome)); 
+    
+    funcionariosFiltrados.forEach(f => {
+        const saved = registroDia.find(r => r.id === f.id);
+        
+        // --- LÓGICA DO STATUS ---
+        // Se já tiver salvo, usa o salvo. Se não, usa VAZIO (para obrigar a selecionar)
+        const status = saved ? saved.status : ''; 
+        const obs = saved ? saved.obs : '';
+        
+        // Define a classe da cor (se for vazio, fica cinza/pendente)
+        const cardClass = status ? `card-${status}` : 'card-Pendente';
+
+        let tagClass = 'tag-mensal'; let tagText = 'MENSAL';
+        if(f.tipo === 'Quinzenal') { tagClass = 'tag-quinzenal'; tagText = 'QUINZENAL'; }
+        else if(f.tipo === 'Semanal') { tagClass = 'tag-semanal'; tagText = 'SEMANAL'; }
+        else if(f.tipo === 'Diaria') { tagClass = 'tag-diaria'; tagText = `DIÁRIA: ${fmtMoeda(f.salario)}`; }
+        
+        const tipoBadge = `<span class="tag-tipo ${tagClass}">${tagText}</span>`;
+        const card = document.createElement('div');
+        
+        // Adiciona a classe visual correta
+        card.className = `presenca-card ${cardClass}`;
+        card.setAttribute('data-id', f.id);
+        
+        // Monta o HTML do Card com o Select
+        card.innerHTML = `
+            <div>
+                <h4>${f.nome} ${tipoBadge}</h4>
+                <span style="font-size:0.8rem; color:var(--accent); font-weight:bold;">🏢 ${f.empresa || '-'}</span>
+            </div>
+            <select class="status-presenca" onchange="atualizarCorCard(this)" style="margin-top:10px;">
+                <option value="" disabled ${status === '' ? 'selected' : ''}>❓ Selecione a opção...</option>
+                <option value="Presente" ${status === 'Presente' ? 'selected' : ''}>✅ Presente</option>
+                <option value="Atrasado" ${status === 'Atrasado' ? 'selected' : ''}>⚠️ Atrasado</option>
+                <option value="Falta" ${status === 'Falta' ? 'selected' : ''}>❌ Falta</option>
+                <option value="Atestado" ${status === 'Atestado' ? 'selected' : ''}>🔵 Atestado</option>
+                <option value="Folga" ${status === 'Folga' ? 'selected' : ''}>🟢 Folga</option>
+            </select>
+            <input type="text" class="obs-presenca" value="${obs}" placeholder="Observação (opcional)">
+        `;
+        grid.appendChild(card);
+    });
 }
 
 // --- ATUALIZADA: LANÇAR COMISSÃO BASEADA EM VENDAS ---

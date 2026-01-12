@@ -216,18 +216,41 @@
             </table>
         </div>
 
-        <div id="presenca" class="section">
-            <h1>Lista de Presença</h1>
-            <div class="card">
-                <h3>Registrar Dia</h3>
-                <div style="display: flex; gap: 10px; align-items: flex-end;">
-                    <div class="form-group" style="flex:1"><label>Selecione a Data</label><input type="date" id="dataPresenca"></div>
-                    <div class="form-group" style="flex:1"><label>Filtrar por Empresa</label><select id="filtroEmpresaPresenca"><option value="">Todas as Empresas</option><option value="Bar Araújo">Bar Araújo</option><option value="Ventura">Ventura</option><option value="Armazem do Bras">Armazem do Bras</option><option value="Bar de colegio">Bar de colegio</option><option value="Escritorio">Escritorio</option></select></div>
-                    <button class="action-btn" style="height: 42px;" onclick="carregarListaPresenca()">Carregar Lista</button>
-                </div>
+       <div id="presenca" class="section">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h1 style="border:none; margin:0;">Lista de Presença</h1>
+        
+        <button class="action-btn" style="background-color: var(--success); display:none;" id="btnSalvarTopo" onclick="salvarPresencaDia()">
+            💾 Salvar Tudo
+        </button>
+    </div>
+
+    <div class="card">
+        <h3>Registrar Dia</h3>
+        <div style="display: flex; gap: 10px; align-items: flex-end;">
+            <div class="form-group" style="flex:1">
+                <label>Selecione a Data</label>
+                <input type="date" id="dataPresenca">
             </div>
-            <div id="areaPresenca" style="display: none;"><div id="gridCards" class="grid-container"></div><button class="action-btn btn-save" style="margin-top: 20px; height: 50px; font-size: 1.1rem;" onclick="salvarPresencaDia()">✅ Confirmar e Salvar Lista</button></div>
+            <div class="form-group" style="flex:1">
+                <label>Filtrar por Empresa</label>
+                <select id="filtroEmpresaPresenca">
+                    <option value="">Todas as Empresas</option>
+                    <option value="Bar Araújo">Bar Araújo</option>
+                    <option value="Ventura">Ventura</option>
+                    <option value="Armazem do Bras">Armazem do Bras</option>
+                    <option value="Bar de colegio">Bar de colegio</option>
+                    <option value="Escritorio">Escritorio</option>
+                </select>
+            </div>
+            <button class="action-btn" style="height: 42px;" onclick="carregarListaPresenca()">Carregar Lista</button>
         </div>
+    </div>
+
+    <div id="areaPresenca" style="display: none;">
+        <div id="gridCards" class="grid-container"></div>
+        </div>
+</div>
 
         <div id="extras" class="section">
     <h1>Extras e Despesas</h1>

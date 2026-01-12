@@ -514,31 +514,6 @@ window.removerFuncionario = function(id) {
         if(window.salvarNuvem) window.salvarNuvem(); 
     }
 }
-window.carregarListaPresenca = function() {
-    const data = document.getElementById('dataPresenca').value;
-    const filtroEmpresa = document.getElementById('filtroEmpresaPresenca').value;
-    if(!data) return alert("Selecione uma data");
-    const grid = document.getElementById('gridCards');
-    grid.innerHTML = '';
-    document.getElementById('areaPresenca').style.display = 'block';
-    const registroDia = window.db.presencas[data] || [];
-    const funcionariosFiltrados = window.db.funcionarios.filter(f => { if (!filtroEmpresa) return true; return f.empresa === filtroEmpresa; }).sort((a, b) => a.nome.localeCompare(b.nome)); 
-    funcionariosFiltrados.forEach(f => {
-        const saved = registroDia.find(r => r.id === f.id);
-        const status = saved ? saved.status : 'Presente';
-        const obs = saved ? saved.obs : '';
-        let tagClass = 'tag-mensal'; let tagText = 'MENSAL';
-        if(f.tipo === 'Quinzenal') { tagClass = 'tag-quinzenal'; tagText = 'QUINZENAL'; }
-        else if(f.tipo === 'Semanal') { tagClass = 'tag-semanal'; tagText = 'SEMANAL'; }
-        else if(f.tipo === 'Diaria') { tagClass = 'tag-diaria'; tagText = `DIÁRIA: ${fmtMoeda(f.salario)}`; }
-        const tipoBadge = `<span class="tag-tipo ${tagClass}">${tagText}</span>`;
-        const card = document.createElement('div');
-        card.className = `presenca-card card-${status}`;
-        card.setAttribute('data-id', f.id);
-        card.innerHTML = `<div><h4>${f.nome} ${tipoBadge}</h4><span style="font-size:0.8rem; color:var(--accent); font-weight:bold;">🏢 ${f.empresa || '-'}</span></div><select class="status-presenca" onchange="atualizarCorCard(this)"><option value="Presente" ${status === 'Presente' ? 'selected' : ''}>✅ Presente</option><option value="Atrasado" ${status === 'Atrasado' ? 'selected' : ''}>⚠️ Atrasado</option><option value="Falta" ${status === 'Falta' ? 'selected' : ''}>❌ Falta</option><option value="Atestado" ${status === 'Atestado' ? 'selected' : ''}>🔵 Atestado</option><option value="Folga" ${status === 'Folga' ? 'selected' : ''}>🟢 Folga</option></select><input type="text" class="obs-presenca" value="${obs}" placeholder="Alguma observação?">`;
-        grid.appendChild(card);
-    });
-}
 // Função para mudar a cor do cartão dinamicamente
 window.atualizarCorCard = function(selectElement) { 
     const card = selectElement.closest('.presenca-card'); 
@@ -556,6 +531,7 @@ window.atualizarCorCard = function(selectElement) {
 }
 
 // Função Principal de Carregar a Lista
+// --- FUNÇÃO CORRIGIDA E ÚNICA: CARREGAR LISTA ---
 window.carregarListaPresenca = function() {
     const data = document.getElementById('dataPresenca').value;
     const filtroEmpresa = document.getElementById('filtroEmpresaPresenca').value;
@@ -564,7 +540,13 @@ window.carregarListaPresenca = function() {
     
     const grid = document.getElementById('gridCards');
     grid.innerHTML = '';
+    
+    // 1. MOSTRA A ÁREA
     document.getElementById('areaPresenca').style.display = 'block';
+    
+    // 2. MOSTRA O BOTÃO NO TOPO (A linha mágica que faltava na segunda versão)
+    const btnTopo = document.getElementById('btnSalvarTopo');
+    if(btnTopo) btnTopo.style.display = 'block';
     
     const registroDia = window.db.presencas[data] || [];
     
@@ -577,7 +559,6 @@ window.carregarListaPresenca = function() {
         const saved = registroDia.find(r => r.id === f.id);
         
         // --- LÓGICA DO STATUS ---
-        // Se já tiver salvo, usa o salvo. Se não, usa VAZIO (para obrigar a selecionar)
         const status = saved ? saved.status : ''; 
         const obs = saved ? saved.obs : '';
         
@@ -615,7 +596,6 @@ window.carregarListaPresenca = function() {
         grid.appendChild(card);
     });
 }
-
 // --- ATUALIZADA: LANÇAR COMISSÃO BASEADA EM VENDAS ---
 window.lancarComissao = function() {
     if(!checkPerm('fin')) return; 
@@ -1725,4 +1705,56 @@ window.mostrarDetalhesCalculo = function(idFunc, dataStr) {
 
     el.innerHTML = html;
     document.getElementById('modalDetalhes').style.display = 'flex';
+}
+
+// --- FUNÇÃO QUE FALTAVA: SALVAR PRESENÇA ---
+window.salvarPresencaDia = function() {
+    // 1. Verifica permissão
+    if(!checkPerm('pres')) return; 
+
+    // 2. Verifica se tem data
+    const data = document.getElementById('dataPresenca').value;
+    if(!data) return alert("Selecione uma data!");
+
+    // 3. Pega todos os cartões da tela
+    const cards = document.querySelectorAll('.presenca-card');
+    if(cards.length === 0) return alert("Nenhum funcionário listado para salvar.");
+
+    const novaLista = [];
+    let contador = 0;
+
+    // 4. Percorre cada cartão e guarda os dados
+    cards.forEach(card => {
+        const id = parseInt(card.getAttribute('data-id'));
+        // Pega o valor do SELECT dentro do cartão
+        const select = card.querySelector('.status-presenca');
+        const status = select ? select.value : '';
+        // Pega o valor da OBSERVAÇÃO
+        const inputObs = card.querySelector('.obs-presenca');
+        const obs = inputObs ? inputObs.value : '';
+
+        // Só salva se tiver status definido ou se quisermos salvar vazios como pendentes
+        // Aqui salvamos o objeto para o banco
+        novaLista.push({ 
+            id: id, 
+            status: status, 
+            obs: obs 
+        });
+        
+        if(status) contador++;
+    });
+
+    // 5. Atualiza o banco de dados local
+    window.db.presencas[data] = novaLista;
+
+    // 6. Registra no Log
+    registrarLog('Presenca', `Salvou chamada de ${fmtData(data)} (${contador} definidos)`);
+
+    // 7. Manda para a nuvem
+    if(window.salvarNuvem) window.salvarNuvem();
+
+    alert("✅ Lista de Presença salva com sucesso!");
+    
+    // (Opcional) Recarrega a lista para garantir que as cores fiquem certas
+    window.carregarListaPresenca();
 }

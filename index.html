@@ -371,40 +371,53 @@
         
 
 <div id="previsao" class="section">
-    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 3px solid var(--accent); margin-bottom: 20px;">
-        <h1 style="border:none; margin:0;">🔮 Cronograma Financeiro</h1>
-        <div style="text-align:right;">
-            <label style="font-size:0.8rem; color:var(--text-sub); display:block;">Data Base da Previsão:</label>
-            <input type="date" id="dataPrevisaoBase" onchange="window.atualizarPrevisao()" style="padding:5px; font-weight:bold;">
+    <div class="glass-header">
+        <div style="display:flex; align-items:center; gap:15px;">
+            <h1 style="border:none; margin:0; font-size:1.8rem;">🔮 Cronograma Financeiro</h1>
+            <span class="badge-count" id="totalGeralPrev">R$ 0,00</span>
+        </div>
+        
+        <div class="filter-group">
+            <div class="input-wrapper">
+                <label>Filtrar Loja:</label>
+                <select id="filtroEmpresaPrevisao" onchange="window.atualizarPrevisao()">
+                    <option value="">🏢 Todas as Lojas</option>
+                    </select>
+            </div>
+            <div class="input-wrapper">
+                <label>Data Base:</label>
+                <input type="date" id="dataPrevisaoBase" onchange="window.atualizarPrevisao()">
+            </div>
         </div>
     </div>
 
-<div class="previsao-board">
-    
-    <div class="prev-column">
-        <div class="prev-header header-urgent">
-            🔥 Giro Diário / Pendente
-            <span id="sumUrgent" style="float:right">R$ 0,00</span>
+    <div class="kanban-board">
+        
+        <div class="kanban-col col-urgent">
+            <div class="kanban-header header-red">
+                <div class="k-title">🔥 Giro Diário / Atrasados</div>
+                <div class="k-total" id="sumUrgent">R$ 0,00</div>
+            </div>
+            <div id="listUrgent" class="kanban-list"></div>
         </div>
-        <div id="listUrgent" class="prev-list"></div>
-    </div>
 
-    <div class="prev-column">
-        <div class="prev-header header-weekly">
-    📅 Semanal / Quinzenal
-    <span id="sumWeekly" style="float:right">R$ 0,00</span>
-</div>
-        <div id="listWeekly" class="prev-list"></div>
-    </div>
-
-    <div class="prev-column">
-        <div class="prev-header header-monthly">
-            📆 Fechamento Mês
-            <span id="sumMonthly" style="float:right">R$ 0,00</span>
+        <div class="kanban-col col-weekly">
+            <div class="kanban-header header-blue">
+                <div class="k-title">📅 Semanal / Quinzenal</div>
+                <div class="k-total" id="sumWeekly">R$ 0,00</div>
+            </div>
+            <div id="listWeekly" class="kanban-list"></div>
         </div>
-        <div id="listMonthly" class="prev-list"></div>
-    </div>
 
+        <div class="kanban-col col-monthly">
+            <div class="kanban-header header-green">
+                <div class="k-title">📆 Fechamento Mês</div>
+                <div class="k-total" id="sumMonthly">R$ 0,00</div>
+            </div>
+            <div id="listMonthly" class="kanban-list"></div>
+        </div>
+
+    </div>
 </div>
         <div id="seguranca" class="section">
             <h1>🛡️ Log de Auditoria</h1>
@@ -510,13 +523,18 @@
             } 
         }
     </script>
-    <div id="modalDetalhes">
+    
+<div id="modalDetalhes">
     <div class="detalhes-content">
-        <h3 style="margin-top:0; border-bottom:2px solid var(--accent); padding-bottom:10px;">🧮 Detalhes do Cálculo</h3>
-        <div id="corpoDetalhes"></div>
-        <button onclick="document.getElementById('modalDetalhes').style.display='none'" style="width:100%; padding:10px; margin-top:20px; border:none; background:#ccc; cursor:pointer; border-radius:4px; font-weight:bold;">Fechar</button>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="margin:0; color:var(--primary);">🧾 Extrato</h3>
+            <span onclick="document.getElementById('modalDetalhes').style.display='none'" style="cursor:pointer; font-size:1.5rem;">&times;</span>
+        </div>
+        
+        <div id="corpoDetalhes" style="margin-top:15px;"></div>
+
+        <button onclick="document.getElementById('modalDetalhes').style.display='none'" class="action-btn" style="width:100%; margin-top:20px; background:var(--secondary);">Fechar</button>
     </div>
 </div>
-
 </body>
 </html>

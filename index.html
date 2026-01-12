@@ -480,7 +480,7 @@
 
    <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = { 
             apiKey: "AIzaSyBQFsxlyyyLVTpIAdbjdoIOyFA6zIj9Ka4", 
@@ -544,33 +544,31 @@
             document.getElementById('status-connection').innerHTML = "🔴 Erro";
         });
 
-        // --- FUNÇÃO BLINDADA: VERIFICA ANTES DE SALVAR ---
+       // --- VERSÃO DE DIAGNÓSTICO ---
         window.salvarNuvem = async function(silencioso = false) { 
             const statusEl = document.getElementById('status-connection'); 
             if(!silencioso) statusEl.innerHTML = "🔄 Verificando..."; 
             
             try {
-                // 1. ESPREITA O BANCO ANTES DE GRAVAR
+                // 1. Tenta ler o banco
                 const checkSnap = await getDoc(docRef);
                 
                 if (checkSnap.exists()) {
                     const cloudData = checkSnap.data();
                     const cloudTime = cloudData.lastUpdate || 0;
 
-                    // 2. A MÁGICA: Se na nuvem for mais novo do que o que eu tenho na tela...
-                    // (Damos uma margem de 2 segundos para evitar conflito com o próprio PC)
+                    // 2. Verifica conflito (margem de 2s)
                     if (cloudTime > (lastCloudUpdate + 2000)) {
-                        alert("⚠️ ATENÇÃO: CONFLITO DE DADOS!\n\nOutra pessoa salvou dados recentemente.\nPara não perder o que ela fez, esta ação foi bloqueada.\n\n-> Dê OK, anote seus dados e atualize a página (F5).");
+                        alert("⚠️ CONFLITO: Outra pessoa salvou dados mais recentes.\n\nDê F5 para atualizar.");
                         statusEl.innerHTML = "🔴 Bloqueado!";
-                        return; // PARE TUDO! NÃO SALVA!
+                        return; 
                     }
                 }
 
-                // 3. Se passou no teste, ATUALIZA O CARIMBO DE TEMPO
+                // 3. Atualiza tempo e salva
                 window.db.lastUpdate = Date.now();
-                lastCloudUpdate = window.db.lastUpdate; // Atualiza a minha referência local
+                lastCloudUpdate = window.db.lastUpdate; 
 
-                // 4. SALVA DE VERDADE
                 await setDoc(docRef, window.db); 
                 
                 if(!silencioso) {
@@ -579,9 +577,11 @@
                 }
 
             } catch (e) { 
-                console.error(e); 
-                statusEl.innerHTML = "🔴 Erro ao Salvar!";
-                alert("Erro de conexão ao tentar salvar.");
+                console.error(e); // Mostra erro no console (F12)
+                statusEl.innerHTML = "🔴 Erro!";
+                
+                // --- AQUI ESTÁ A MUDANÇA: MOSTRA O ERRO REAL NO ALERTA ---
+                alert("ERRO TÉCNICO:\n" + e.message + "\n\n(Tire foto disso e mande no chat)");
             } 
         }
     </script>

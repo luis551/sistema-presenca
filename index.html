@@ -183,7 +183,17 @@
                 <h3 style="margin-top:0" id="tituloFormFunc">Cadastrar Novo Funcionário</h3>
                 <div class="form-grid">
                     <div class="form-group"><label>Nome Completo *</label><input type="text" id="fNome" placeholder="Ex: João da Silva"></div>
-                    <div class="form-group"><label>Empresa *</label><select id="fEmpresa"><option value="">Selecione...</option><option value="Bar Araújo">Bar Araújo</option><option value="Ventura">Ventura</option><option value="Armazem do Bras">Armazem do Bras</option><option value="Bar de colegio">Bar de colegio</option><option value="Escritorio">Escritorio</option></select></div>
+                    <div class="form-group">
+    <label>Empresa *</label>
+    <select id="fEmpresa">
+        <option value="">Selecione...</option>
+        <option value="Bar Araújo">Bar Araújo</option>
+        <option value="Ventura">Ventura</option>
+        <option value="Armazem do Bras">Armazem do Bras</option>
+        <option value="Bar de colegio">Bar de colegio</option>
+        <option value="Escritorio">Escritorio</option>
+        <option value="Contento">Contento</option> 
+    </select></div>
                     <div class="form-group"><label>Regime de Contratação *</label><select id="fTipoPrincipal" onchange="toggleTipoPagamento()"><option value="Mensalista">📅 Mensalista (Fixo)</option><option value="Diaria">☀️ Diarista / Motoboy</option></select></div>
                     <div class="form-group" id="divFrequencia"><label>Frequência de Pagamento *</label><select id="fFrequencia"><option value="Mensal">1x por Mês (Mensal)</option><option value="Quinzenal">2x por Mês (Quinzenal)</option><option value="Semanal">4x por Mês (Semanal)</option></select></div>
                     <div class="form-group"><label>Cargo / Função *</label><input type="text" id="fCargo" placeholder="Ex: Vendedor"></div>
@@ -233,16 +243,16 @@
                 <input type="date" id="dataPresenca">
             </div>
             <div class="form-group" style="flex:1">
-                <label>Filtrar por Empresa</label>
-                <select id="filtroEmpresaPresenca">
-                    <option value="">Todas as Empresas</option>
-                    <option value="Bar Araújo">Bar Araújo</option>
-                    <option value="Ventura">Ventura</option>
-                    <option value="Armazem do Bras">Armazem do Bras</option>
-                    <option value="Bar de colegio">Bar de colegio</option>
-                    <option value="Escritorio">Escritorio</option>
-                </select>
-            </div>
+    <label>Filtrar por Empresa</label>
+    <select id="filtroEmpresaPresenca">
+        <option value="">Todas as Empresas</option>
+        <option value="Bar Araújo">Bar Araújo</option>
+        <option value="Ventura">Ventura</option>
+        <option value="Armazem do Bras">Armazem do Bras</option>
+        <option value="Bar de colegio">Bar de colegio</option>
+        <option value="Escritorio">Escritorio</option>
+        <option value="Contento">Contento</option>
+    </select></div>
             <button class="action-btn" style="height: 42px;" onclick="carregarListaPresenca()">Carregar Lista</button>
         </div>
     </div>
@@ -404,8 +414,13 @@
             <div class="input-wrapper">
                 <label>Filtrar Loja:</label>
                 <select id="filtroEmpresaPrevisao" onchange="window.atualizarPrevisao()">
-                    <option value="">🏢 Todas as Lojas</option>
-                    </select>
+    <option value="">🏢 Todas as Lojas</option>
+    <option value="Bar Araújo">Bar Araújo</option>
+    <option value="Ventura">Ventura</option>
+    <option value="Armazem do Bras">Armazem do Bras</option>
+    <option value="Bar de colegio">Bar de colegio</option>
+    <option value="Escritorio">Escritorio</option>
+    <option value="Contento">Contento</option> </select>
             </div>
             <div class="input-wrapper">
                 <label>Data Base:</label>

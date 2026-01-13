@@ -876,22 +876,68 @@ window.getTotalComissoesMes = function(idFunc, dataRefStr) {
         return acc;
     }, 0);
 }
-// --- NOVA FUNÇÃO: SOMA ENTREGAS DO MÊS ---
+// --- FUNÇÃO DETETIVE: SOMA INTELIGENTE (Ignora Acentos e Maiúsculas) ---
 window.getTotalMotoboyMes = function(idFunc, dataRefStr) {
+    // 1. Verifica se existe banco de dados
+    if (!window.db.entregas) return 0;
+
+    // 2. Prepara as datas
     const parts = dataRefStr.split('-'); 
     const anoRef = parseInt(parts[0]); 
     const mesRef = parseInt(parts[1]) - 1; // Javascript conta meses de 0 a 11
     
-    // Filtra a lista de entregas (db.entregas)
+    // 3. Pega os dados do Funcionário Selecionado
+    const funcObj = window.db.funcionarios.find(f => f.id == idFunc);
+    
+    // --- FUNÇÃO DE LIMPEZA (O Segredo) ---
+    // Transforma "Hélio " em "helio" para facilitar a comparação
+    const limparTexto = (texto) => {
+        if (!texto) return "";
+        return String(texto)
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Remove acentos
+            .toLowerCase() // Tudo minúsculo
+            .trim(); // Remove espaços nas pontas
+    };
+
+    const idBusca = String(idFunc).trim();
+    const nomeBusca = funcObj ? limparTexto(funcObj.nome) : "";
+
+    console.log(`🕵️‍♂️ INICIANDO BUSCA PARA: ${nomeBusca} (Mês: ${mesRef+1})`);
+
+    // 4. Filtra e Soma
     return window.db.entregas.reduce((acc, entrega) => {
+        if (!entrega.data) return acc;
+
+        // Dados da Entrega sendo analisada
         const eParts = entrega.data.split('-'); 
         const eAno = parseInt(eParts[0]); 
         const eMes = parseInt(eParts[1]) - 1;
-        
-        // Verifica se é o Motoboy certo e o Mês certo
-        if (entrega.idFunc == idFunc && eAno === anoRef && eMes === mesRef) {
-            return acc + (entrega.valorTotal || 0);
+
+        // Limpa os dados da entrega também
+        const idEntrega = String(entrega.idFunc || "").trim();
+        const nomeEntrega = limparTexto(entrega.nomeFunc);
+
+        // COMPARAÇÕES
+        // Bate o ID?
+        const matchId = (idEntrega === idBusca);
+        // Bate o Nome (mesmo sem acento)?
+        const matchNome = (nomeBusca !== "" && nomeEntrega === nomeBusca);
+        // É do mesmo mês?
+        const matchData = (eAno === anoRef && eMes === mesRef);
+
+        // Se a data bater...
+        if (matchData) {
+            // ...e for a mesma pessoa (seja por ID ou por Nome parecido)
+            if (matchId || matchNome) {
+                const valor = parseFloat(entrega.valorTotal) || 0;
+                console.log(`   ✅ ACHOU: R$ ${valor} | Nome na Entrega: "${entrega.nomeFunc}"`);
+                return acc + valor;
+            } else {
+                // Log para sabermos quem foi ignorado (ajuda a descobrir erros)
+                console.log(`   ❌ IGNORADO: "${entrega.nomeFunc}" (Não bateu com "${nomeBusca}")`);
+            }
         }
+        
         return acc;
     }, 0);
 }

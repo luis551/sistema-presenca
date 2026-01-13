@@ -1769,7 +1769,6 @@ window.mostrarDetalhesCalculo = function(idFunc, dataStr) {
     document.getElementById('modalDetalhes').style.display = 'flex';
 }
 
-// --- FUNÇÃO QUE FALTAVA: SALVAR PRESENÇA ---
 window.salvarPresencaDia = function() {
     // 1. Verifica permissão
     if(!checkPerm('pres')) return; 
@@ -1778,26 +1777,34 @@ window.salvarPresencaDia = function() {
     const data = document.getElementById('dataPresenca').value;
     if(!data) return alert("Selecione uma data!");
 
-    // 3. Pega todos os cartões da tela
+    // 3. Pega todos os cartões que estão VISÍVEIS na tela
     const cards = document.querySelectorAll('.presenca-card');
     if(cards.length === 0) return alert("Nenhum funcionário listado para salvar.");
 
-    const novaLista = [];
+    // --- CORREÇÃO AQUI ---
+    // A. Recupera o que já estava salvo no banco para este dia (para não apagar quem está oculto pelo filtro)
+    const listaExistente = window.db.presencas[data] || [];
+    
+    // B. Cria um "Mapa" (Dicionário) com os dados existentes para busca rápida por ID
+    const mapaPresenca = new Map();
+    listaExistente.forEach(p => mapaPresenca.set(p.id, p));
+
     let contador = 0;
 
-    // 4. Percorre cada cartão e guarda os dados
+    // C. Percorre os cartões da tela e ATUALIZA o mapa
     cards.forEach(card => {
         const id = parseInt(card.getAttribute('data-id'));
+        
         // Pega o valor do SELECT dentro do cartão
         const select = card.querySelector('.status-presenca');
         const status = select ? select.value : '';
+        
         // Pega o valor da OBSERVAÇÃO
         const inputObs = card.querySelector('.obs-presenca');
         const obs = inputObs ? inputObs.value : '';
 
-        // Só salva se tiver status definido ou se quisermos salvar vazios como pendentes
-        // Aqui salvamos o objeto para o banco
-        novaLista.push({ 
+        // Atualiza ou insere o funcionário no mapa (mantendo os outros intactos)
+        mapaPresenca.set(id, { 
             id: id, 
             status: status, 
             obs: obs 
@@ -1806,17 +1813,20 @@ window.salvarPresencaDia = function() {
         if(status) contador++;
     });
 
-    // 5. Atualiza o banco de dados local
-    window.db.presencas[data] = novaLista;
+    // D. Converte o mapa de volta para uma lista para salvar no banco
+    const listaFinal = Array.from(mapaPresenca.values());
+
+    // 5. Atualiza o banco de dados local com a lista completa (Visíveis + Ocultos)
+    window.db.presencas[data] = listaFinal;
 
     // 6. Registra no Log
-    registrarLog('Presenca', `Salvou chamada de ${fmtData(data)} (${contador} definidos)`);
+    registrarLog('Presenca', `Salvou chamada de ${fmtData(data)} (${contador} atualizados na tela)`);
 
     // 7. Manda para a nuvem
     if(window.salvarNuvem) window.salvarNuvem();
 
     alert("✅ Lista de Presença salva com sucesso!");
     
-    // (Opcional) Recarrega a lista para garantir que as cores fiquem certas
+    // Recarrega a lista para garantir visualização correta
     window.carregarListaPresenca();
 }

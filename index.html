@@ -497,35 +497,21 @@
         const docRef = doc(dbFirestore, "sistema_rh", "dados_gerais");
 
         let lastCloudUpdate = 0; 
-        let isSaving = false; // Trava visual local
+        let isSaving = false; 
 
-        // --- SISTEMA DE MESCLAGEM INTELIGENTE ---
         function mesclarListas(listaLocal, listaNuvem) {
             if (!listaLocal) return listaNuvem || [];
             if (!listaNuvem) return listaLocal || [];
-            
-            // Cria uma cópia da nuvem
             const resultado = [...listaNuvem];
-            
-            // Adiciona itens locais que NÃO estão na nuvem (baseado no ID)
             listaLocal.forEach(itemLocal => {
                 const existeNaNuvem = resultado.find(itemNuvem => itemNuvem.id === itemLocal.id);
-                if (!existeNaNuvem) {
-                    // É um item novo que eu criei, adiciona!
-                    resultado.push(itemLocal);
-                } else {
-                    // Se já existe, quem ganha?
-                    // Se eu editei agora (local), minha versão pode ser mais recente.
-                    // Mas para segurança, num conflito direto de edição, geralmente mantemos o que eu estou vendo.
-                    // Para simplificar: Mantemos a versão da Nuvem se conflitar, mas adicionamos os NOVOS.
-                }
+                if (!existeNaNuvem) resultado.push(itemLocal);
             });
             return resultado;
         }
 
         onSnapshot(docRef, (docSnap) => {
-            if (isSaving) return; // Não atualiza a tela enquanto estou tentando salvar
-            
+            if (isSaving) return; 
             if (docSnap.metadata.hasPendingWrites) return;
             const statusEl = document.getElementById('status-connection');
             
@@ -534,7 +520,6 @@
                 window.db = data;
                 lastCloudUpdate = data.lastUpdate || 0;
 
-                // Inicializações de segurança
                 if(!window.db.funcionarios) window.db.funcionarios = [];
                 if(!window.db.presencas) window.db.presencas = {};
                 if(!window.db.pagamentos) window.db.pagamentos = [];
@@ -557,63 +542,78 @@
             }
         });
 
-        // --- SALVAMENTO COM "AUTO-RETRY" ---
+        // --- SALVAMENTO COM MESCLAGEM INTELIGENTE DE PRESENÇA ---
         window.salvarNuvem = async function(silencioso = false) { 
             isSaving = true; 
             const statusEl = document.getElementById('status-connection'); 
             if(!silencioso) statusEl.innerHTML = "🔄 Processando..."; 
             
             try {
-                // 1. Verifica o que tem na nuvem agora
                 const checkSnap = await getDoc(docRef);
                 
                 if (checkSnap.exists()) {
                     const cloudData = checkSnap.data();
                     const cloudTime = cloudData.lastUpdate || 0;
 
-                    // 2. SE HOUVER CONFLITO (Alguém salvou nos últimos segundos)
+                    // SE HOUVER CONFLITO (DADOS NOVOS NA NUVEM)
                     if (cloudTime > lastCloudUpdate) {
                         if(!silencioso) statusEl.innerHTML = "⚡ Mesclando...";
-                        console.log("Conflito detectado! Iniciando mesclagem automática...");
-
-                        // --- MÁGICA DA MESCLAGEM ---
-                        // Pegamos as listas da nuvem e adicionamos O QUE NÓS CRIAMOS AGORA
+                        console.log("Conflito detectado! Iniciando mesclagem detalhada...");
                         
-                        // A. Funcionários (Mescla novos)
+                        // 1. Listas Simples (Adiciona o que falta)
                         window.db.funcionarios = mesclarListas(window.db.funcionarios, cloudData.funcionarios);
-                        
-                        // B. Pagamentos (Mescla novos)
                         window.db.pagamentos = mesclarListas(window.db.pagamentos, cloudData.pagamentos);
-                        
-                        // C. Extras e Entregas e Boletos
                         window.db.extras = mesclarListas(window.db.extras, cloudData.extras);
                         window.db.entregas = mesclarListas(window.db.entregas, cloudData.entregas);
                         window.db.boletos = mesclarListas(window.db.boletos, cloudData.boletos);
                         
-                        // D. Presenças (Objeto é mais delicado)
-                        // Estratégia: Pega tudo da nuvem, e sobrescreve SÓ o dia que estamos mexendo na tela
+                        // 2. Presenças (A MÁGICA ACONTECE AQUI)
                         const presencasNuvem = cloudData.presencas || {};
                         const dataNaTela = document.getElementById('dataPresenca') ? document.getElementById('dataPresenca').value : null;
                         
-                        // Mantém o histórico da nuvem
+                        // Guarda o que eu fiz agora
+                        let meuTrabalhoHoje = null;
+                        if (dataNaTela && window.db.presencas && window.db.presencas[dataNaTela]) {
+                            meuTrabalhoHoje = window.db.presencas[dataNaTela];
+                        }
+
+                        // Atualiza tudo com a nuvem primeiro (para ter o histórico dos outros dias)
                         window.db.presencas = { ...presencasNuvem };
-                        
-                        // Se estivermos editando um dia específico, forçamos a nossa versão desse dia
-                        if (dataNaTela && window.db.presencas[dataNaTela]) {
-                           // (A nossa versão local desse dia já está na memória, então mantemos ela)
-                           // Nota: Se o sócio editou O MESMO DIA ao mesmo tempo, o último a salvar ganha o dia.
+
+                        // Se eu estava mexendo num dia, vamos misturar o meu trabalho com o da nuvem
+                        if (dataNaTela && meuTrabalhoHoje) {
+                            const listaNuvemDesseDia = presencasNuvem[dataNaTela] || [];
+                            
+                            // Cria mapa para achar rápido o que está na nuvem
+                            const mapNuvem = new Map(listaNuvemDesseDia.map(item => [item.id, item]));
+
+                            // Percorre MEU trabalho e compara
+                            const diaMesclado = meuTrabalhoHoje.map(meuItem => {
+                                const itemNuvem = mapNuvem.get(meuItem.id);
+                                
+                                // REGRA DE OURO:
+                                // Se eu deixei "Vazio/Pendente" (status == ""), mas na nuvem já tem "Presente"...
+                                // Então MANTÉM o "Presente" da nuvem. Não apaga o trabalho do outro!
+                                if (!meuItem.status && itemNuvem && itemNuvem.status) {
+                                    return itemNuvem; 
+                                }
+                                
+                                // Caso contrário (se eu marquei algo, ou se na nuvem tbm está vazio), vale o meu.
+                                return meuItem;
+                            });
+
+                            window.db.presencas[dataNaTela] = diaMesclado;
                         }
                         
-                        // E. Auditoria (Junta tudo)
+                        // 3. Auditoria
                         window.db.audit = [...cloudData.audit, ...window.db.audit];
-                        // Remove duplicados de log se houver e limita tamanho
                         window.db.audit = window.db.audit.slice(-200);
 
-                        console.log("Mesclagem concluída. Salvando versão unificada.");
+                        console.log("Mesclagem concluída.");
                     }
                 }
 
-                // 3. Atualiza timestamp e Grava
+                // Salva
                 window.db.lastUpdate = Date.now();
                 lastCloudUpdate = window.db.lastUpdate; 
 

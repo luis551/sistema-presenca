@@ -132,43 +132,62 @@ window.renderizarMotoboys = function() {
     grid.innerHTML = '';
     if(!window.db.entregas) window.db.entregas = [];
 
-    // 1. Preenche o Select Automaticamente (Só na primeira vez ou se tiver vazio)
-    // Assim tu não precisa cadastrar motoboy em dois lugares
+    // 1. Preenche o Select (Dropdow) se estiver vazio
     if (filtro.options.length <= 1) {
-        const motoboysUnicos = new Set();
+        // Pega nomes únicos para não repetir
+        const mapNomes = new Map();
+        window.db.funcionarios.forEach(f => {
+            mapNomes.set(String(f.id), f.nome);
+        });
+
+        // Adiciona quem tem entrega mas talvez não seja funcionário ativo
         window.db.entregas.forEach(e => {
-            // Guarda ID e Nome pra criar a opção
-            motoboysUnicos.add(JSON.stringify({id: e.idFunc, nome: e.nomeFunc}));
+            if(!mapNomes.has(String(e.idFunc))) {
+                mapNomes.set(String(e.idFunc), e.nomeFunc);
+            }
         });
         
-        motoboysUnicos.forEach(itemStr => {
-            const item = JSON.parse(itemStr);
-            // Evita duplicatas visuais
-            if(!filtro.querySelector(`option[value="${item.id}"]`)){
-                filtro.innerHTML += `<option value="${item.id}">${item.nome}</option>`;
+        mapNomes.forEach((nome, id) => {
+             // Evita duplicatas no select
+             if(!filtro.querySelector(`option[value="${id}"]`)){
+                filtro.innerHTML += `<option value="${id}">${nome}</option>`;
             }
         });
     }
 
-    // 2. Filtra a Lista (O Poder da Seleção)
+    // 2. Filtra a Lista (AGORA COM VISÃO VERDADEIRA)
     let lista = [...window.db.entregas];
     
     if (idFiltro) {
-        // Se escolheu alguém, filtra pelo ID
-        lista = lista.filter(e => String(e.idFunc) === String(idFiltro));
-        painelResumo.style.display = 'flex'; // Mostra o painel de totais
+        // Descobre o nome do cara selecionado no filtro
+        const op = filtro.querySelector(`option[value="${idFiltro}"]`);
+        const nomeAlvo = op ? op.text.toLowerCase().trim() : "";
+        
+        // FILTRO DUPLO: Aceita se bater ID ou se bater NOME
+        lista = lista.filter(e => {
+            const idItem = String(e.idFunc || "");
+            const nomeItem = String(e.nomeFunc || "").toLowerCase().trim();
+
+            const bateuID = (idItem === String(idFiltro));
+            // Verifica se o nome contém parte do nome alvo (ex: "Alex" acha "Alex da Silva")
+            const bateuNome = (nomeAlvo !== "" && nomeItem.includes(nomeAlvo));
+
+            return bateuID || bateuNome;
+        });
+
+        painelResumo.style.display = 'flex'; 
     } else {
-        painelResumo.style.display = 'none'; // Esconde se for "Todos" (pra não poluir)
+        painelResumo.style.display = 'none'; 
     }
 
     // Ordena do mais recente para o antigo
     lista.sort((a,b) => new Date(b.data) - new Date(a.data));
 
-    // 3. Calcula os Totais (Soma do Loot)
+    // 3. Calcula os Totais (Isso já estava certo, mas mantemos)
     const totalEntregas = lista.reduce((acc, curr) => acc + (parseInt(curr.totalEntregas) || 0), 0);
     const totalGrana = lista.reduce((acc, curr) => acc + (parseFloat(curr.valorTotal) || 0), 0);
 
-    // Atualiza os números na tela
+    // Atualiza os números
     document.getElementById('sumEntregas').innerText = totalEntregas;
     document.getElementById('sumValorMoto').innerText = totalGrana.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
 
@@ -178,7 +197,7 @@ window.renderizarMotoboys = function() {
         return; 
     }
 
-    // Mostra até 50 registros pra não lagar o grimório
+    // Limita a 50 pra não travar
     const listaVisivel = lista.slice(0, 50);
 
     listaVisivel.forEach(item => {

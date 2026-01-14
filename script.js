@@ -125,19 +125,60 @@ window.lancarEntregaMoto = function() {
 
 window.renderizarMotoboys = function() {
     const grid = document.getElementById('gridMotoboys');
+    const filtro = document.getElementById('filtroMotoHist');
+    const painelResumo = document.getElementById('painelResumoMoto');
+    const idFiltro = filtro.value; // Quem tá selecionado?
+
     grid.innerHTML = '';
     if(!window.db.entregas) window.db.entregas = [];
-    
-    // Ordena do mais recente para o mais antigo
-    const lista = [...window.db.entregas].sort((a,b) => new Date(b.data) - new Date(a.data));
 
+    // 1. Preenche o Select Automaticamente (Só na primeira vez ou se tiver vazio)
+    // Assim tu não precisa cadastrar motoboy em dois lugares
+    if (filtro.options.length <= 1) {
+        const motoboysUnicos = new Set();
+        window.db.entregas.forEach(e => {
+            // Guarda ID e Nome pra criar a opção
+            motoboysUnicos.add(JSON.stringify({id: e.idFunc, nome: e.nomeFunc}));
+        });
+        
+        motoboysUnicos.forEach(itemStr => {
+            const item = JSON.parse(itemStr);
+            // Evita duplicatas visuais
+            if(!filtro.querySelector(`option[value="${item.id}"]`)){
+                filtro.innerHTML += `<option value="${item.id}">${item.nome}</option>`;
+            }
+        });
+    }
+
+    // 2. Filtra a Lista (O Poder da Seleção)
+    let lista = [...window.db.entregas];
+    
+    if (idFiltro) {
+        // Se escolheu alguém, filtra pelo ID
+        lista = lista.filter(e => String(e.idFunc) === String(idFiltro));
+        painelResumo.style.display = 'flex'; // Mostra o painel de totais
+    } else {
+        painelResumo.style.display = 'none'; // Esconde se for "Todos" (pra não poluir)
+    }
+
+    // Ordena do mais recente para o antigo
+    lista.sort((a,b) => new Date(b.data) - new Date(a.data));
+
+    // 3. Calcula os Totais (Soma do Loot)
+    const totalEntregas = lista.reduce((acc, curr) => acc + (parseInt(curr.totalEntregas) || 0), 0);
+    const totalGrana = lista.reduce((acc, curr) => acc + (parseFloat(curr.valorTotal) || 0), 0);
+
+    // Atualiza os números na tela
+    document.getElementById('sumEntregas').innerText = totalEntregas;
+    document.getElementById('sumValorMoto').innerText = totalGrana.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+
+    // 4. Renderiza os Cards
     if (lista.length === 0) { 
-        grid.innerHTML = '<p style="color:#aaa; width:100%; text-align:center;">Nenhuma entrega registrada.</p>'; 
+        grid.innerHTML = '<p style="color:#aaa; width:100%; text-align:center;">Nenhum registro encontrado para esse guerreiro.</p>'; 
         return; 
     }
 
-    // OTIMIZAÇÃO: Mostra apenas os últimos 50 registros na tela para não travar
-    // O histórico completo continua salvo no banco.
+    // Mostra até 50 registros pra não lagar o grimório
     const listaVisivel = lista.slice(0, 50);
 
     listaVisivel.forEach(item => {
@@ -160,11 +201,6 @@ window.renderizarMotoboys = function() {
         `;
         grid.innerHTML += html;
     });
-
-    // Aviso visual se houver mais itens escondidos
-    if(lista.length > 50) {
-        grid.innerHTML += `<div style="text-align:center; padding:10px; color:#aaa; width:100%;">Exibindo 50 de ${lista.length} registros. (Use filtros para ver antigos)</div>`;
-    }
 }
 
 window.removerEntrega = function(id) {
@@ -876,65 +912,59 @@ window.getTotalComissoesMes = function(idFunc, dataRefStr) {
         return acc;
     }, 0);
 }
-// --- FUNÇÃO DETETIVE: SOMA INTELIGENTE (Ignora Acentos e Maiúsculas) ---
+// --- FUNÇÃO DETETIVE 2.0: SOMA BLINDADA (Expeto Edition) ---
 window.getTotalMotoboyMes = function(idFunc, dataRefStr) {
-    // 1. Verifica se existe banco de dados
+    // 1. Verifica se tem loot (entregas)
     if (!window.db.entregas) return 0;
 
-    // 2. Prepara as datas
+    // 2. Prepara as datas do turno atual
     const parts = dataRefStr.split('-'); 
     const anoRef = parseInt(parts[0]); 
-    const mesRef = parseInt(parts[1]) - 1; // Javascript conta meses de 0 a 11
+    const mesRef = parseInt(parts[1]) - 1; // JS conta mês de 0 a 11
     
-    // 3. Pega os dados do Funcionário Selecionado
+    // 3. Pega os dados do NPC (Funcionário)
     const funcObj = window.db.funcionarios.find(f => f.id == idFunc);
     
-    // --- FUNÇÃO DE LIMPEZA (O Segredo) ---
-    // Transforma "Hélio " em "helio" para facilitar a comparação
+    // Função de limpeza (Remove acentos e espaços extras)
     const limparTexto = (texto) => {
         if (!texto) return "";
-        return String(texto)
-            .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Remove acentos
-            .toLowerCase() // Tudo minúsculo
-            .trim(); // Remove espaços nas pontas
+        return String(texto).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
     };
 
+    // Força o ID buscado ser String para não dar erro de tipo
     const idBusca = String(idFunc).trim();
     const nomeBusca = funcObj ? limparTexto(funcObj.nome) : "";
 
-    console.log(`🕵️‍♂️ INICIANDO BUSCA PARA: ${nomeBusca} (Mês: ${mesRef+1})`);
+    console.log(`🕵️‍♂️ BUSCANDO LOOT DE: ${nomeBusca} (ID: ${idBusca}) no Mês ${mesRef+1}/${anoRef}`);
 
-    // 4. Filtra e Soma
+    // 4. Filtra e Soma (Onde a mágica acontece)
     return window.db.entregas.reduce((acc, entrega) => {
         if (!entrega.data) return acc;
 
-        // Dados da Entrega sendo analisada
+        // Quebra a data da entrega
         const eParts = entrega.data.split('-'); 
         const eAno = parseInt(eParts[0]); 
         const eMes = parseInt(eParts[1]) - 1;
 
-        // Limpa os dados da entrega também
+        // Limpa os dados da entrega (Blinda contra erro de tipo)
         const idEntrega = String(entrega.idFunc || "").trim();
         const nomeEntrega = limparTexto(entrega.nomeFunc);
 
-        // COMPARAÇÕES
-        // Bate o ID?
-        const matchId = (idEntrega === idBusca);
-        // Bate o Nome (mesmo sem acento)?
-        const matchNome = (nomeBusca !== "" && nomeEntrega === nomeBusca);
-        // É do mesmo mês?
+        // --- CHECK DE PERCEPÇÃO (Comparações) ---
+        // 1. Bate o Mês e Ano?
         const matchData = (eAno === anoRef && eMes === mesRef);
 
-        // Se a data bater...
+        // 2. É o mesmo cara? (Compara ID OU Nome parecido)
+        const matchId = (idEntrega === idBusca);
+        const matchNome = (nomeBusca !== "" && nomeEntrega.includes(nomeBusca)); // Usar includes é mais generoso
+
         if (matchData) {
-            // ...e for a mesma pessoa (seja por ID ou por Nome parecido)
             if (matchId || matchNome) {
                 const valor = parseFloat(entrega.valorTotal) || 0;
-                console.log(`   ✅ ACHOU: R$ ${valor} | Nome na Entrega: "${entrega.nomeFunc}"`);
+                // console.log(`   ✅ SOMADO: R$ ${valor} | Entrega dia ${entrega.data}`);
                 return acc + valor;
             } else {
-                // Log para sabermos quem foi ignorado (ajuda a descobrir erros)
-                console.log(`   ❌ IGNORADO: "${entrega.nomeFunc}" (Não bateu com "${nomeBusca}")`);
+                // console.log(`   ❌ IGNORADO: "${entrega.nomeFunc}" (Não é o alvo)`);
             }
         }
         

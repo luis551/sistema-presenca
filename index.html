@@ -406,7 +406,15 @@
             <div class="card">
                 <h3 style="margin-top:0">Novo Lançamento</h3>
                 <div class="form-grid">
-                    <div class="form-group"><label>Funcionário</label><select id="selectFuncionarioPagamento" onchange="atualizarPainelPagamentos()"><option value="">Selecione...</option></select></div>
+                    <div class="form-group" style="grid-column: span 2; border-bottom: 1px dashed #ccc; padding-bottom: 15px; margin-bottom: 10px;">
+    <label style="color:var(--purple); font-weight:bold;">📅 Período de Cálculo do Saldo:</label>
+    <select id="filtroPeriodoPagamento" onchange="atualizarPainelPagamentos()" style="border: 2px solid var(--purple); color: var(--purple); font-weight: bold;">
+        <option value="MES">📅 Mês Completo (Acumulado)</option>
+        <option value="SEMANA_ATUAL">🔻 Semana Atual (Seg-Dom)</option>
+        <option value="SEMANA_PASSADA">⏪ Semana Passada</option>
+    </select>
+</div>
+<div class="form-group"><label>Funcionário</label><select id="selectFuncionarioPagamento" onchange="atualizarPainelPagamentos()"><option value="">Selecione...</option></select></div>
                     <div class="form-group"><label>Tipo</label><select id="tipoLancamento"><option value="Pagamento">💰 Pagamento Salário</option><option value="Vale">🎫 Vale / Adiantamento</option></select></div>
                     <div class="form-group"><label>Data</label><input type="date" id="dataPagamento" onchange="atualizarPainelPagamentos()"></div>
                     <div class="form-group"><label>Valor (R$)</label><input type="number" id="valorPagamento" placeholder="0.00"></div>
@@ -431,23 +439,35 @@
             <span class="badge-count" id="totalGeralPrev">R$ 0,00</span>
         </div>
         
-        <div class="filter-group">
-            <div class="input-wrapper">
-                <label>Filtrar Loja:</label>
-                <select id="filtroEmpresaPrevisao" onchange="window.atualizarPrevisao()">
-    <option value="">🏢 Todas as Lojas</option>
-    <option value="Bar Araújo">Bar Araújo</option>
-    <option value="Ventura">Ventura</option>
-    <option value="Armazem do Bras">Armazem do Bras</option>
-    <option value="Bar de colegio">Bar de colegio</option>
-    <option value="Escritorio">Escritorio</option>
-    <option value="Contento">Contento</option> </select>
-            </div>
-            <div class="input-wrapper">
-                <label>Data Base:</label>
-                <input type="date" id="dataPrevisaoBase" onchange="window.atualizarPrevisao()">
-            </div>
-        </div>
+       <div class="filter-group">
+    
+    <div class="input-wrapper">
+        <label>Filtrar Loja:</label>
+        <select id="filtroEmpresaPrevisao" onchange="window.atualizarPrevisao()">
+            <option value="">🏢 Todas as Lojas</option>
+            <option value="Bar Araújo">Bar Araújo</option>
+            <option value="Ventura">Ventura</option>
+            <option value="Armazem do Bras">Armazem do Bras</option>
+            <option value="Bar de colegio">Bar de colegio</option>
+            <option value="Escritorio">Escritorio</option>
+            <option value="Contento">Contento</option> 
+        </select>
+    </div>
+
+    <div class="input-wrapper">
+        <label>Período de Análise:</label>
+        <select id="filtroPeriodoPrevisao" onchange="window.atualizarPrevisao()" style="border: 2px solid var(--purple); color: var(--purple); font-weight: bold;">
+            <option value="MES">📅 Mês Completo (Acumulado)</option>
+            <option value="SEMANA_ATUAL">🔻 Semana Atual (Seg-Dom)</option>
+            <option value="SEMANA_PASSADA">⏪ Semana Passada</option>
+        </select>
+    </div>
+    <div class="input-wrapper">
+        <label>Data Base:</label>
+        <input type="date" id="dataPrevisaoBase" onchange="window.atualizarPrevisao()">
+    </div>
+
+</div>
     </div>
 
     <div class="kanban-board">
@@ -563,8 +583,17 @@
             }
         });
 
-        // --- SALVAMENTO COM MESCLAGEM INTELIGENTE DE PRESENÇA ---
+        // --- SALVAMENTO BLINDADO (Anti-Reset) ---
+        // 👇 COLAR O CÓDIGO NOVO AQUI 👇
         window.salvarNuvem = async function(silencioso = false) { 
+            // TRAVA DE SEGURANÇA DO MESTRE EXPETO
+            if ((!window.db.funcionarios || window.db.funcionarios.length === 0) && 
+                (!window.db.pagamentos || window.db.pagamentos.length === 0)) {
+                console.error("⛔ SALVAMENTO BLOQUEADO: O banco local parece vazio/resetado!");
+                if(!silencioso) alert("⛔ ERRO CRÍTICO: O sistema parece ter perdido a conexão e está vazio.\n\nO salvamento foi bloqueado para proteger seus dados na nuvem.\n\n👉 RECARREGUE A PÁGINA (F5) para tentar baixar os dados novamente.");
+                return; 
+            }
+
             isSaving = true; 
             const statusEl = document.getElementById('status-connection'); 
             if(!silencioso) statusEl.innerHTML = "🔄 Processando..."; 
@@ -576,65 +605,44 @@
                     const cloudData = checkSnap.data();
                     const cloudTime = cloudData.lastUpdate || 0;
 
-                    // SE HOUVER CONFLITO (DADOS NOVOS NA NUVEM)
                     if (cloudTime > lastCloudUpdate) {
                         if(!silencioso) statusEl.innerHTML = "⚡ Mesclando...";
-                        console.log("Conflito detectado! Iniciando mesclagem detalhada...");
                         
-                        // 1. Listas Simples (Adiciona o que falta)
                         window.db.funcionarios = mesclarListas(window.db.funcionarios, cloudData.funcionarios);
                         window.db.pagamentos = mesclarListas(window.db.pagamentos, cloudData.pagamentos);
                         window.db.extras = mesclarListas(window.db.extras, cloudData.extras);
                         window.db.entregas = mesclarListas(window.db.entregas, cloudData.entregas);
                         window.db.boletos = mesclarListas(window.db.boletos, cloudData.boletos);
                         
-                        // 2. Presenças (A MÁGICA ACONTECE AQUI)
                         const presencasNuvem = cloudData.presencas || {};
                         const dataNaTela = document.getElementById('dataPresenca') ? document.getElementById('dataPresenca').value : null;
                         
-                        // Guarda o que eu fiz agora
                         let meuTrabalhoHoje = null;
                         if (dataNaTela && window.db.presencas && window.db.presencas[dataNaTela]) {
                             meuTrabalhoHoje = window.db.presencas[dataNaTela];
                         }
 
-                        // Atualiza tudo com a nuvem primeiro (para ter o histórico dos outros dias)
                         window.db.presencas = { ...presencasNuvem };
 
-                        // Se eu estava mexendo num dia, vamos misturar o meu trabalho com o da nuvem
                         if (dataNaTela && meuTrabalhoHoje) {
                             const listaNuvemDesseDia = presencasNuvem[dataNaTela] || [];
-                            
-                            // Cria mapa para achar rápido o que está na nuvem
                             const mapNuvem = new Map(listaNuvemDesseDia.map(item => [item.id, item]));
 
-                            // Percorre MEU trabalho e compara
                             const diaMesclado = meuTrabalhoHoje.map(meuItem => {
                                 const itemNuvem = mapNuvem.get(meuItem.id);
-                                
-                                // REGRA DE OURO:
-                                // Se eu deixei "Vazio/Pendente" (status == ""), mas na nuvem já tem "Presente"...
-                                // Então MANTÉM o "Presente" da nuvem. Não apaga o trabalho do outro!
                                 if (!meuItem.status && itemNuvem && itemNuvem.status) {
                                     return itemNuvem; 
                                 }
-                                
-                                // Caso contrário (se eu marquei algo, ou se na nuvem tbm está vazio), vale o meu.
                                 return meuItem;
                             });
-
                             window.db.presencas[dataNaTela] = diaMesclado;
                         }
                         
-                        // 3. Auditoria
                         window.db.audit = [...cloudData.audit, ...window.db.audit];
                         window.db.audit = window.db.audit.slice(-200);
-
-                        console.log("Mesclagem concluída.");
                     }
                 }
 
-                // Salva
                 window.db.lastUpdate = Date.now();
                 lastCloudUpdate = window.db.lastUpdate; 
 
@@ -653,6 +661,7 @@
                 isSaving = false; 
             }
         }
+        // 👆 FIM DO CÓDIGO NOVO 👆
     </script>
     
 <div id="modalDetalhes">

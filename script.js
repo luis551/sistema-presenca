@@ -694,6 +694,17 @@ window.lancarComissao = function() {
     
     window.renderizarExtras();
 }
+// --- FUNÇÃO QUE FALTOU: CALCULAR PREVIEW DA COMISSÃO ---
+window.atualizarPreviewComissao = function() {
+    // 1. Pega o valor que você digitou
+    const valorVendas = parseFloat(document.getElementById('valorVendasInput').value) || 0;
+    
+    // 2. Calcula os 7%
+    const comissao = valorVendas * 0.07;
+    
+    // 3. Atualiza o texto roxo na tela
+    document.getElementById('previewComissaoValor').innerText = comissao.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+}
 window.lancarDespesa = function() {
     if(!checkPerm('fin')) return; 
 
@@ -1051,7 +1062,7 @@ window.getTotalPagoNoMes = function(idFunc, dataReferencia) {
     }).reduce((acc, p) => acc + p.valor, 0);
 }
 
-// --- VERSÃO FINAL: SALÁRIO DA SEMANA ATUAL vs PASSAGEM DA SEMANA ANTERIOR ---
+// --- VERSÃO MESTRE EXPETO 4.0: DATAS NAS PASSAGENS ---
 window.atualizarPainelPagamentos = function() {
     const idFunc = document.getElementById('selectFuncionarioPagamento').value;
     const dataInput = document.getElementById('dataPagamento').value; 
@@ -1068,39 +1079,33 @@ window.atualizarPainelPagamentos = function() {
         return;
     }
 
-    // 1. CÁLCULO DE DATAS (O Pulo do Gato)
+    // --- 1. CONFIGURAÇÃO DOS RANGES ---
     const tipoPeriodo = filtroPeriodo ? filtroPeriodo.value : 'MES';
     let rangeSalario = null;
-    let rangePassagem = null; // Novo Range só para passagem
+    let rangePassagem = null; 
+
+    // Formatadores
+    const fmt = (d) => d.toISOString().split('T')[0];
+    const fmtBr = (dStr) => { const [ano, mes, dia] = dStr.split('-'); return `${dia}/${mes}`; };
 
     if (tipoPeriodo !== 'MES') {
         const dataRef = new Date(dataInput + 'T12:00:00');
         const diaSemana = dataRef.getDay(); 
         const diffSegunda = dataRef.getDate() - (diaSemana === 0 ? 6 : diaSemana - 1);
         
-        // Define a Semana do Filtro (Salário)
-        const start = new Date(dataRef);
-        start.setDate(diffSegunda);
-        const end = new Date(start);
-        end.setDate(start.getDate() + 6); 
+        // Range SALÁRIO
+        const start = new Date(dataRef); start.setDate(diffSegunda);
+        const end = new Date(start); end.setDate(start.getDate() + 6); 
 
         if (tipoPeriodo === 'SEMANA_PASSADA') {
-            start.setDate(start.getDate() - 7);
-            end.setDate(end.getDate() - 7);
+            start.setDate(start.getDate() - 7); end.setDate(end.getDate() - 7);
         }
-
-        const fmt = (d) => d.toISOString().split('T')[0];
         rangeSalario = { start: fmt(start), end: fmt(end) };
         
-        // --- AQUI ESTÁ A MÁGICA: A PASSAGEM VOLTA 7 DIAS ---
-        const startPass = new Date(start);
-        startPass.setDate(start.getDate() - 7);
-        const endPass = new Date(end);
-        endPass.setDate(end.getDate() - 7);
-        
+        // Range PASSAGEM (Sempre -7 dias do Salário)
+        const startPass = new Date(start); startPass.setDate(start.getDate() - 7);
+        const endPass = new Date(end); endPass.setDate(end.getDate() - 7);
         rangePassagem = { start: fmt(startPass), end: fmt(endPass) };
-
-        console.log(`📅 Salário: ${rangeSalario.start} | 🚌 Passagem: ${rangePassagem.start}`);
     }
 
     const func = window.db.funcionarios.find(f => f.id == idFunc);
@@ -1108,127 +1113,211 @@ window.atualizarPainelPagamentos = function() {
     
     divResumo.style.display = 'flex';
 
+    // Variáveis de Acúmulo
     let totalPagoSalario = 0; 
     let totalVales = 0;
     
     let salarioBaseLiberado = 0;
-    let totalPassagens = 0;
-    let totalDiarias = 0;
-    let diasPresencaPassagem = 0; // Conta dias da semana passada (para passagem)
-    let diasSalario = 0;          // Conta dias da semana atual (para salário)
-    let totalComissoes = 0;
-    let totalEntregas = 0;
-
-    // === MODO MENSAL (Acumulado - Sem mudanças) ===
-    if (tipoPeriodo === 'MES') {
-        const [anoRef, mesRef] = dataInput.split('-');
-        pagsFuncionario.forEach(p => { 
-            if (p.data.startsWith(`${anoRef}-${mesRef}`)) { 
-                if (p.tipo === 'Vale') totalVales += p.valor; else totalPagoSalario += p.valor; 
-            } 
-        });
-        salarioBaseLiberado = window.calcularTetoLiberado(func, dataInput);
-        const valorDiaria = parseFloat(func.salario) || 0;
-        const valorPassagem = parseFloat(func.passagem) || 0;
-        Object.keys(window.db.presencas).forEach(diaStr => {
-            if(diaStr.startsWith(`${anoRef}-${mesRef}`)) { 
-                const registro = window.db.presencas[diaStr].find(r => r.id == idFunc);
-                if(registro) {
-                    if (func.tipo !== 'Diaria') { 
-                        if(['Presente', 'Atrasado'].includes(registro.status)) { totalPassagens += valorPassagem; diasPresencaPassagem++; }
-                    } else {
-                        if(registro.status === 'Presente') { totalDiarias += valorDiaria; diasPresencaPassagem++; } 
-                        else if(registro.status === 'Atrasado') { totalDiarias += (valorDiaria / 2); diasPresencaPassagem++; }
-                    }
-                }
-            }
-        });
-        totalComissoes = window.getTotalComissoesMes(idFunc, dataInput); 
-        totalEntregas = window.getTotalMotoboyMes(idFunc, dataInput);
-    } 
     
-    // === MODO SEMANAL (Salário Atual + Passagem Anterior) ===
-    else if (rangeSalario) {
-        // A. Pagamentos (O que pagou HOJE entra no range do Salário)
-        pagsFuncionario.forEach(p => {
-            if (p.data >= rangeSalario.start && p.data <= rangeSalario.end) {
-                if (p.tipo === 'Vale') totalVales += p.valor; 
-                else totalPagoSalario += p.valor;
-            }
-        });
+    // Detalhes extras
+    let totalPassagens = 0; let diasPresencaPassagem = 0; 
+    let detalhesPassagem = []; // <--- LISTA NOVA PARA GUARDAR AS DATAS
 
-        const valorSalarioMensal = parseFloat(func.salario) || 0;
-        const valorPassagem = parseFloat(func.passagem) || 0;
-        const valorDiaTrabalhoFixo = (func.tipo !== 'Diaria') ? (valorSalarioMensal / 30) : 0;
+    let totalDiarias = 0; let diasTrabalhadosCount = 0;
+    
+    let totalComissoes = 0; 
+    let detalhesComissao = []; 
 
-        // Inicializa Salário Cheio (Semanal)
-        if (func.tipo !== 'Diaria') {
-            diasSalario = 7;
-            salarioBaseLiberado = valorDiaTrabalhoFixo * 7;
+    let totalEntregasValor = 0; 
+    let qtdEntregasTotal = 0; 
+    let detalhesEntregas = []; 
+
+    // =========================================================================
+    // === CÁLCULOS (MOTOR DE SOMA) ===
+    // =========================================================================
+    
+    // 1. O que já foi pago
+    pagsFuncionario.forEach(p => { 
+        let entraNaConta = false;
+        if (tipoPeriodo === 'MES') {
+            if (p.data.startsWith(dataInput.slice(0, 7))) entraNaConta = true;
+        } else if (rangeSalario) {
+            if (p.data >= rangeSalario.start && p.data <= rangeSalario.end) entraNaConta = true;
         }
 
-        // B. Varredura dos Dias (Verifica dois períodos diferentes)
-        Object.keys(window.db.presencas).forEach(diaStr => {
-            const registro = window.db.presencas[diaStr].find(r => r.id == idFunc);
-            if(!registro) return;
-
-            // --- 1. CÁLCULO DO SALÁRIO (SEMANA ATUAL) ---
-            if(diaStr >= rangeSalario.start && diaStr <= rangeSalario.end) {
-                // Mensalista: Desconta Falta
-                if (func.tipo !== 'Diaria') { 
-                    if (registro.status === 'Falta') {
-                        salarioBaseLiberado -= valorDiaTrabalhoFixo;
-                        diasSalario--;
-                    }
-                } 
-                // Diarista: Ganha o dia atual
-                else {
-                    if(registro.status === 'Presente') { totalDiarias += valorSalarioMensal; } 
-                    else if(registro.status === 'Atrasado') { totalDiarias += (valorSalarioMensal / 2); }
-                }
-            }
-
-            // --- 2. CÁLCULO DA PASSAGEM (SEMANA ANTERIOR) ---
-            if(diaStr >= rangePassagem.start && diaStr <= rangePassagem.end) {
-                // Mensalista: Ganha Passagem da semana passada se veio
-                if (func.tipo !== 'Diaria') { 
-                    if(['Presente', 'Atrasado'].includes(registro.status)) { 
-                        totalPassagens += valorPassagem;
-                        diasPresencaPassagem++; 
-                    }
-                }
-                // Diarista: Geralmente ganha junto com a diária, mas se quiser pagar a passagem atrasada, descomente abaixo:
-                 else {
-                    // if(['Presente', 'Atrasado'].includes(registro.status)) { totalPassagens += valorPassagem; diasPresencaPassagem++; }
-                    if(registro.status === 'Presente' || registro.status === 'Atrasado') diasPresencaPassagem++; // Só conta
-                }
-            }
-        });
-
-        // Extras e Entregas (Segue a Semana Atual ou Passada? Geralmente Atual)
-        // Vou manter Atual (Salário), se quiser da passada avisa.
-        window.db.extras.forEach(e => {
-            if (e.data >= rangeSalario.start && e.data <= rangeSalario.end) {
-                if ((String(e.idFunc) === String(idFunc) || e.beneficiario === func.nome) && e.tipo === 'Comissao') {
-                    totalComissoes += e.valor;
-                }
-            }
-        });
-
-        if (window.db.entregas) {
-            window.db.entregas.forEach(e => {
-                if (e.data >= rangeSalario.start && e.data <= rangeSalario.end && String(e.idFunc) === String(idFunc)) {
-                    totalEntregas += e.valorTotal;
-                }
-            });
+        if (entraNaConta) {
+            if (p.tipo === 'Vale') totalVales += p.valor; else totalPagoSalario += p.valor; 
         }
+    });
+
+    // 2. Salário Base e Diárias/Passagens
+    const valorDiaria = parseFloat(func.salario) || 0;
+    const valorPassagem = parseFloat(func.passagem) || 0;
+    const valorDiaTrabalhoFixo = (func.tipo !== 'Diaria') ? (valorDiaria / 30) : 0;
+
+    if (rangeSalario && func.tipo !== 'Diaria') salarioBaseLiberado = valorDiaTrabalhoFixo * 7;
+    if (tipoPeriodo === 'MES' && func.tipo !== 'Diaria') salarioBaseLiberado = window.calcularTetoLiberado(func, dataInput);
+
+    // VARREDURA DE DIAS (Ordenada para as datas ficarem bonitas: 01, 02, 03...)
+    Object.keys(window.db.presencas).sort().forEach(diaStr => {
+        const registro = window.db.presencas[diaStr].find(r => r.id == idFunc);
+        if(!registro) return;
+
+        // A. Lógica de PASSAGEM
+        let contarPassagem = false;
+        if (tipoPeriodo === 'MES') {
+            if (diaStr.startsWith(dataInput.slice(0, 7))) contarPassagem = true;
+        } else if (rangePassagem) {
+            if (diaStr >= rangePassagem.start && diaStr <= rangePassagem.end) contarPassagem = true;
+        }
+
+        if (contarPassagem) {
+            if(['Presente', 'Atrasado'].includes(registro.status)) { 
+                totalPassagens += valorPassagem;
+                diasPresencaPassagem++; 
+                detalhesPassagem.push(fmtBr(diaStr)); // <--- GUARDA A DATA AQUI
+            }
+        }
+
+        // B. Lógica de TRABALHO/DIÁRIA
+        let contarTrabalho = false;
+        if (tipoPeriodo === 'MES') {
+            if (diaStr.startsWith(dataInput.slice(0, 7))) contarTrabalho = true;
+        } else if (rangeSalario) {
+            if (diaStr >= rangeSalario.start && diaStr <= rangeSalario.end) contarTrabalho = true;
+        }
+
+        if (contarTrabalho) {
+            if (func.tipo === 'Diaria') {
+                if(registro.status === 'Presente') { totalDiarias += valorDiaria; diasTrabalhadosCount++; } 
+                else if(registro.status === 'Atrasado') { totalDiarias += (valorDiaria / 2); diasTrabalhadosCount++; }
+            } else {
+                if (rangeSalario && registro.status === 'Falta') salarioBaseLiberado -= valorDiaTrabalhoFixo;
+            }
+        }
+    });
+
+    // 3. COMISSÕES E EXTRAS
+    window.db.extras.forEach(e => {
+        let entra = false;
+        if (tipoPeriodo === 'MES') {
+            if (e.data.startsWith(dataInput.slice(0, 7))) entra = true;
+        } else if (rangeSalario) {
+            if (e.data >= rangeSalario.start && e.data <= rangeSalario.end) entra = true;
+        }
+
+        if (entra) {
+            if ((String(e.idFunc) === String(idFunc) || e.beneficiario === func.nome) && e.tipo === 'Comissao') {
+                totalComissoes += e.valor;
+                detalhesComissao.push(fmtBr(e.data));
+            }
+        }
+    });
+
+    // 4. MOTOBOYS
+    if (window.db.entregas) {
+        window.db.entregas.forEach(e => {
+            let entra = false;
+            if (tipoPeriodo === 'MES') {
+                if (e.data.startsWith(dataInput.slice(0, 7))) entra = true;
+            } else if (rangeSalario) {
+                if (e.data >= rangeSalario.start && e.data <= rangeSalario.end) entra = true;
+            }
+
+            if (entra && String(e.idFunc) === String(idFunc)) {
+                totalEntregasValor += e.valorTotal;
+                qtdEntregasTotal += (e.totalEntregas || 0);
+                detalhesEntregas.push(fmtBr(e.data));
+            }
+        });
     }
 
-    // --- ATUALIZA TELA ---
-    document.getElementById('resumoSalario').innerText = fmtMoeda(totalPagoSalario);
-    document.getElementById('resumoVale').innerText = fmtMoeda(totalVales);
+    // =========================================================================
+    // === CONSTRUÇÃO DO HTML ===
+    // =========================================================================
+
+    if(salarioBaseLiberado < 0) salarioBaseLiberado = 0;
+    const ganhosTotal = salarioBaseLiberado + totalPassagens + totalDiarias + totalComissoes + totalEntregasValor;
+    const totalJaRecebido = totalPagoSalario + totalVales; 
+    const restante = ganhosTotal - totalJaRecebido;
     
-    // Filtra Pagamentos (Mostra os da semana do salário)
+    // Card Status
+    divAviso.style.display = 'block';
+    let corFundo = restante > 0.01 ? '#d4edda' : (restante < -0.01 ? '#f8d7da' : '#d1ecf1');
+    let corTexto = restante > 0.01 ? '#155724' : (restante < -0.01 ? '#721c24' : '#0c5460');
+    let icone = restante > 0.01 ? '✅' : (restante < -0.01 ? '🛑' : '🔷');
+    divAviso.style.backgroundColor = corFundo; divAviso.style.color = corTexto; divAviso.style.border = `1px solid ${corFundo}`; 
+
+    let labelPeriodo = (tipoPeriodo === 'MES') 
+        ? 'Referência: Mês Atual' 
+        : `Ref. Salário: ${fmtBr(rangeSalario.start)} a ${fmtBr(rangeSalario.end)}`;
+    
+    let labelPassagemInfo = (tipoPeriodo !== 'MES') 
+        ? `<span style="font-size:0.75rem; color:var(--purple); display:block; margin-top:2px; font-weight:normal;">(Passagem Ref: ${fmtBr(rangePassagem.start)} a ${fmtBr(rangePassagem.end)})</span>` 
+        : '';
+
+    let detalhesHTML = `<div style="margin-top:10px; padding-top:8px; border-top:1px solid rgba(0,0,0,0.1); font-size:0.85rem; line-height:1.6;">
+        <div style="font-size:0.8rem; color:var(--text-sub); margin-bottom:10px; text-align:center; font-weight:bold; background:rgba(255,255,255,0.6); padding:8px; border-radius:6px;">
+            ${labelPeriodo}
+            ${labelPassagemInfo}
+        </div>`;
+    
+    if(totalEntregasValor > 0) {
+        const datasUnicasMoto = [...new Set(detalhesEntregas)].sort().join(', ');
+        const tooltipMoto = `Qtd: ${qtdEntregasTotal} un. em ${datasUnicasMoto}`;
+        detalhesHTML += `
+        <div style="margin-bottom:4px;">
+            <div style="display:flex; justify-content:space-between;"><span>🏍️ Entregas:</span> <strong>${fmtMoeda(totalEntregasValor)}</strong></div>
+            <div style="font-size:0.75rem; color:var(--moto); margin-left:20px;">↳ ${tooltipMoto}</div>
+        </div>`;
+    }
+
+    if(totalComissoes > 0) {
+        const datasUnicasComissao = [...new Set(detalhesComissao)].sort().join(', ');
+        detalhesHTML += `
+        <div style="margin-bottom:4px;">
+            <div style="display:flex; justify-content:space-between;"><span>⭐ Comissões:</span> <strong>${fmtMoeda(totalComissoes)}</strong></div>
+            <div style="font-size:0.75rem; color:var(--purple); margin-left:20px;">↳ Dias: ${datasUnicasComissao}</div>
+        </div>`;
+    }
+    
+    // --- LINHA DE PASSAGEM (AGORA COM DATAS) ---
+    if(totalPassagens > 0) {
+        const datasPassagemStr = detalhesPassagem.join(', '); // Já está ordenado pelo loop principal
+        
+        detalhesHTML += `
+        <div style="margin-bottom:4px; background:rgba(142, 68, 173, 0.1); border-radius:4px; padding:4px;">
+            <div style="display:flex; justify-content:space-between; color:var(--purple); font-weight:bold;">
+                <span>🚌 Passagem (${diasPresencaPassagem} dias):</span> 
+                <strong>${fmtMoeda(totalPassagens)}</strong>
+            </div>
+            <div style="font-size:0.75rem; color:var(--purple); margin-left:10px; margin-top:2px;">↳ Dias: ${datasPassagemStr}</div>
+        </div>`;
+    }
+    
+    if(totalDiarias > 0) {
+        detalhesHTML += `<div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span>☀️ Diárias (${diasTrabalhadosCount}d):</span> <strong>${fmtMoeda(totalDiarias)}</strong></div>`;
+    }
+    if(salarioBaseLiberado > 0) {
+        detalhesHTML += `<div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span>📅 Salário Fixo:</span> <strong>${fmtMoeda(salarioBaseLiberado)}</strong></div>`;
+    }
+    
+    detalhesHTML += `<div style="display:flex; justify-content:space-between; margin-top:8px; border-top:2px dashed rgba(0,0,0,0.1); padding-top:5px; font-weight:bold;"><span>∑ Total Bruto:</span> <strong>${fmtMoeda(ganhosTotal)}</strong></div>`;
+    if(totalJaRecebido > 0) detalhesHTML += `<div style="display:flex; justify-content:space-between; color:#c0392b;"><span>💸 Já Recebido:</span> <strong>- ${fmtMoeda(totalJaRecebido)}</strong></div>`;
+    detalhesHTML += '</div>';
+
+    let extraInfo = func.pix ? `<div style="margin-top:8px; font-size:0.8rem; opacity:0.8; text-align:center;">🔑 Pix: ${func.pix}</div>` : '';
+
+    divAviso.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(0,0,0,0.1); padding-bottom:10px;">
+            <span style="font-size:1.4rem;">
+                ${icone} <strong>Líquido: ${fmtMoeda(restante)}</strong>
+            </span>
+        </div>
+        ${detalhesHTML}
+        ${extraInfo}
+    `;
+    
     const historicoFiltrado = pagsFuncionario.filter(p => {
         if(tipoPeriodo === 'MES') return p.data.startsWith(dataInput.slice(0, 7));
         if(rangeSalario) return p.data >= rangeSalario.start && p.data <= rangeSalario.end;
@@ -1236,51 +1325,6 @@ window.atualizarPainelPagamentos = function() {
     }).sort((a, b) => new Date(b.data) - new Date(a.data));
 
     window.renderizarCardsPagamento(historicoFiltrado);
-    
-    if(salarioBaseLiberado < 0) salarioBaseLiberado = 0;
-
-    const ganhosTotal = salarioBaseLiberado + totalPassagens + totalDiarias + totalComissoes + totalEntregas;
-    const totalJaRecebido = totalPagoSalario + totalVales; 
-    const restante = ganhosTotal - totalJaRecebido;
-    
-    // Visual
-    divAviso.style.display = 'block';
-    let corFundo = restante > 0.01 ? '#d4edda' : (restante < -0.01 ? '#f8d7da' : '#d1ecf1');
-    let corTexto = restante > 0.01 ? '#155724' : (restante < -0.01 ? '#721c24' : '#0c5460');
-    let corBorda = restante > 0.01 ? '#c3e6cb' : (restante < -0.01 ? '#f5c6cb' : '#bee5eb');
-    let icone = restante > 0.01 ? '✅' : (restante < -0.01 ? '🛑' : '🔷');
-
-    divAviso.style.backgroundColor = corFundo; divAviso.style.color = corTexto; divAviso.style.border = `1px solid ${corBorda}`; 
-
-    let labelPeriodo = (tipoPeriodo === 'MES') ? 'Referência: Mês Atual' : `Semana: ${fmtDataSimples(rangeSalario.start)} a ${fmtDataSimples(rangeSalario.end)}`;
-
-    let detalhesHTML = `<div style="margin-top:10px; padding-top:8px; border-top:1px solid rgba(0,0,0,0.1); font-size:0.85rem; line-height:1.6;">
-        <div style="font-size:0.75rem; color:var(--text-sub); margin-bottom:5px; text-align:center; font-weight:bold;">${labelPeriodo}</div>`;
-    
-    if(totalEntregas > 0) detalhesHTML += `<div style="display:flex; justify-content:space-between;"><span>🏍️ Entregas:</span> <strong>${fmtMoeda(totalEntregas)}</strong></div>`;
-    if(totalComissoes > 0) detalhesHTML += `<div style="display:flex; justify-content:space-between;"><span>⭐ Comissões:</span> <strong>${fmtMoeda(totalComissoes)}</strong></div>`;
-    
-    // Mostra Passagem com aviso de "Semana Passada"
-    if(totalPassagens > 0) detalhesHTML += `<div style="display:flex; justify-content:space-between; color:var(--purple);"><span>🚌 Passagem (Semana Ant. ${diasPresencaPassagem}d):</span> <strong>${fmtMoeda(totalPassagens)}</strong></div>`;
-    
-    if(totalDiarias > 0) detalhesHTML += `<div style="display:flex; justify-content:space-between;"><span>☀️ Diárias (${diasPresencaPassagem}d):</span> <strong>${fmtMoeda(totalDiarias)}</strong></div>`;
-    if(salarioBaseLiberado > 0) detalhesHTML += `<div style="display:flex; justify-content:space-between;"><span>📅 Salário Atual (${diasSalario}d):</span> <strong>${fmtMoeda(salarioBaseLiberado)}</strong></div>`;
-    
-    detalhesHTML += `<div style="display:flex; justify-content:space-between; margin-top:5px; border-top:1px dashed rgba(0,0,0,0.1); padding-top:5px;"><span>∑ Total Bruto:</span> <strong>${fmtMoeda(ganhosTotal)}</strong></div>`;
-    if(totalJaRecebido > 0) detalhesHTML += `<div style="display:flex; justify-content:space-between; color:#c0392b;"><span>💸 Já Recebido:</span> <strong>- ${fmtMoeda(totalJaRecebido)}</strong></div>`;
-    detalhesHTML += '</div>';
-
-    let extraInfo = func.pix ? `<div style="margin-top:8px; font-size:0.8rem; opacity:0.8;">🔑 Pix: ${func.pix}</div>` : '';
-
-    divAviso.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-size:1.3rem;">
-                ${icone} <strong>Disponível: ${fmtMoeda(restante)}</strong>
-            </span>
-        </div>
-        ${detalhesHTML}
-        ${extraInfo}
-    `;
 }
 // FUNÇÃO PARA ABRIR O MODAL
 // ATENÇÃO: Adicionei o parâmetro 'entregas' na função

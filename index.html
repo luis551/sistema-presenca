@@ -534,7 +534,8 @@
         };
 
         const app = initializeApp(firebaseConfig); 
-        const dbFirestore = getFirestore(app); 
+        // ATENÇÃO: Troque "NOME-DO-SEU-BANCO-NOVO" pelo nome exato que você criou lá no Google
+const dbFirestore = getFirestore(app, "recuperacao-rh"); 
         const docRef = doc(dbFirestore, "sistema_rh", "dados_gerais");
 
         let lastCloudUpdate = 0; 

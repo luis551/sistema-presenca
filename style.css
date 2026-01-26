@@ -477,77 +477,67 @@ tr:hover { background-color: rgba(0,0,0,0.05); }
     box-shadow: 0 4px 10px rgba(44, 62, 80, 0.2);
 }
 
-/* --- TABULEIRO KANBAN (GRID 2 COLUNAS) --- */
+/* --- PREVISÃO SEMANAL 3.0 (LAYOUT DEFINITIVO) --- */
 .kanban-board {
     display: grid;
-    grid-template-columns: 1fr 1fr; /* Força divisão exata de 50% */
-    gap: 30px; /* Espaço maior entre as colunas */
+    grid-template-columns: 1fr 1fr;
+    gap: 25px;
     align-items: start;
-    min-height: 500px;
-}
-
-/* Responsividade: No celular vira 1 coluna */
-@media (max-width: 900px) {
-    .kanban-board { grid-template-columns: 1fr; }
 }
 
 .kanban-col {
-    background: #fdfdfd;
-    border-radius: 16px;
-    border: 1px solid #eef2f3;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
     display: flex;
     flex-direction: column;
-    height: 100%;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.02);
-    overflow: hidden; /* Pra borda arredondada funcionar no header */
+    min-height: 400px;
+    border: 1px solid #e0e0e0;
 }
 
-/* Cabeçalhos Coloridos com Gradiente */
-.kanban-header {
+/* Cabeçalhos Específicos */
+.header-this-week {
+    background: linear-gradient(135deg, #f1c40f, #f39c12); /* Amarelo/Laranja */
+    color: #fff;
     padding: 20px;
-    color: white;
+    border-radius: 12px 12px 0 0;
     display: flex; justify-content: space-between; align-items: center;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-}
-.header-red { background: linear-gradient(135deg, #e74c3c, #c0392b); } /* Vermelho Vibrante */
-.header-blue { background: linear-gradient(135deg, #3498db, #2980b9); } /* Azul Profundo */
-
-.k-title { font-weight: 800; font-size: 1rem; text-transform: uppercase; letter-spacing: 1px; }
-.k-total { 
-    background: rgba(255,255,255,0.2); 
-    padding: 5px 12px; border-radius: 8px; 
-    font-weight: 800; font-size: 1.1rem; 
-    backdrop-filter: blur(5px);
 }
 
-.kanban-list { padding: 20px; flex: 1; background: #f8f9fa; }
+.header-future {
+    background: linear-gradient(135deg, #3498db, #2980b9); /* Azul */
+    color: #fff;
+    padding: 20px;
+    border-radius: 12px 12px 0 0;
+    display: flex; justify-content: space-between; align-items: center;
+}
 
-/* --- CARTÕES (CARDS) --- */
+.k-title { font-weight: 800; text-transform: uppercase; font-size: 0.9rem; letter-spacing: 1px; }
+.k-total { background: rgba(0,0,0,0.2); padding: 5px 10px; border-radius: 6px; font-weight: bold; }
+
+.kanban-list { padding: 15px; background: #f9f9f9; flex: 1; border-radius: 0 0 12px 12px; }
+
+/* Cards Otimizados */
 .k-card {
     background: white;
-    padding: 18px;
-    margin-bottom: 15px;
-    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 12px;
+    border-radius: 8px;
+    border-left: 5px solid #ccc;
     box-shadow: 0 2px 5px rgba(0,0,0,0.03);
-    border-left: 6px solid #ccc; /* Cor padrão */
-    transition: all 0.2s ease-in-out;
-    position: relative;
     display: flex; justify-content: space-between; align-items: center;
-    cursor: pointer;
-    border: 1px solid rgba(0,0,0,0.02); /* Borda sutil */
 }
 
-.k-card:hover { 
-    transform: translateY(-4px) scale(1.01); 
-    box-shadow: 0 8px 20px rgba(0,0,0,0.08); 
+.k-card.urgent { border-left-color: #c0392b; background-color: #fff5f5; } /* Atrasado/Vencendo */
+.k-card.normal { border-left-color: #f1c40f; } /* Essa semana */
+.k-card.future { border-left-color: #3498db; } /* Futuro */
+
+.k-info h4 { margin: 0; font-size: 0.95rem; color: #333; }
+.k-info p { margin: 2px 0 0 0; font-size: 0.75rem; color: #7f8c8d; }
+.k-actions { text-align: right; }
+.k-value { font-weight: 800; font-size: 1.1rem; color: #2c3e50; display: block; margin-bottom: 5px; }
+.btn-pay-card {
+    background: #27ae60; color: white; border: none; padding: 4px 10px;
+    border-radius: 4px; font-size: 0.7rem; font-weight: bold; cursor: pointer;
 }
-
-/* Tipografia do Card */
-.k-info h4 { margin: 0; font-size: 1rem; color: #2c3e50; font-weight: 700; margin-bottom: 4px; }
-.k-info p { margin: 0; font-size: 0.8rem; color: #95a5a6; font-weight: 500; }
-.k-value { font-size: 1.2rem; font-weight: 800; color: #333; letter-spacing: -0.5px; }
-
-/* Cores das Bordas dos Cards */
-.border-urgent { border-left-color: #e74c3c; } /* Vermelho */
-.border-weekly { border-left-color: #3498db; } /* Azul */
-.border-boleto { border-left-color: #f39c12; } /* Laranja */
+.btn-pay-card:hover { background: #219150; }

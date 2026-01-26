@@ -438,7 +438,9 @@ tr:hover { background-color: rgba(0,0,0,0.05); }
 
 .dash-blue { color: #2980b9 !important; }
 
-/* --- NOVO DESIGN DA PREVISÃO (KANBAN) --- */
+/* ============================================================
+   === ESTILO PREVISÃO 2.0 (LAYOUT DUPLO OTIMIZADO) ===
+   ============================================================ */
 
 /* Cabeçalho de Vidro */
 .glass-header {
@@ -452,80 +454,100 @@ tr:hover { background-color: rgba(0,0,0,0.05); }
     flex-wrap: wrap;
     gap: 20px;
     margin-bottom: 25px;
+    border: 1px solid #f0f0f0;
 }
 
-.filter-group { display: flex; gap: 15px; }
+.filter-group { display: flex; gap: 15px; flex-wrap: wrap; }
+
 .input-wrapper { display: flex; flex-direction: column; }
-.input-wrapper label { font-size: 0.75rem; color: #7f8c8d; margin-bottom: 4px; font-weight: bold; }
-.input-wrapper select, .input-wrapper input { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-weight: 600; color: #333; }
+.input-wrapper label { font-size: 0.75rem; color: #7f8c8d; margin-bottom: 4px; font-weight: bold; text-transform: uppercase; }
+.input-wrapper select, .input-wrapper input { 
+    padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; 
+    font-weight: 600; color: #333; background: #f9f9f9; 
+    transition: 0.2s;
+}
+.input-wrapper select:focus, .input-wrapper input:focus {
+    background: white; border-color: var(--accent);
+}
 
 .badge-count {
-    background: #2c3e50; color: white;
-    padding: 5px 12px; border-radius: 20px;
-    font-size: 1rem; font-weight: bold;
+    background: var(--primary); color: white;
+    padding: 8px 15px; border-radius: 30px;
+    font-size: 1.1rem; font-weight: 800;
+    box-shadow: 0 4px 10px rgba(44, 62, 80, 0.2);
 }
 
-/* Tabuleiro */
+/* --- TABULEIRO KANBAN (GRID 2 COLUNAS) --- */
 .kanban-board {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 25px;
+    grid-template-columns: 1fr 1fr; /* Força divisão exata de 50% */
+    gap: 30px; /* Espaço maior entre as colunas */
     align-items: start;
+    min-height: 500px;
+}
+
+/* Responsividade: No celular vira 1 coluna */
+@media (max-width: 900px) {
+    .kanban-board { grid-template-columns: 1fr; }
 }
 
 .kanban-col {
     background: #fdfdfd;
-    border-radius: 12px;
-    border: 1px solid #f0f0f0;
+    border-radius: 16px;
+    border: 1px solid #eef2f3;
     display: flex;
     flex-direction: column;
     height: 100%;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.02);
+    overflow: hidden; /* Pra borda arredondada funcionar no header */
 }
 
-/* Cabeçalhos Coloridos */
+/* Cabeçalhos Coloridos com Gradiente */
 .kanban-header {
-    padding: 15px 20px;
-    border-radius: 12px 12px 0 0;
+    padding: 20px;
     color: white;
     display: flex; justify-content: space-between; align-items: center;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
-.header-red { background: linear-gradient(135deg, #e74c3c, #c0392b); }
-.header-blue { background: linear-gradient(135deg, #3498db, #2980b9); }
-.header-green { background: linear-gradient(135deg, #27ae60, #16a085); }
+.header-red { background: linear-gradient(135deg, #e74c3c, #c0392b); } /* Vermelho Vibrante */
+.header-blue { background: linear-gradient(135deg, #3498db, #2980b9); } /* Azul Profundo */
 
-.k-title { font-weight: bold; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px; }
-.k-total { background: rgba(0,0,0,0.2); padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 1rem; }
+.k-title { font-weight: 800; font-size: 1rem; text-transform: uppercase; letter-spacing: 1px; }
+.k-total { 
+    background: rgba(255,255,255,0.2); 
+    padding: 5px 12px; border-radius: 8px; 
+    font-weight: 800; font-size: 1.1rem; 
+    backdrop-filter: blur(5px);
+}
 
-.kanban-list { padding: 15px; min-height: 200px; }
+.kanban-list { padding: 20px; flex: 1; background: #f8f9fa; }
 
-/* Cards (Cartões) */
+/* --- CARTÕES (CARDS) --- */
 .k-card {
     background: white;
-    padding: 15px;
-    margin-bottom: 12px;
-    border-radius: 8px;
-    box-shadow: 0 3px 6px rgba(0,0,0,0.04);
-    border-left: 5px solid #ccc;
-    transition: transform 0.2s, box-shadow 0.2s;
+    padding: 18px;
+    margin-bottom: 15px;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+    border-left: 6px solid #ccc; /* Cor padrão */
+    transition: all 0.2s ease-in-out;
     position: relative;
     display: flex; justify-content: space-between; align-items: center;
+    cursor: pointer;
+    border: 1px solid rgba(0,0,0,0.02); /* Borda sutil */
 }
-.k-card:hover { transform: translateY(-3px); box-shadow: 0 6px 12px rgba(0,0,0,0.08); }
 
-.k-info h4 { margin: 0; font-size: 0.95rem; color: #2c3e50; }
-.k-info p { margin: 3px 0 0 0; font-size: 0.8rem; color: #7f8c8d; }
-.k-value { font-size: 1.1rem; font-weight: 800; color: #333; }
+.k-card:hover { 
+    transform: translateY(-4px) scale(1.01); 
+    box-shadow: 0 8px 20px rgba(0,0,0,0.08); 
+}
+
+/* Tipografia do Card */
+.k-info h4 { margin: 0; font-size: 1rem; color: #2c3e50; font-weight: 700; margin-bottom: 4px; }
+.k-info p { margin: 0; font-size: 0.8rem; color: #95a5a6; font-weight: 500; }
+.k-value { font-size: 1.2rem; font-weight: 800; color: #333; letter-spacing: -0.5px; }
 
 /* Cores das Bordas dos Cards */
-.border-urgent { border-left-color: #e74c3c; }
-.border-weekly { border-left-color: #3498db; }
-.border-monthly { border-left-color: #27ae60; }
-.border-boleto { border-left-color: #f39c12; }
-
-/* Cartão quando ainda não foi selecionado nada */
-.card-Pendente { 
-    border-left-color: #bdc3c7 !important; /* Cinza */
-    background-color: #fdfdfd; 
-    opacity: 0.8;
-}
+.border-urgent { border-left-color: #e74c3c; } /* Vermelho */
+.border-weekly { border-left-color: #3498db; } /* Azul */
+.border-boleto { border-left-color: #f39c12; } /* Laranja */

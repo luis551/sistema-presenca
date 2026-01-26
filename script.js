@@ -1061,8 +1061,34 @@ window.getTotalPagoNoMes = function(idFunc, dataReferencia) {
         return p.idFunc == idFunc && d.getUTCMonth() == mesRef && d.getUTCFullYear() == anoRef; 
     }).reduce((acc, p) => acc + p.valor, 0);
 }
+// --- FUNÇÃO NOVO: CALCULAR DÍVIDA DO MÊS ANTERIOR ---
+window.getDividaMesAnterior = function(idFunc, dataRefStr) {
+    // 1. Descobre qual é o mês anterior
+    const [ano, mes, dia] = dataRefStr.split('-').map(Number);
+    
+    // Cria data e volta 1 mês
+    const dataAtual = new Date(ano, mes - 1, 1); 
+    const dataAnterior = new Date(dataAtual);
+    dataAnterior.setMonth(dataAnterior.getMonth() - 1);
+    
+    // Formata YYYY-MM para o mês anterior
+    const anoAnt = dataAnterior.getFullYear();
+    const mesAnt = String(dataAnterior.getMonth() + 1).padStart(2, '0');
+    const refAnterior = `${anoAnt}-${mesAnt}-01`; // Dia 1 do mês passado
 
-// --- VERSÃO MESTRE EXPETO 4.0: DATAS NAS PASSAGENS ---
+    // 2. Calcula quanto ele ganhou e quanto sacou no mês passado
+    const ganhosAnt = window.calcularGanhosNoMes(idFunc, refAnterior);
+    const pagosAnt = window.getTotalPagoNoMes(idFunc, refAnterior);
+
+    const saldoAnt = ganhosAnt - pagosAnt;
+
+    // 3. Se for Negativo, retorna a dívida. Se for positivo, retorna 0 (não acumula crédito, só dívida)
+    if (saldoAnt < -0.01) {
+        return saldoAnt; // Retorna ex: -200.50
+    }
+    return 0;
+}
+// --- ATUALIZAR PAINEL PAGAMENTOS (VERSÃO FINAL CORRIGIDA) ---
 window.atualizarPainelPagamentos = function() {
     const idFunc = document.getElementById('selectFuncionarioPagamento').value;
     const dataInput = document.getElementById('dataPagamento').value; 
@@ -1073,27 +1099,28 @@ window.atualizarPainelPagamentos = function() {
     const gridPag = document.getElementById('gridPagamentos');
     
     gridPag.innerHTML = ''; 
-    
-    if (!idFunc || !dataInput) {
-        divAviso.style.display = 'none'; divResumo.style.display = 'none';
-        return;
-    }
 
-    // --- 1. CONFIGURAÇÃO DOS RANGES ---
+    // Se não tiver data, usa hoje pra evitar erro
+    const dataRefStr = dataInput ? dataInput : new Date().toISOString().split('T')[0];
+
+    // --- 1. CONFIGURAÇÃO DOS RANGES (LÓGICA ORIGINAL PRESERVADA) ---
     const tipoPeriodo = filtroPeriodo ? filtroPeriodo.value : 'MES';
     let rangeSalario = null;
-    let rangePassagem = null; 
-
-    // Formatadores
+    let rangePassagem = null;
+    
+    // Formatadores auxiliares
     const fmt = (d) => d.toISOString().split('T')[0];
     const fmtBr = (dStr) => { const [ano, mes, dia] = dStr.split('-'); return `${dia}/${mes}`; };
 
-    if (tipoPeriodo !== 'MES') {
-        const dataRef = new Date(dataInput + 'T12:00:00');
+    if (tipoPeriodo === 'MES') {
+        // No modo mês, usamos string.startsWith direto, sem range numérico
+    } else {
+        // Lógica da Semana
+        const dataRef = new Date(dataRefStr + 'T12:00:00');
         const diaSemana = dataRef.getDay(); 
         const diffSegunda = dataRef.getDate() - (diaSemana === 0 ? 6 : diaSemana - 1);
         
-        // Range SALÁRIO
+        // Range SALÁRIO (Segunda a Domingo)
         const start = new Date(dataRef); start.setDate(diffSegunda);
         const end = new Date(start); end.setDate(start.getDate() + 6); 
 
@@ -1101,53 +1128,77 @@ window.atualizarPainelPagamentos = function() {
             start.setDate(start.getDate() - 7); end.setDate(end.getDate() - 7);
         }
         rangeSalario = { start: fmt(start), end: fmt(end) };
-        
-        // Range PASSAGEM (Sempre -7 dias do Salário)
+
+        // Range PASSAGEM (Sempre -7 dias em relação ao Salário)
         const startPass = new Date(start); startPass.setDate(start.getDate() - 7);
         const endPass = new Date(end); endPass.setDate(end.getDate() - 7);
         rangePassagem = { start: fmt(startPass), end: fmt(endPass) };
     }
 
-    const func = window.db.funcionarios.find(f => f.id == idFunc);
-    const pagsFuncionario = window.db.pagamentos.filter(p => p.idFunc == idFunc);
-    
-    divResumo.style.display = 'flex';
-
-    // Variáveis de Acúmulo
-    let totalPagoSalario = 0; 
-    let totalVales = 0;
-    
-    let salarioBaseLiberado = 0;
-    
-    // Detalhes extras
-    let totalPassagens = 0; let diasPresencaPassagem = 0; 
-    let detalhesPassagem = []; // <--- LISTA NOVA PARA GUARDAR AS DATAS
-
-    let totalDiarias = 0; let diasTrabalhadosCount = 0;
-    
-    let totalComissoes = 0; 
-    let detalhesComissao = []; 
-
-    let totalEntregasValor = 0; 
-    let qtdEntregasTotal = 0; 
-    let detalhesEntregas = []; 
-
-    // =========================================================================
-    // === CÁLCULOS (MOTOR DE SOMA) ===
-    // =========================================================================
-    
-    // 1. O que já foi pago
-    pagsFuncionario.forEach(p => { 
+    // --- 2. FILTRAR E SOMAR LISTA DE PAGAMENTOS (GLOBAL) ---
+    // Filtra o que vai aparecer na tela (Grid e Barra de Totais)
+    let pagamentosVisiveis = window.db.pagamentos.filter(p => {
         let entraNaConta = false;
+        
+        // Regra de Data
         if (tipoPeriodo === 'MES') {
-            if (p.data.startsWith(dataInput.slice(0, 7))) entraNaConta = true;
+            if (p.data.startsWith(dataRefStr.slice(0, 7))) entraNaConta = true;
         } else if (rangeSalario) {
             if (p.data >= rangeSalario.start && p.data <= rangeSalario.end) entraNaConta = true;
         }
 
-        if (entraNaConta) {
-            if (p.tipo === 'Vale') totalVales += p.valor; else totalPagoSalario += p.valor; 
-        }
+        // Regra de Funcionário
+        const funcOk = idFunc ? (String(p.idFunc) === String(idFunc)) : true;
+        
+        return entraNaConta && funcOk;
+    });
+
+    // Ordena
+    pagamentosVisiveis.sort((a, b) => new Date(b.data) - new Date(a.data));
+
+    // Soma os totais para exibir na barra (AQUI ESTAVA FALTANDO ATUALIZAR O VISUAL)
+    let somaSalarios = 0;
+    let somaVales = 0;
+
+    pagamentosVisiveis.forEach(p => {
+        if (p.tipo === 'Vale') somaVales += p.valor;
+        else somaSalarios += p.valor;
+    });
+
+    // ATUALIZA A BARRA DE RESUMO AGORA!
+    divResumo.style.display = 'flex';
+    document.getElementById('resumoSalario').innerText = somaSalarios.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+    document.getElementById('resumoVale').innerText = somaVales.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+    
+    // Renderiza a Grid
+    window.renderizarCardsPagamento(pagamentosVisiveis);
+
+    // --- 3. SE NÃO TIVER FUNCIONÁRIO SELECIONADO, PARA AQUI ---
+    if (!idFunc) {
+        divAviso.style.display = 'none';
+        return;
+    }
+
+    // =========================================================================
+    // === CÁLCULOS DE SALDO INDIVIDUAL (COM A SUA LÓGICA DE RANGES) ===
+    // =========================================================================
+    
+    const func = window.db.funcionarios.find(f => f.id == idFunc);
+    
+    // Variáveis de Acúmulo Individual
+    let totalPagoSalario = 0; let totalValesIndiv = 0;
+    let salarioBaseLiberado = 0;
+    
+    let totalPassagens = 0; let diasPresencaPassagem = 0; 
+    let detalhesPassagem = []; 
+    let totalDiarias = 0; let diasTrabalhadosCount = 0;
+    let totalComissoes = 0; let detalhesComissao = []; 
+    let totalEntregasValor = 0; let qtdEntregasTotal = 0; let detalhesEntregas = []; 
+
+    // 1. Recalcula pagamentos (já filtrados acima)
+    pagamentosVisiveis.forEach(p => { 
+        if (p.tipo === 'Vale') totalValesIndiv += p.valor; 
+        else totalPagoSalario += p.valor; 
     });
 
     // 2. Salário Base e Diárias/Passagens
@@ -1156,17 +1207,17 @@ window.atualizarPainelPagamentos = function() {
     const valorDiaTrabalhoFixo = (func.tipo !== 'Diaria') ? (valorDiaria / 30) : 0;
 
     if (rangeSalario && func.tipo !== 'Diaria') salarioBaseLiberado = valorDiaTrabalhoFixo * 7;
-    if (tipoPeriodo === 'MES' && func.tipo !== 'Diaria') salarioBaseLiberado = window.calcularTetoLiberado(func, dataInput);
+    if (tipoPeriodo === 'MES' && func.tipo !== 'Diaria') salarioBaseLiberado = window.calcularTetoLiberado(func, dataRefStr);
 
-    // VARREDURA DE DIAS (Ordenada para as datas ficarem bonitas: 01, 02, 03...)
+    // VARREDURA DE DIAS (Presenças) - AQUI MANTIVE SUA LÓGICA DE RANGES SEPARADOS
     Object.keys(window.db.presencas).sort().forEach(diaStr => {
         const registro = window.db.presencas[diaStr].find(r => r.id == idFunc);
         if(!registro) return;
 
-        // A. Lógica de PASSAGEM
+        // A. Lógica de PASSAGEM (Usa rangePassagem se for semanal)
         let contarPassagem = false;
         if (tipoPeriodo === 'MES') {
-            if (diaStr.startsWith(dataInput.slice(0, 7))) contarPassagem = true;
+            if (diaStr.startsWith(dataRefStr.slice(0, 7))) contarPassagem = true;
         } else if (rangePassagem) {
             if (diaStr >= rangePassagem.start && diaStr <= rangePassagem.end) contarPassagem = true;
         }
@@ -1175,14 +1226,14 @@ window.atualizarPainelPagamentos = function() {
             if(['Presente', 'Atrasado'].includes(registro.status)) { 
                 totalPassagens += valorPassagem;
                 diasPresencaPassagem++; 
-                detalhesPassagem.push(fmtBr(diaStr)); // <--- GUARDA A DATA AQUI
+                detalhesPassagem.push(fmtBr(diaStr));
             }
         }
 
-        // B. Lógica de TRABALHO/DIÁRIA
+        // B. Lógica de TRABALHO/DIÁRIA (Usa rangeSalario se for semanal)
         let contarTrabalho = false;
         if (tipoPeriodo === 'MES') {
-            if (diaStr.startsWith(dataInput.slice(0, 7))) contarTrabalho = true;
+            if (diaStr.startsWith(dataRefStr.slice(0, 7))) contarTrabalho = true;
         } else if (rangeSalario) {
             if (diaStr >= rangeSalario.start && diaStr <= rangeSalario.end) contarTrabalho = true;
         }
@@ -1201,16 +1252,14 @@ window.atualizarPainelPagamentos = function() {
     window.db.extras.forEach(e => {
         let entra = false;
         if (tipoPeriodo === 'MES') {
-            if (e.data.startsWith(dataInput.slice(0, 7))) entra = true;
+            if (e.data.startsWith(dataRefStr.slice(0, 7))) entra = true;
         } else if (rangeSalario) {
             if (e.data >= rangeSalario.start && e.data <= rangeSalario.end) entra = true;
         }
 
-        if (entra) {
-            if ((String(e.idFunc) === String(idFunc) || e.beneficiario === func.nome) && e.tipo === 'Comissao') {
-                totalComissoes += e.valor;
-                detalhesComissao.push(fmtBr(e.data));
-            }
+        if (entra && (String(e.idFunc) === String(idFunc) || e.beneficiario === func.nome) && e.tipo === 'Comissao') {
+            totalComissoes += e.valor;
+            detalhesComissao.push(fmtBr(e.data));
         }
     });
 
@@ -1219,7 +1268,7 @@ window.atualizarPainelPagamentos = function() {
         window.db.entregas.forEach(e => {
             let entra = false;
             if (tipoPeriodo === 'MES') {
-                if (e.data.startsWith(dataInput.slice(0, 7))) entra = true;
+                if (e.data.startsWith(dataRefStr.slice(0, 7))) entra = true;
             } else if (rangeSalario) {
                 if (e.data >= rangeSalario.start && e.data <= rangeSalario.end) entra = true;
             }
@@ -1231,76 +1280,56 @@ window.atualizarPainelPagamentos = function() {
             }
         });
     }
-
-    // =========================================================================
-    // === CONSTRUÇÃO DO HTML ===
-    // =========================================================================
-
+             // --- NOVO CÓDIGO: DÍVIDA ---
+             let dividaAnterior = 0;
+             // Só calcula dívida se estivermos vendo o Mês Completo
+             if(tipoPeriodo === 'MES') {
+            dividaAnterior = window.getDividaMesAnterior(idFunc, dataRefStr);
+    }
+    // ---------------------------   
+    // === EXIBIÇÃO DO CARD DE SALDO ===
     if(salarioBaseLiberado < 0) salarioBaseLiberado = 0;
-    const ganhosTotal = salarioBaseLiberado + totalPassagens + totalDiarias + totalComissoes + totalEntregasValor;
-    const totalJaRecebido = totalPagoSalario + totalVales; 
+    const ganhosTotal = salarioBaseLiberado + totalPassagens + totalDiarias + totalComissoes + totalEntregasValor + dividaAnterior;
+    const totalJaRecebido = totalPagoSalario + totalValesIndiv; 
     const restante = ganhosTotal - totalJaRecebido;
     
-    // Card Status
     divAviso.style.display = 'block';
     let corFundo = restante > 0.01 ? '#d4edda' : (restante < -0.01 ? '#f8d7da' : '#d1ecf1');
     let corTexto = restante > 0.01 ? '#155724' : (restante < -0.01 ? '#721c24' : '#0c5460');
     let icone = restante > 0.01 ? '✅' : (restante < -0.01 ? '🛑' : '🔷');
     divAviso.style.backgroundColor = corFundo; divAviso.style.color = corTexto; divAviso.style.border = `1px solid ${corFundo}`; 
 
-    let labelPeriodo = (tipoPeriodo === 'MES') 
-        ? 'Referência: Mês Atual' 
-        : `Ref. Salário: ${fmtBr(rangeSalario.start)} a ${fmtBr(rangeSalario.end)}`;
+    let labelPeriodo = (tipoPeriodo === 'MES') ? 'Mês Atual' : `${fmtBr(rangeSalario.start)} a ${fmtBr(rangeSalario.end)}`;
     
-    let labelPassagemInfo = (tipoPeriodo !== 'MES') 
+    // Mostra o range da passagem se for semanal, pra ficar claro
+    let labelPassagemInfo = (rangePassagem) 
         ? `<span style="font-size:0.75rem; color:var(--purple); display:block; margin-top:2px; font-weight:normal;">(Passagem Ref: ${fmtBr(rangePassagem.start)} a ${fmtBr(rangePassagem.end)})</span>` 
         : '';
 
     let detalhesHTML = `<div style="margin-top:10px; padding-top:8px; border-top:1px solid rgba(0,0,0,0.1); font-size:0.85rem; line-height:1.6;">
         <div style="font-size:0.8rem; color:var(--text-sub); margin-bottom:10px; text-align:center; font-weight:bold; background:rgba(255,255,255,0.6); padding:8px; border-radius:6px;">
-            ${labelPeriodo}
+            Referência: ${labelPeriodo}
             ${labelPassagemInfo}
         </div>`;
-    
-    if(totalEntregasValor > 0) {
-        const datasUnicasMoto = [...new Set(detalhesEntregas)].sort().join(', ');
-        const tooltipMoto = `Qtd: ${qtdEntregasTotal} un. em ${datasUnicasMoto}`;
-        detalhesHTML += `
-        <div style="margin-bottom:4px;">
-            <div style="display:flex; justify-content:space-between;"><span>🏍️ Entregas:</span> <strong>${fmtMoeda(totalEntregasValor)}</strong></div>
-            <div style="font-size:0.75rem; color:var(--moto); margin-left:20px;">↳ ${tooltipMoto}</div>
+        
+       if(dividaAnterior < -0.01) {
+        detalhesHTML += `<div style="display:flex; justify-content:space-between; color:#c0392b; background:#fff5f5; padding:4px 8px; border-radius:4px; margin-bottom:5px; border:1px solid #f5c6cb;">
+            <span>🔻 Dívida Mês Anterior:</span> 
+            <strong>${fmtMoeda(dividaAnterior)}</strong>
         </div>`;
+    }
+    if(totalEntregasValor > 0) detalhesHTML += `<div style="display:flex; justify-content:space-between;"><span>🏍️ Entregas (${qtdEntregasTotal}):</span> <strong>${fmtMoeda(totalEntregasValor)}</strong></div>`;
+    if(totalComissoes > 0) detalhesHTML += `<div style="display:flex; justify-content:space-between;"><span>⭐ Comissões:</span> <strong>${fmtMoeda(totalComissoes)}</strong></div>`;
+    
+    if(totalPassagens > 0) {
+        // Mostra os dias exatos da passagem no tooltip ou na linha
+        const diasStr = detalhesPassagem.join(', ');
+        detalhesHTML += `<div style="display:flex; justify-content:space-between;"><span>🚌 Passagem (${diasPresencaPassagem}d):</span> <strong>${fmtMoeda(totalPassagens)}</strong></div>`;
+        if(diasStr) detalhesHTML += `<div style="font-size:0.7rem; color:var(--purple); margin-bottom:4px; text-align:right;">Dias: ${diasStr}</div>`;
     }
 
-    if(totalComissoes > 0) {
-        const datasUnicasComissao = [...new Set(detalhesComissao)].sort().join(', ');
-        detalhesHTML += `
-        <div style="margin-bottom:4px;">
-            <div style="display:flex; justify-content:space-between;"><span>⭐ Comissões:</span> <strong>${fmtMoeda(totalComissoes)}</strong></div>
-            <div style="font-size:0.75rem; color:var(--purple); margin-left:20px;">↳ Dias: ${datasUnicasComissao}</div>
-        </div>`;
-    }
-    
-    // --- LINHA DE PASSAGEM (AGORA COM DATAS) ---
-    if(totalPassagens > 0) {
-        const datasPassagemStr = detalhesPassagem.join(', '); // Já está ordenado pelo loop principal
-        
-        detalhesHTML += `
-        <div style="margin-bottom:4px; background:rgba(142, 68, 173, 0.1); border-radius:4px; padding:4px;">
-            <div style="display:flex; justify-content:space-between; color:var(--purple); font-weight:bold;">
-                <span>🚌 Passagem (${diasPresencaPassagem} dias):</span> 
-                <strong>${fmtMoeda(totalPassagens)}</strong>
-            </div>
-            <div style="font-size:0.75rem; color:var(--purple); margin-left:10px; margin-top:2px;">↳ Dias: ${datasPassagemStr}</div>
-        </div>`;
-    }
-    
-    if(totalDiarias > 0) {
-        detalhesHTML += `<div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span>☀️ Diárias (${diasTrabalhadosCount}d):</span> <strong>${fmtMoeda(totalDiarias)}</strong></div>`;
-    }
-    if(salarioBaseLiberado > 0) {
-        detalhesHTML += `<div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span>📅 Salário Fixo:</span> <strong>${fmtMoeda(salarioBaseLiberado)}</strong></div>`;
-    }
+    if(totalDiarias > 0) detalhesHTML += `<div style="display:flex; justify-content:space-between;"><span>☀️ Diárias (${diasTrabalhadosCount}d):</span> <strong>${fmtMoeda(totalDiarias)}</strong></div>`;
+    if(salarioBaseLiberado > 0) detalhesHTML += `<div style="display:flex; justify-content:space-between;"><span>📅 Salário Fixo:</span> <strong>${fmtMoeda(salarioBaseLiberado)}</strong></div>`;
     
     detalhesHTML += `<div style="display:flex; justify-content:space-between; margin-top:8px; border-top:2px dashed rgba(0,0,0,0.1); padding-top:5px; font-weight:bold;"><span>∑ Total Bruto:</span> <strong>${fmtMoeda(ganhosTotal)}</strong></div>`;
     if(totalJaRecebido > 0) detalhesHTML += `<div style="display:flex; justify-content:space-between; color:#c0392b;"><span>💸 Já Recebido:</span> <strong>- ${fmtMoeda(totalJaRecebido)}</strong></div>`;
@@ -1317,14 +1346,6 @@ window.atualizarPainelPagamentos = function() {
         ${detalhesHTML}
         ${extraInfo}
     `;
-    
-    const historicoFiltrado = pagsFuncionario.filter(p => {
-        if(tipoPeriodo === 'MES') return p.data.startsWith(dataInput.slice(0, 7));
-        if(rangeSalario) return p.data >= rangeSalario.start && p.data <= rangeSalario.end;
-        return true;
-    }).sort((a, b) => new Date(b.data) - new Date(a.data));
-
-    window.renderizarCardsPagamento(historicoFiltrado);
 }
 // FUNÇÃO PARA ABRIR O MODAL
 // ATENÇÃO: Adicionei o parâmetro 'entregas' na função
@@ -1791,128 +1812,151 @@ window.removerBoleto = function(id) {
         window.renderizarBoletos();
     }
 }
+// --- PREVISÃO REFEITA DO ZERO (LAYOUT 2 COLUNAS) ---
 window.atualizarPrevisao = function() {
+    // 1. RECONSTRUÇÃO DO VISUAL (Mata as 3 colunas antigas e cria 2 novas)
+    const board = document.querySelector('.kanban-board');
+    
+    // Injeta o novo HTML direto aqui
+    board.innerHTML = `
+        <div class="kanban-col col-urgent">
+            <div class="kanban-header header-red">
+                <div class="k-title">🔥 Giro Diário / Hoje</div>
+                <div class="k-total" id="sumUrgent">R$ 0,00</div>
+            </div>
+            <div id="listUrgent" class="kanban-list"></div>
+        </div>
+
+        <div class="kanban-col col-weekly">
+            <div class="kanban-header header-blue">
+                <div class="k-title">📅 Fechamentos (Sem/Quinz)</div>
+                <div class="k-total" id="sumWeekly">R$ 0,00</div>
+            </div>
+            <div id="listWeekly" class="kanban-list"></div>
+        </div>
+    `;
+
+    // Pegamos as referências das novas listas criadas acima
     const listUrgent = document.getElementById('listUrgent');
     const listWeekly = document.getElementById('listWeekly');
-    const listMonthly = document.getElementById('listMonthly');
+    
+    // Filtros
     const inputData = document.getElementById('dataPrevisaoBase');
     const filtroLoja = document.getElementById('filtroEmpresaPrevisao');
-    
-    // --- O PULO DO GATO ESTÁ AQUI ---
     const filtroPeriodo = document.getElementById('filtroPeriodoPrevisao'); 
     
     if (!inputData.value) inputData.value = new Date().toISOString().split('T')[0];
     const dataRefStr = inputData.value;
     
-    // Pega o valor do filtro (Se não existir ainda, assume MES)
+    // Pega filtros
     const periodoSelecionado = filtroPeriodo ? filtroPeriodo.value : 'MES';
-
-    // Calcula as datas de Inicio e Fim (se for semana)
-    const range = window.getRangeDatas(periodoSelecionado, dataRefStr);
-    
-    // Popula Select de Loja se vazio
-    if (filtroLoja.options.length <= 1) {
-        const lojasUnicas = [...new Set(window.db.funcionarios.map(f => f.empresa).filter(Boolean))].sort();
-        lojasUnicas.forEach(loja => {
-            filtroLoja.innerHTML += `<option value="${loja}">${loja}</option>`;
-        });
-    }
-
     const lojaSelecionada = filtroLoja.value;
 
-    listUrgent.innerHTML = ''; listWeekly.innerHTML = ''; listMonthly.innerHTML = '';
+    // Calcula Datas (Range) para saber o que exibir
+    const range = window.getRangeDatas(periodoSelecionado, dataRefStr);
     
-    let totalUrgent = 0, totalWeekly = 0, totalMonthly = 0;
+    let totalUrgent = 0;
+    let totalWeekly = 0;
 
-    // --- PROCESSAR CADA FUNCIONÁRIO ---
+    // --- 2. PROCESSAR FUNCIONÁRIOS ---
     window.db.funcionarios.forEach(f => {
         if (lojaSelecionada && f.empresa !== lojaSelecionada) return;
 
         let totalGanhos = 0;
         let totalPago = 0;
 
-        // === DECISÃO: MÊS ou SEMANA? ===
+        // Cálculos (usa a mesma matemática inteligente dos pagamentos)
         if (periodoSelecionado === 'MES') {
-            // Lógica Clássica (Acumulado)
             totalGanhos = window.calcularGanhosNoMes(f.id, dataRefStr);
             totalPago = window.getTotalPagoNoMes(f.id, dataRefStr);
-        } else {
-            // Nova Lógica (Recorte Semanal)
-            if (range) {
-                totalGanhos = window.calcularGanhosRange(f.id, range.start, range.end);
-                totalPago = window.getPagamentosRange(f.id, range.start, range.end);
-            }
+        } else if (range) {
+            totalGanhos = window.calcularGanhosRange(f.id, range.start, range.end);
+            totalPago = window.getPagamentosRange(f.id, range.start, range.end);
         }
         
-        const saldoDevedor = totalGanhos - totalPago;
+        const saldo = totalGanhos - totalPago;
 
-        // Só mostra card se tiver movimento (positivo ou negativo)
-        if (Math.abs(saldoDevedor) > 0.1) {
-            
-            // Texto bonitinho pra saber que data tá pegando
-            const labelPeriodo = range ? `<br><small style='color:var(--moto); font-size:0.7rem'>📅 ${fmtDataSimples(range.start)} a ${fmtDataSimples(range.end)}</small>` : '';
-
-            let htmlCard = `
-                <div class="k-info">
+        // Só mostra card se tiver saldo positivo (dinheiro a sair do caixa)
+        if (saldo > 0.1) {
+            const htmlCard = `
+                <div class="k-info" onclick="mostrarDetalhesCalculo(${f.id}, '${dataRefStr}')" style="cursor:pointer">
                     <h4>${f.nome}</h4>
-                    <p>${f.empresa || 'Sem Loja'}${labelPeriodo}</p>
+                    <p>${f.empresa || 'Sem Loja'}</p>
                 </div>
-                <div class="k-value" style="${saldoDevedor < 0 ? 'color:red' : ''}">
-                    ${fmtMoeda(saldoDevedor)}
-                </div>
+                <div class="k-value">${fmtMoeda(saldo)}</div>
             `;
-
-            // Distribui nas colunas
+            
+            // --- AQUI ESTÁ A NOVA LÓGICA DE DISTRIBUIÇÃO ---
+            // Diaristas -> Vão para a Coluna 1 (Vermelha/Diária)
+            // Semanal/Quinzenal -> Vão para a Coluna 2 (Azul/Fechamento)
+            
             if (f.tipo === 'Diaria') {
-                totalUrgent += saldoDevedor;
+                totalUrgent += saldo;
                 listUrgent.innerHTML += `<div class="k-card border-urgent">${htmlCard}</div>`;
-            }
-            else if (f.tipo === 'Semanal' || f.tipo === 'Quinzenal') {
-                totalWeekly += saldoDevedor;
+            } else {
+                totalWeekly += saldo;
                 listWeekly.innerHTML += `<div class="k-card border-weekly">${htmlCard}</div>`;
-            }
-            else {
-                totalMonthly += saldoDevedor;
-                listMonthly.innerHTML += `<div class="k-card border-monthly">${htmlCard}</div>`;
             }
         }
     });
 
-    // --- PROCESSAR BOLETOS (Só mostra na semana se vencer na semana) ---
-    if(window.db.boletos && lojaSelecionada === "") {
+    // --- 3. PROCESSAR BOLETOS E CONTAS (COM PROTEÇÃO DE VISÃO) ---
+    // AQUI ESTÁ A MÁGICA: Adicionei "&& verificarPermissao('boletos')"
+    // Se o cara não for admin e não tiver permissão de boletos, o código PULA isso aqui.
+    if(window.db.boletos && lojaSelecionada === "" && verificarPermissao('boletos')) { 
+        const hoje = new Date().toISOString().split('T')[0];
+        
         window.db.boletos.forEach(b => {
             if(b.status !== 'PAGO') {
                 let mostrar = false;
-                if (periodoSelecionado === 'MES') mostrar = true; // No mês mostra tudo
-                else if (range && b.vencimento >= range.start && b.vencimento <= range.end) mostrar = true; // Na semana, só o que vence nela
+                if (periodoSelecionado === 'MES') mostrar = true;
+                else if (range && b.vencimento >= range.start && b.vencimento <= range.end) mostrar = true;
+                
+                // Vencidos sempre aparecem na urgência
+                if (b.vencimento < hoje) mostrar = true;
 
                 if (mostrar) {
-                    let htmlBoleto = `
+                    const isVencido = b.vencimento <= hoje;
+                    // Se venceu ou é hoje -> Vermelho. Se é futuro -> Laranja.
+                    const styleClass = isVencido ? 'border-urgent' : 'border-boleto';
+                    const bgStyle = isVencido ? 'background:#fff5f5' : 'background:#fffaf0';
+                    const textoVenc = isVencido ? '🚨 VENCIDO/HOJE' : `Vence: ${fmtDataSimples(b.vencimento)}`;
+
+                    const htmlBoleto = `
                         <div class="k-info">
                             <h4>🧾 ${b.desc}</h4>
-                            <p>Vence: ${fmtDataSimples(b.vencimento)}</p>
+                            <p>${textoVenc}</p>
                         </div>
-                        <div class="k-value" style="color:#d35400">${fmtMoeda(b.valor)}</div>
+                        <div style="text-align:right;">
+                            <div class="k-value" style="color:#d35400">${fmtMoeda(b.valor)}</div>
+                            <button onclick="window.showSection('boletos', document.getElementById('btnMenuBoletos'))" style="font-size:0.7rem; border:1px solid #d35400; background:none; color:#d35400; border-radius:4px; cursor:pointer; margin-top:4px;">Ver Conta</button>
+                        </div>
                     `;
-                    totalWeekly += b.valor;
-                    listWeekly.innerHTML += `<div class="k-card border-boleto" style="background:#fffaf0">${htmlBoleto}</div>`;
+
+                    if (isVencido) {
+                        totalUrgent += b.valor;
+                        listUrgent.innerHTML += `<div class="k-card ${styleClass}" style="${bgStyle}">${htmlBoleto}</div>`;
+                    } else {
+                        totalWeekly += b.valor;
+                        listWeekly.innerHTML += `<div class="k-card ${styleClass}" style="${bgStyle}">${htmlBoleto}</div>`;
+                    }
                 }
             }
         });
     }
 
-    // Totais do topo
+    // --- 4. ATUALIZAR TOTAIS ---
     document.getElementById('sumUrgent').innerText = fmtMoeda(totalUrgent);
     document.getElementById('sumWeekly').innerText = fmtMoeda(totalWeekly);
-    document.getElementById('sumMonthly').innerText = fmtMoeda(totalMonthly);
-    document.getElementById('totalGeralPrev').innerText = "Total: " + fmtMoeda(totalUrgent + totalWeekly + totalMonthly);
-
-    const vazio = '<div style="text-align:center; color:#ccc; padding:20px; font-style:italic;">Nada pendente</div>';
+    
+    // Total Geral no Topo
+    document.getElementById('totalGeralPrev').innerText = "Total Previsto: " + fmtMoeda(totalUrgent + totalWeekly);
+    
+    // Mensagem de Vazio se não tiver nada
+    const vazio = '<div style="text-align:center;color:#ccc;padding:20px;font-style:italic">Nada pendente</div>';
     if(listUrgent.innerHTML === '') listUrgent.innerHTML = vazio;
     if(listWeekly.innerHTML === '') listWeekly.innerHTML = vazio;
-    if(listMonthly.innerHTML === '') listMonthly.innerHTML = vazio;
 }
-
 // --- FUNÇÃO DE EXTRATO DETALHADO (CORRIGIDA PARA DIARISTA) ---
 window.mostrarDetalhesCalculo = function(idFunc, dataStr) {
     const func = window.db.funcionarios.find(f => f.id == idFunc);
@@ -2180,4 +2224,165 @@ window.getPagamentosRange = function(idFunc, startStr, endStr) {
         }
         return acc;
     }, 0);
+}
+
+// --- ATUALIZAR PREVISÃO (COM BOTÃO "IR PAGAR") ---
+window.atualizarPrevisao = function() {
+    const listUrgent = document.getElementById('listUrgent');
+    const listWeekly = document.getElementById('listWeekly');
+    
+    // Filtros
+    const inputData = document.getElementById('dataPrevisaoBase');
+    const filtroLoja = document.getElementById('filtroEmpresaPrevisao');
+    const filtroPeriodo = document.getElementById('filtroPeriodoPrevisao'); 
+    
+    if (!inputData.value) inputData.value = new Date().toISOString().split('T')[0];
+    const dataRefStr = inputData.value;
+    const periodoSelecionado = filtroPeriodo ? filtroPeriodo.value : 'MES';
+    const lojaSelecionada = filtroLoja.value;
+
+    // Range
+    const range = window.getRangeDatas(periodoSelecionado, dataRefStr);
+    
+    // Limpa as colunas
+    listUrgent.innerHTML = ''; 
+    listWeekly.innerHTML = '';
+    
+    let totalUrgent = 0;
+    let totalWeekly = 0;
+
+    // --- PROCESSAR FUNCIONÁRIOS ---
+    window.db.funcionarios.forEach(f => {
+        if (lojaSelecionada && f.empresa !== lojaSelecionada) return;
+
+        let totalGanhos = 0;
+        let totalPago = 0;
+
+        // Cálculos
+        if (periodoSelecionado === 'MES') {
+            totalGanhos = window.calcularGanhosNoMes(f.id, dataRefStr);
+            totalPago = window.getTotalPagoNoMes(f.id, dataRefStr);
+        } else if (range) {
+            totalGanhos = window.calcularGanhosRange(f.id, range.start, range.end);
+            totalPago = window.getPagamentosRange(f.id, range.start, range.end);
+        }
+        
+        const saldo = totalGanhos - totalPago;
+
+        // Só mostra se tiver saldo positivo
+        if (saldo > 0.1) {
+            
+            // HTML DO CARD (AGORA COM BOTÃO DE AÇÃO)
+            const htmlCard = `
+                <div class="k-info" onclick="mostrarDetalhesCalculo(${f.id}, '${dataRefStr}')" style="cursor:pointer">
+                    <h4>${f.nome}</h4>
+                    <p>${f.empresa || 'Sem Loja'}</p>
+                </div>
+                <div style="text-align:right; display:flex; flex-direction:column; gap:5px; align-items:flex-end;">
+                    <div class="k-value">${fmtMoeda(saldo)}</div>
+                    <button onclick="irParaPagamento(${f.id})" style="
+                        background: var(--success); 
+                        color: white; 
+                        border: none; 
+                        border-radius: 4px; 
+                        padding: 5px 10px; 
+                        cursor: pointer; 
+                        font-size: 0.7rem; 
+                        font-weight: bold; 
+                        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                        transition: 0.2s;
+                    " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                        💰 PAGAR
+                    </button>
+                </div>
+            `;
+            
+            // Distribuição nas colunas
+            if (f.tipo === 'Diaria') {
+                totalUrgent += saldo;
+                listUrgent.innerHTML += `<div class="k-card border-urgent">${htmlCard}</div>`;
+            } else {
+                totalWeekly += saldo;
+                listWeekly.innerHTML += `<div class="k-card border-weekly">${htmlCard}</div>`;
+            }
+        }
+    });
+
+    // --- PROCESSAR BOLETOS ---
+    if(window.db.boletos && lojaSelecionada === "") { 
+        const hoje = new Date().toISOString().split('T')[0];
+        
+        window.db.boletos.forEach(b => {
+            if(b.status !== 'PAGO') {
+                let mostrar = false;
+                if (periodoSelecionado === 'MES') mostrar = true;
+                else if (range && b.vencimento >= range.start && b.vencimento <= range.end) mostrar = true;
+                if (b.vencimento < hoje) mostrar = true; // Vencidos sempre aparecem
+
+                if (mostrar) {
+                    const isVencido = b.vencimento <= hoje;
+                    const styleClass = isVencido ? 'border-urgent' : 'border-boleto';
+                    const bgStyle = isVencido ? 'background:#fff5f5' : 'background:#fffaf0';
+                    const textoVenc = isVencido ? '🚨 VENCIDO/HOJE' : `Vence: ${fmtDataSimples(b.vencimento)}`;
+
+                    // Boletos também ganham botão, mas leva pra tela de Boletos
+                    const htmlBoleto = `
+                        <div class="k-info">
+                            <h4>🧾 ${b.desc}</h4>
+                            <p>${textoVenc}</p>
+                        </div>
+                        <div style="text-align:right;">
+                            <div class="k-value" style="color:#d35400">${fmtMoeda(b.valor)}</div>
+                            <button onclick="window.showSection('boletos', document.getElementById('btnMenuBoletos'))" style="font-size:0.7rem; border:1px solid #d35400; background:none; color:#d35400; border-radius:4px; cursor:pointer; margin-top:4px;">Ver Conta</button>
+                        </div>
+                    `;
+
+                    if (isVencido) {
+                        totalUrgent += b.valor;
+                        listUrgent.innerHTML += `<div class="k-card ${styleClass}" style="${bgStyle}">${htmlBoleto}</div>`;
+                    } else {
+                        totalWeekly += b.valor;
+                        listWeekly.innerHTML += `<div class="k-card ${styleClass}" style="${bgStyle}">${htmlBoleto}</div>`;
+                    }
+                }
+            }
+        });
+    }
+
+    // Totais
+    document.getElementById('sumUrgent').innerText = fmtMoeda(totalUrgent);
+    document.getElementById('sumWeekly').innerText = fmtMoeda(totalWeekly);
+    document.getElementById('totalGeralPrev').innerText = "Total Previsto: " + fmtMoeda(totalUrgent + totalWeekly);
+    
+    const vazio = '<div style="text-align:center;color:#ccc;padding:20px;font-style:italic">Nada pendente</div>';
+    if(listUrgent.innerHTML === '') listUrgent.innerHTML = vazio;
+    if(listWeekly.innerHTML === '') listWeekly.innerHTML = vazio;
+}
+
+// --- FUNÇÃO DE TELETRANSPORTE (DO CARD PARA O PAGAMENTO) ---
+window.irParaPagamento = function(idFunc) {
+    // 1. Acha o botão do menu de pagamentos pra deixar ele "aceso" na barra lateral
+    const btnMenu = document.querySelector("button[onclick*='pagamentos']");
+    
+    // 2. Muda a tela visualmente para a seção de Pagamentos
+    window.showSection('pagamentos', btnMenu);
+
+    // 3. Seleciona o funcionário no Dropdown lá da tela de pagamentos
+    const select = document.getElementById('selectFuncionarioPagamento');
+    
+    if(select) {
+        // Define o valor do select
+        select.value = idFunc;
+        
+        // 4. Força o sistema a carregar os dados desse funcionário (Totais, Vales, etc)
+        // Isso faz aparecer o card verde/vermelho com os cálculos
+        if(window.atualizarPainelPagamentos) {
+            window.atualizarPainelPagamentos();
+        }
+        
+        // 5. Rola a tela pra cima pra facilitar a visão
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+        console.error("Erro: Não achei o campo de seleção de funcionário.");
+    }
 }

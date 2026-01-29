@@ -1726,7 +1726,7 @@ window.renderizarBoletos = function() {
             } else if (diasRestantes <= 3) {
                 classeBorda = 'b-atencao'; badgeData = 'badge-yellow'; textoData = `⏳ Vence em ${diasRestantes} dias`;
             } else {
-                classeBorda = 'b-dia'; badgeData = 'badge-blue'; textoData = `📅 Vence dia ${fmtDataSimples(b.vencimento)}`;
+                classeBorda = 'b-dia'; badgeData = 'badge-blue'; textoData = `📅 Vence em ${diasRestantes} dias`;
             }
         }
 
@@ -1734,12 +1734,20 @@ window.renderizarBoletos = function() {
             ? `<button class="btn-pagar pendente" onclick="toggleStatusBoleto(${b.id})">💸 Confirmar Pagamento</button>`
             : `<button class="btn-pagar desfazer" onclick="toggleStatusBoleto(${b.id})">↩️ Desfazer (Tornar Pendente)</button>`;
 
+        // Formata a data bonitinha (ex: 29/01/2026)
+        const dataFormatada = fmtDataSimples(b.vencimento);
+
         const html = `
             <div class="boleto-card ${classeBorda}">
                 <div>
                     <div class="bol-header">
                         <span style="font-weight:bold; color:var(--text-sub); font-size:0.8rem;">#${b.id.toString().slice(-4)}</span>
-                        <span class="bol-data ${badgeData}">${textoData}</span>
+                        
+                        <div style="text-align:right; display:flex; flex-direction:column; align-items:flex-end;">
+                            <span class="bol-data ${badgeData}">${textoData}</span>
+                            <span style="font-size:0.7rem; color:#888; margin-top:3px; font-weight:bold;">Dia: ${dataFormatada}</span>
+                        </div>
+
                     </div>
                     <div style="font-weight:bold; font-size:1.1rem; margin-bottom:5px;">${b.desc}</div>
                     ${b.codigo ? `<div style="font-size:0.75rem; color:#aaa; overflow:hidden; text-overflow:ellipsis; margin-bottom:5px;">📠 ${b.codigo}</div>` : ''}
@@ -1758,7 +1766,6 @@ window.renderizarBoletos = function() {
     document.getElementById('bolTotalAberto').innerText = fmtMoeda(totalAberto);
     document.getElementById('bolTotalPago').innerText = fmtMoeda(totalPago);
 }
-
 window.toggleStatusBoleto = function(id) {
     if(!checkPerm('boletos')) return; // Verifica permissão
     

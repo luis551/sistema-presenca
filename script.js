@@ -1106,27 +1106,36 @@ window.getTotalPagoNoMes = function(idFunc, dataReferencia) {
         return p.idFunc == idFunc && d.getUTCMonth() == mesRef && d.getUTCFullYear() == anoRef; 
     }).reduce((acc, p) => acc + p.valor, 0);
 }
-// --- NOVA FUNÇÃO: PEGAR SALDO TOTAL DO MÊS ANTERIOR (Positivo ou Negativo) ---
+// --- CORREÇÃO DO SALDO ANTERIOR (OLHANDO O MÊS CHEIO) ---
 window.getSaldoMesAnterior = function(idFunc, dataRefStr) {
-    // 1. Descobre qual é o mês anterior
-    const [ano, mes, dia] = dataRefStr.split('-').map(Number);
-    
-    let anoAnt = ano;
+    const parts = dataRefStr.split('-');
+    const ano = parseInt(parts[0]);
+    const mes = parseInt(parts[1]); 
+
+    // 🚨 TRAVA DE ANO NOVO (Mantida)
+    if (mes === 1) return 0; 
+
     let mesAnt = mes - 1;
+    let anoAnt = ano;
     
-    if (mesAnt === 0) { // Se for Janeiro, volta pra Dezembro do ano passado
+    if (mesAnt === 0) { 
         mesAnt = 12;
         anoAnt = ano - 1;
     }
     
-    // Cria referência para o mês passado (Dia 01)
-    const refAnterior = `${anoAnt}-${String(mesAnt).padStart(2, '0')}-01`;
+    // --- O PULO DO GATO 🐱 ---
+    // Descobre qual é o último dia do mês anterior (28, 30 ou 31)
+    // O "0" no Date pega o último dia do mês anterior automaticamente.
+    const ultimoDia = new Date(anoAnt, mesAnt, 0).getDate(); 
+    
+    // Monta a data no fim do mês (ex: 2026-01-31)
+    // Assim o cálculo de salário libera 100% do valor
+    const refAnterior = `${anoAnt}-${String(mesAnt).padStart(2, '0')}-${ultimoDia}`;
 
-    // 2. Calcula Ganho x Pago do mês passado
+    // Agora calcula com o mês FECHADO
     const ganhosAnt = window.calcularGanhosNoMes(idFunc, refAnterior);
     const pagosAnt = window.getTotalPagoNoMes(idFunc, refAnterior);
 
-    // 3. Retorna o saldo PURO (pode ser positivo ou negativo)
     return ganhosAnt - pagosAnt;
 }
 // --- ATUALIZAR PAINEL PAGAMENTOS (COM SALDO ACUMULADO REAL) ---

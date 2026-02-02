@@ -2435,3 +2435,85 @@ window.calcularSaldoExato = function(f, dataRefStr, tipoPeriodo) {
 
     return (totalGanhos + dividaAnt) - totalPago;
 }
+// ============================================================
+// === MÓDULO BI (VISÃO DE ÁGUIA 2.0) ===
+// ============================================================
+
+let chartExpandido = null;
+let contextoAtualBI = '';
+
+window.abrirGraficoBI = function(tipo) {
+    contextoAtualBI = tipo;
+    const modal = document.getElementById('modalGraficozao');
+    const titulo = document.getElementById('tituloGraficoExpandido');
+    const selectTipo = document.getElementById('biTipoGrafico');
+    
+    // Datas Padrão
+    if(!document.getElementById('biDataInicio').value) {
+        const hoje = new Date();
+        document.getElementById('biDataInicio').value = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
+        document.getElementById('biDataFim').value = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).toISOString().split('T')[0];
+    }
+
+    // Recupera preferência
+    const pref = localStorage.getItem(`pref_grafico_${tipo}`);
+    selectTipo.value = pref || ((tipo === 'financeiro') ? 'doughnut' : 'bar');
+
+    titulo.innerText = (tipo === 'financeiro') ? "💰 Análise Financeira" : "🏆 Performance de Vendas";
+    modal.style.display = 'flex';
+    
+    setTimeout(() => window.filtrarGraficoExpandido(), 100);
+}
+
+window.filtrarGraficoExpandido = function() {
+    const inicio = document.getElementById('biDataInicio').value;
+    const fim = document.getElementById('biDataFim').value;
+    const tipo = document.getElementById('biTipoGrafico').value;
+    const resumo = document.getElementById('biResumo');
+
+    if (!inicio || !fim) return;
+    localStorage.setItem(`pref_grafico_${contextoAtualBI}`, tipo);
+
+    let labels = [], valores = [], cores = [], total = 0;
+
+    if (contextoAtualBI === 'financeiro') {
+        let sal = 0, com = 0, moto = 0, loja = 0;
+        window.db.pagamentos.forEach(p => { if (p.data >= inicio && p.data <= fim) sal += p.valor; });
+        window.db.extras.forEach(e => {
+            if (e.data >= inicio && e.data <= fim) {
+                if (e.tipo === 'Despesa') loja += e.valor; else com += e.valor;
+            }
+        });
+        if(window.db.entregas) window.db.entregas.forEach(e => { if (e.data >= inicio && e.data <= fim) moto += e.valorTotal; });
+
+        labels = ['Salários', 'Comissões', 'Motoboys', 'Despesas'];
+        valores = [sal, com, moto, loja];
+        cores = ['#27ae60', '#8e44ad', '#d35400', '#c0392b'];
+        total = sal + com + moto + loja;
+        resumo.innerHTML = `Gasto Total: <span style="color:#c0392b">${total.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</span>`;
+    
+    } else { // Vendas
+        let ranking = {};
+        window.db.extras.forEach(e => {
+            if (e.data >= inicio && e.data <= fim && e.tipo === 'Comissao') {
+                let taxa = (e.obs && e.obs.includes('10%')) ? 0.10 : 0.07;
+                let val = e.valor / taxa;
+                if(!ranking[e.beneficiario]) ranking[e.beneficiario] = 0;
+                ranking[e.beneficiario] += val;
+                total += val;
+            }
+        });
+        const sorted = Object.entries(ranking).sort(([,a],[,b]) => b-a);
+        labels = sorted.map(i=>i[0]); valores = sorted.map(i=>i[1]);
+        cores = valores.map(()=>'#f1c40f');
+        resumo.innerHTML = `Vendido: <span style="color:#f39c12">${total.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</span>`;
+    }
+
+    const ctx = document.getElementById('canvasGraficozao').getContext('2d');
+    if (chartExpandido) chartExpandido.destroy();
+
+    const options = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } };
+    if (tipo === 'bar' || tipo === 'line') options.scales = { y: { beginAtZero: true } };
+
+    chartExpandido = new Chart(ctx, { type: tipo, data: { labels, datasets: [{ label: 'R$', data: valores, backgroundColor: cores }] }, options });
+}

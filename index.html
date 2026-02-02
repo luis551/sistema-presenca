@@ -136,9 +136,16 @@
         <div id="dashboard" class="section active">
             <h1>Visão de Águia 🦅</h1>
             <div class="chart-area">
-                <div class="chart-card"><canvas id="graficoPizza"></canvas></div>
-                <div class="chart-card"><canvas id="graficoBarra"></canvas></div>
-            </div>
+    <div class="chart-card" onclick="window.abrirGraficoBI('financeiro')" style="cursor:pointer; position:relative;" title="Clique para ampliar">
+        <div style="position:absolute; top:10px; right:10px; font-size:1.2rem;">🔍</div>
+        <canvas id="graficoPizza"></canvas>
+        </div>
+    
+        <div class="chart-card" onclick="window.abrirGraficoBI('vendas')" style="cursor:pointer; position:relative;" title="Clique para ampliar">
+        <div style="position:absolute; top:10px; right:10px; font-size:1.2rem;">🔍</div>
+        <canvas id="graficoBarra"></canvas>
+           </div>
+         </div>
             <div class="dash-grid">
                 <div class="dash-card"><div class="dash-title">Pago em Salários (Mês)</div><div class="dash-number dash-green" id="dashSalarios">R$ 0,00</div></div>
                 <div class="dash-card"><div class="dash-title">Total Comissões (XP)</div><div class="dash-number dash-purple" id="dashComissoes">R$ 0,00</div></div>
@@ -675,6 +682,46 @@ const dbFirestore = getFirestore(app, "recuperacao-rh");
         <div id="corpoDetalhes" style="margin-top:15px;"></div>
 
         <button onclick="document.getElementById('modalDetalhes').style.display='none'" class="action-btn" style="width:100%; margin-top:20px; background:var(--secondary);">Fechar</button>
+    </div>
+</div>
+<div id="modalGraficozao" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:20000; justify-content:center; align-items:center;">
+    <div style="background:var(--bg-card); width:90%; height:90%; border-radius:15px; padding:20px; display:flex; flex-direction:column; position:relative; color:var(--text-main);">
+        
+        <div style="display:flex; flex-wrap:wrap; gap:15px; align-items:end; border-bottom:1px solid var(--border-color); padding-bottom:15px; margin-bottom:15px;">
+            <div style="flex:1;">
+                <h2 style="margin:0; font-size:1.5rem;" id="tituloGraficoExpandido">Análise Detalhada</h2>
+                <small style="color:var(--text-sub);">Personalize sua visualização</small>
+            </div>
+
+            <div class="input-wrapper">
+                <label>Início:</label>
+                <input type="date" id="biDataInicio" style="padding:8px;">
+            </div>
+            <div class="input-wrapper">
+                <label>Fim:</label>
+                <input type="date" id="biDataFim" style="padding:8px;">
+            </div>
+            
+            <div class="input-wrapper">
+                <label>Tipo de Gráfico:</label>
+                <select id="biTipoGrafico" style="padding:8px;" onchange="window.filtrarGraficoExpandido()">
+                    <option value="bar">📊 Barras</option>
+                    <option value="line">📈 Linha (Evolução)</option>
+                    <option value="pie">🍕 Pizza</option>
+                    <option value="doughnut">🍩 Rosquinha</option>
+                    <option value="polarArea">❄️ Polar</option>
+                </select>
+            </div>
+
+            <button onclick="window.filtrarGraficoExpandido()" class="action-btn" style="height:40px;">🔄 Atualizar</button>
+            <button onclick="document.getElementById('modalGraficozao').style.display='none'" style="background:var(--danger); color:white; border:none; padding:10px 15px; border-radius:5px; cursor:pointer;">❌ Fechar</button>
+        </div>
+
+        <div style="flex:1; position:relative; width:100%; overflow:hidden;">
+            <canvas id="canvasGraficozao"></canvas>
+        </div>
+
+        <div id="biResumo" style="margin-top:10px; text-align:center; font-weight:bold; font-size:1.2rem; padding-top:10px; border-top:1px solid var(--border-color);"></div>
     </div>
 </div>
 </body>

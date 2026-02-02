@@ -694,31 +694,76 @@ window.lancarComissao = function() {
     
     window.renderizarExtras();
 }
-// --- FUNÇÃO QUE FALTOU: CALCULAR PREVIEW DA COMISSÃO ---
+// --- PREVIEW DA COMISSÃO (COM REGRA DE 10% ACIMA DE 10K) ---
 window.atualizarPreviewComissao = function() {
     // 1. Pega o valor que você digitou
     const valorVendas = parseFloat(document.getElementById('valorVendasInput').value) || 0;
     
-    // 2. Calcula os 7%
-    const comissao = valorVendas * 0.07;
+    // 2. Define a taxa (Super Meta)
+    let taxa = 0.07; // Padrão 7%
+    let icone = '';
     
-    // 3. Atualiza o texto roxo na tela
-    document.getElementById('previewComissaoValor').innerText = comissao.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+    if (valorVendas > 10000) {
+        taxa = 0.10; // Sobe para 10% se vender mais de 10k
+        icone = '🔥';
+    }
+    
+    // 3. Calcula
+    const comissao = valorVendas * taxa;
+    const porcentagemTexto = (taxa * 100).toFixed(0) + "%";
+    
+    // 4. Atualiza o texto roxo na tela com feedback visual
+    const el = document.getElementById('previewComissaoValor');
+    el.innerText = `${icone} ${comissao.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})} (${porcentagemTexto})`;
+    
+    // Muda a cor pra destacar quando bate a meta
+    if(taxa === 0.10) el.style.color = "#c0392b"; // Vermelho/Laranja de fogo
+    else el.style.color = ""; // Volta ao normal
 }
-window.lancarDespesa = function() {
+// --- LANÇAR COMISSÃO (COM REGRA DE 10% ACIMA DE 10K) ---
+window.lancarComissao = function() {
     if(!checkPerm('fin')) return; 
 
-    const cat = document.getElementById('tipoDespesa').value;
-    const data = document.getElementById('dataDespesa').value;
-    const valor = parseFloat(document.getElementById('valorDespesa').value);
-    const obs = document.getElementById('obsDespesa').value;
-    if(!data || isNaN(valor)) return alert("Preencha valor e data!");
-    window.db.extras.push({ id: Date.now(), tipo: 'Despesa', categoria: cat, idFunc: 'DESPESAS', beneficiario: cat, valor: valor, data: data, obs: obs });
-    registrarLog('Financeiro', `Lançou despesa ${fmtMoeda(valor)} (${cat})`);
+    const idFunc = document.getElementById('selVendedorExtra').value;
+    const data = document.getElementById('dataComissao').value;
+    const valorVendas = parseFloat(document.getElementById('valorVendasInput').value);
+    
+    if(!idFunc || !data || isNaN(valorVendas)) return alert("Preencha o Vendedor, Data e Valor das Vendas!");
+    
+    // --- LÓGICA DA SUPER META ---
+    let taxa = 0.07;
+    if (valorVendas > 10000) {
+        taxa = 0.10;
+    }
+    
+    const valorComissao = valorVendas * taxa;
+    const taxaTexto = (taxa * 100).toFixed(0) + "%";
+
+    const func = window.db.funcionarios.find(f => f.id == idFunc);
+    
+    // Salva no banco com a taxa certa na observação
+    window.db.extras.push({ 
+        id: Date.now(), 
+        tipo: 'Comissao', 
+        categoria: 'Vendas', 
+        idFunc: String(idFunc), 
+        beneficiario: func.nome, 
+        valor: valorComissao, 
+        data: data, 
+        obs: `${taxaTexto} sobre ${fmtMoeda(valorVendas)}` // Ex: "10% sobre R$ 12.000,00"
+    });
+
+    registrarLog('Financeiro', `Lançou comissão de ${fmtMoeda(valorComissao)} (${taxaTexto}) para ${func.nome}`);
+    
     if(window.salvarNuvem) window.salvarNuvem();
-    alert("Despesa lançada!");
-    document.getElementById('valorDespesa').value = '';
-    document.getElementById('obsDespesa').value = '';
+    
+    alert(`Comissão de ${fmtMoeda(valorComissao)} (${taxaTexto}) lançada!`);
+    
+    // Limpa os campos
+    document.getElementById('valorVendasInput').value = '';
+    document.getElementById('previewComissaoValor').innerText = 'R$ 0,00';
+    document.getElementById('previewComissaoValor').style.color = "";
+    
     window.renderizarExtras();
 }
 window.removerExtra = function(id) { 
@@ -1061,34 +1106,30 @@ window.getTotalPagoNoMes = function(idFunc, dataReferencia) {
         return p.idFunc == idFunc && d.getUTCMonth() == mesRef && d.getUTCFullYear() == anoRef; 
     }).reduce((acc, p) => acc + p.valor, 0);
 }
-// --- FUNÇÃO NOVO: CALCULAR DÍVIDA DO MÊS ANTERIOR ---
-window.getDividaMesAnterior = function(idFunc, dataRefStr) {
+// --- NOVA FUNÇÃO: PEGAR SALDO TOTAL DO MÊS ANTERIOR (Positivo ou Negativo) ---
+window.getSaldoMesAnterior = function(idFunc, dataRefStr) {
     // 1. Descobre qual é o mês anterior
     const [ano, mes, dia] = dataRefStr.split('-').map(Number);
     
-    // Cria data e volta 1 mês
-    const dataAtual = new Date(ano, mes - 1, 1); 
-    const dataAnterior = new Date(dataAtual);
-    dataAnterior.setMonth(dataAnterior.getMonth() - 1);
+    let anoAnt = ano;
+    let mesAnt = mes - 1;
     
-    // Formata YYYY-MM para o mês anterior
-    const anoAnt = dataAnterior.getFullYear();
-    const mesAnt = String(dataAnterior.getMonth() + 1).padStart(2, '0');
-    const refAnterior = `${anoAnt}-${mesAnt}-01`; // Dia 1 do mês passado
+    if (mesAnt === 0) { // Se for Janeiro, volta pra Dezembro do ano passado
+        mesAnt = 12;
+        anoAnt = ano - 1;
+    }
+    
+    // Cria referência para o mês passado (Dia 01)
+    const refAnterior = `${anoAnt}-${String(mesAnt).padStart(2, '0')}-01`;
 
-    // 2. Calcula quanto ele ganhou e quanto sacou no mês passado
+    // 2. Calcula Ganho x Pago do mês passado
     const ganhosAnt = window.calcularGanhosNoMes(idFunc, refAnterior);
     const pagosAnt = window.getTotalPagoNoMes(idFunc, refAnterior);
 
-    const saldoAnt = ganhosAnt - pagosAnt;
-
-    // 3. Se for Negativo, retorna a dívida. Se for positivo, retorna 0 (não acumula crédito, só dívida)
-    if (saldoAnt < -0.01) {
-        return saldoAnt; // Retorna ex: -200.50
-    }
-    return 0;
+    // 3. Retorna o saldo PURO (pode ser positivo ou negativo)
+    return ganhosAnt - pagosAnt;
 }
-// --- ATUALIZAR PAINEL PAGAMENTOS (CORRIGIDO: MOSTRA OS DIAS DETALHADOS) ---
+// --- ATUALIZAR PAINEL PAGAMENTOS (COM SALDO ACUMULADO REAL) ---
 window.atualizarPainelPagamentos = function() {
     const idFunc = document.getElementById('selectFuncionarioPagamento').value;
     const dataInput = document.getElementById('dataPagamento').value; 
@@ -1102,7 +1143,7 @@ window.atualizarPainelPagamentos = function() {
 
     const dataRefStr = dataInput ? dataInput : new Date().toISOString().split('T')[0];
 
-    // 1. CONFIGURAÇÃO DE DATAS E REGRAS DE PAGAMENTO
+    // 1. CONFIGURAÇÃO DE DATAS
     const tipoPeriodo = filtroPeriodo ? filtroPeriodo.value : 'MES';
     let rangeSalario = null;
     let rangePassagem = null;
@@ -1111,7 +1152,6 @@ window.atualizarPainelPagamentos = function() {
     let ehSemanaPagtoMensal = false;
 
     const fmt = (d) => d.toISOString().split('T')[0];
-    // Funçãozinha auxiliar pra formatar dia/mês
     const fmtBr = (dStr) => { const [ano, mes, dia] = dStr.split('-'); return `${dia}/${mes}`; };
 
     if (tipoPeriodo !== 'MES') {
@@ -1144,7 +1184,7 @@ window.atualizarPainelPagamentos = function() {
         ehSemanaPagtoMensal = true;
     }
 
-    // 2. FILTRA E SOMA O QUE JÁ FOI LANÇADO
+    // 2. LISTA PAGAMENTOS JÁ FEITOS
     let pagamentosVisiveis = window.db.pagamentos.filter(p => {
         let entraNaConta = false;
         if (tipoPeriodo === 'MES') {
@@ -1172,27 +1212,22 @@ window.atualizarPainelPagamentos = function() {
     if (!idFunc) { divAviso.style.display = 'none'; return; }
 
     // =========================================================================
-    // === CÁLCULOS INDIVIDUAIS DO FUNCIONÁRIO ===
+    // === CÁLCULOS INDIVIDUAIS ===
     // =========================================================================
     const func = window.db.funcionarios.find(f => f.id == idFunc);
     
     let totalPagoSalario = 0; let totalValesIndiv = 0;
     let salarioBaseLiberado = 0;
     
-    let totalPassagens = 0; 
-    let diasPresencaPassagem = 0; 
-    let detalhesPassagem = []; // Lista dos dias da Passagem
-    
-    let totalDiarias = 0; 
-    let diasTrabalhadosCount = 0;
-    let detalhesDiarias = []; // Lista dos dias Trabalhados (Diarista)
-
+    let totalPassagens = 0; let diasPresencaPassagem = 0; let detalhesPassagem = [];
+    let totalDiarias = 0; let diasTrabalhadosCount = 0; let detalhesDiarias = [];
     let totalComissoes = 0; let totalEntregasValor = 0; let qtdEntregasTotal = 0; 
 
-    // Dívida
-    let dividaAnterior = 0;
+    // --- AQUI ESTÁ A MÁGICA DO PASSADO (POSITIVO OU NEGATIVO) ---
+    let saldoAnterior = 0;
     if(tipoPeriodo === 'MES') {
-        dividaAnterior = window.getDividaMesAnterior(idFunc, dataRefStr);
+        // Usa a nova função que pega TUDO (crédito ou débito)
+        saldoAnterior = window.getSaldoMesAnterior(idFunc, dataRefStr);
     }
 
     pagamentosVisiveis.forEach(p => { 
@@ -1204,7 +1239,7 @@ window.atualizarPainelPagamentos = function() {
     const valorPassagem = parseFloat(func.passagem) || 0;
     const valorDiaTrabalhoFixo = (func.tipo !== 'Diaria') ? (valorDiaria / 30) : 0;
 
-    // --- CÁLCULO SALÁRIO FIXO ---
+    // --- SALÁRIO FIXO ---
     if (func.tipo !== 'Diaria') {
         if (tipoPeriodo === 'MES') {
             salarioBaseLiberado = window.calcularTetoLiberado(func, dataRefStr);
@@ -1215,46 +1250,33 @@ window.atualizarPainelPagamentos = function() {
         }
     }
 
-    // --- LOOP DE PRESENÇAS (AQUI ESTAVA O PROBLEMA) ---
+    // --- PRESENÇAS ---
     Object.keys(window.db.presencas).sort().forEach(diaStr => {
         const registro = window.db.presencas[diaStr].find(r => r.id == idFunc);
         if(!registro) return;
 
-        // A. Lógica da Passagem
         let contarPassagem = false;
         if (tipoPeriodo === 'MES') { if (diaStr.startsWith(dataRefStr.slice(0, 7))) contarPassagem = true; }
         else if (rangePassagem) { if (diaStr >= rangePassagem.start && diaStr <= rangePassagem.end) contarPassagem = true; }
 
         if (contarPassagem && ['Presente', 'Atrasado'].includes(registro.status)) { 
-            totalPassagens += valorPassagem; 
-            diasPresencaPassagem++; 
-            detalhesPassagem.push(fmtBr(diaStr)); // <--- LISTA DE PASSAGEM PREENCHIDA AQUI
+            totalPassagens += valorPassagem; diasPresencaPassagem++; detalhesPassagem.push(fmtBr(diaStr));
         }
 
-        // B. Lógica do Trabalho (Diária / Desconto Fixo)
         let contarTrabalho = false;
         if (tipoPeriodo === 'MES') { if (diaStr.startsWith(dataRefStr.slice(0, 7))) contarTrabalho = true; }
         else if (rangeSalario) { if (diaStr >= rangeSalario.start && diaStr <= rangeSalario.end) contarTrabalho = true; }
 
         if (contarTrabalho) {
             if (func.tipo === 'Diaria') {
-                if(registro.status === 'Presente') { 
-                    totalDiarias += valorDiaria; 
-                    diasTrabalhadosCount++; 
-                    detalhesDiarias.push(fmtBr(diaStr)); // <--- LISTA DIÁRIA PREENCHIDA AQUI
-                } 
-                else if(registro.status === 'Atrasado') { 
-                    totalDiarias += (valorDiaria / 2); 
-                    diasTrabalhadosCount++; 
-                    detalhesDiarias.push(fmtBr(diaStr) + " (Atraso)");
-                }
+                if(registro.status === 'Presente') { totalDiarias += valorDiaria; diasTrabalhadosCount++; detalhesDiarias.push(fmtBr(diaStr)); } 
+                else if(registro.status === 'Atrasado') { totalDiarias += (valorDiaria / 2); diasTrabalhadosCount++; detalhesDiarias.push(fmtBr(diaStr) + " (Atraso)"); }
             } else {
                 if (rangeSalario && func.tipo === 'Semanal' && registro.status === 'Falta') salarioBaseLiberado -= valorDiaTrabalhoFixo;
             }
         }
     });
 
-    // Extras e Entregas
     window.db.extras.forEach(e => {
         let entra = false;
         if (tipoPeriodo === 'MES') { if (e.data.startsWith(dataRefStr.slice(0, 7))) entra = true; }
@@ -1279,12 +1301,13 @@ window.atualizarPainelPagamentos = function() {
 
     if(salarioBaseLiberado < 0) salarioBaseLiberado = 0;
     
-    // Totais Finais
-    const ganhosTotal = salarioBaseLiberado + totalPassagens + totalDiarias + totalComissoes + totalEntregasValor + dividaAnterior;
+    // --- SOMA TUDO (INCLUINDO O SALDO DO MÊS PASSADO) ---
+    // saldoAnterior pode ser negativo (dívida) ou positivo (crédito)
+    const ganhosTotal = salarioBaseLiberado + totalPassagens + totalDiarias + totalComissoes + totalEntregasValor + saldoAnterior;
+    
     const totalJaRecebido = totalPagoSalario + totalValesIndiv; 
     const restante = ganhosTotal - totalJaRecebido;
     
-    // MONTAGEM DO HTML
     divAviso.style.display = 'block';
     let corFundo = restante > 0.01 ? '#d4edda' : (restante < -0.01 ? '#f8d7da' : '#d1ecf1');
     let corTexto = restante > 0.01 ? '#155724' : (restante < -0.01 ? '#721c24' : '#0c5460');
@@ -1300,21 +1323,24 @@ window.atualizarPainelPagamentos = function() {
             ${labelPassagemInfo}
         </div>`;
     
-    if(dividaAnterior < -0.01) {
-        detalhesHTML += `<div style="display:flex; justify-content:space-between; color:#c0392b; background:#fff5f5; padding:2px 5px; border-radius:4px;"><span>🔻 Dívida Mês Anterior:</span> <strong>${fmtMoeda(dividaAnterior)}</strong></div>`;
+    // --- EXIBIÇÃO DO SALDO DO MÊS ANTERIOR ---
+    if(saldoAnterior < -0.01) {
+        // Devedor (Vermelho)
+        detalhesHTML += `<div style="display:flex; justify-content:space-between; color:#c0392b; background:#fff5f5; padding:2px 5px; border-radius:4px; border:1px solid #e74c3c;"><span>🔻 Dívida Mês Anterior:</span> <strong>${fmtMoeda(saldoAnterior)}</strong></div>`;
+    } else if (saldoAnterior > 0.01) {
+        // Credor (Verde) - SOBRA DE CAIXA
+        detalhesHTML += `<div style="display:flex; justify-content:space-between; color:#27ae60; background:#e8f6f3; padding:2px 5px; border-radius:4px; border:1px solid #2ecc71;"><span>💚 Crédito Mês Anterior:</span> <strong>+ ${fmtMoeda(saldoAnterior)}</strong></div>`;
     }
 
     if(totalEntregasValor > 0) detalhesHTML += `<div style="display:flex; justify-content:space-between;"><span>🏍️ Entregas (${qtdEntregasTotal}):</span> <strong>${fmtMoeda(totalEntregasValor)}</strong></div>`;
     if(totalComissoes > 0) detalhesHTML += `<div style="display:flex; justify-content:space-between;"><span>⭐ Comissões:</span> <strong>${fmtMoeda(totalComissoes)}</strong></div>`;
     
-    // EXIBE LISTA DE PASSAGEM
     if(totalPassagens > 0) {
         const diasStr = detalhesPassagem.join(', ');
         detalhesHTML += `<div style="display:flex; justify-content:space-between;"><span>🚌 Passagem (${diasPresencaPassagem}d):</span> <strong>${fmtMoeda(totalPassagens)}</strong></div>`;
         if(diasStr) detalhesHTML += `<div style="font-size:0.7rem; color:var(--purple); margin-bottom:4px; text-align:right;">Dias: ${diasStr}</div>`;
     }
 
-    // EXIBE LISTA DE DIÁRIAS (DIARISTAS)
     if(totalDiarias > 0) {
         const diasTrabStr = detalhesDiarias.join(', ');
         detalhesHTML += `<div style="display:flex; justify-content:space-between;"><span>☀️ Diárias (${diasTrabalhadosCount}d):</span> <strong>${fmtMoeda(totalDiarias)}</strong></div>`;

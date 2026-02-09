@@ -766,6 +766,48 @@ window.lancarComissao = function() {
     
     window.renderizarExtras();
 }
+// --- FUNÇÃO RECUPERADA: LANÇAR DESPESAS ---
+window.lancarDespesa = function() {
+    // 1. Verifica permissão
+    if(!checkPerm('fin')) return; 
+
+    // 2. Pega os dados do formulário HTML
+    const tipo = document.getElementById('tipoDespesa').value; // Ex: Manutenção, Compras...
+    const data = document.getElementById('dataDespesa').value;
+    const valorInput = document.getElementById('valorDespesa').value;
+    const obs = document.getElementById('obsDespesa').value;
+
+    // 3. Validação simples
+    if(!data || !valorInput) return alert("Preencha a Data e o Valor da despesa!");
+    
+    const valor = parseFloat(valorInput);
+
+    // 4. Cria o objeto e salva no banco
+    window.db.extras.push({ 
+        id: Date.now(), 
+        tipo: 'Despesa',        // Importante para o filtro saber que é gasto
+        categoria: 'Saída',     // Categoria interna
+        idFunc: 'LOJA',         // Marcador genérico
+        beneficiario: tipo,     // Aqui vai aparecer "Manutenção", "DJ", etc.
+        valor: valor, 
+        data: data, 
+        obs: obs 
+    });
+
+    // 5. Registra Log e Salva na Nuvem
+    registrarLog('Financeiro', `Lançou despesa: ${tipo} - ${fmtMoeda(valor)}`);
+    
+    if(window.salvarNuvem) window.salvarNuvem();
+    
+    alert("Despesa Registrada com Sucesso!");
+    
+    // 6. Limpa os campos e atualiza a tela
+    document.getElementById('valorDespesa').value = '';
+    document.getElementById('obsDespesa').value = '';
+    
+    window.renderizarExtras();
+    window.atualizarDashboard(); // Atualiza os gráficos da visão geral também
+}
 window.removerExtra = function(id) { 
     if(!checkPerm('fin')) return; 
     if(confirm("Apagar este registro?")) { 

@@ -409,34 +409,65 @@
 </div>
 
         <div id="pagamentos" class="section">
-            <h1>Financeiro e Pagamentos</h1>
-            <div class="card">
-                <h3 style="margin-top:0">Novo Lançamento</h3>
-                <div class="form-grid">
-                    <div class="form-group" style="grid-column: span 2; border-bottom: 1px dashed #ccc; padding-bottom: 15px; margin-bottom: 10px;">
-    <label style="color:var(--purple); font-weight:bold;">📅 Período de Cálculo do Saldo:</label>
-    <select id="filtroPeriodoPagamento" onchange="atualizarPainelPagamentos()" style="border: 2px solid var(--purple); color: var(--purple); font-weight: bold;">
-        <option value="MES">📅 Mês Completo (Acumulado)</option>
-        <option value="SEMANA_ATUAL">🔻 Semana Atual (Seg-Dom)</option>
-        <option value="SEMANA_PASSADA">⏪ Semana Passada</option>
-    </select>
-</div>
-<div class="form-group"><label>Funcionário</label><select id="selectFuncionarioPagamento" onchange="atualizarPainelPagamentos()"><option value="">Selecione...</option></select></div>
-                    <div class="form-group"><label>Tipo</label><select id="tipoLancamento"><option value="Pagamento">💰 Pagamento Salário</option><option value="Vale">🎫 Vale / Adiantamento</option></select></div>
-                    <div class="form-group"><label>Data</label><input type="date" id="dataPagamento" onchange="atualizarPainelPagamentos()"></div>
-                    <div class="form-group"><label>Valor (R$)</label><input type="number" id="valorPagamento" placeholder="0.00"></div>
-                    <div class="form-group" style="grid-column: span 2;"><label>Descrição</label><input type="text" id="descPagamento"></div>
-                </div>
-                <div id="avisoSaldo" class="alert-box"></div>
-                <button class="action-btn" style="width: 100%; margin-top:15px;" onclick="lancarPagamento()">Registrar Operação</button>
-                <button class="action-btn btn-excel" onclick="exportarExcel()">📥 Baixar Relatório (Excel/CSV)</button>
-            </div>
-            <div id="resumoFinanceiro" class="resumo-financeiro" style="display: none;">
-                <div class="resumo-item"><span class="resumo-label">Salários Pagos</span><span class="resumo-valor" style="color: var(--success);" id="resumoSalario">R$ 0,00</span></div>
-                <div class="resumo-item"><span class="resumo-label">Vales Retirados</span><span class="resumo-valor" style="color: var(--warning);" id="resumoVale">R$ 0,00</span></div>
-            </div>
-            <div id="gridPagamentos" class="grid-container"></div>
+    <h1>Financeiro e Pagamentos</h1>
+    <div class="card">
+        
+        <div class="pay-tabs">
+            <button class="pay-tab active" id="tabSalario" onclick="mudarModoPagamento('Salario')">💰 Salário & Vales</button>
+            <button class="pay-tab" id="tabPassagem" onclick="mudarModoPagamento('Passagem')">🚌 Passagem</button>
         </div>
+
+        <div class="form-grid" style="margin-top: 20px;">
+            <div class="form-group" style="grid-column: span 2; border-bottom: 1px dashed #ccc; padding-bottom: 15px; margin-bottom: 10px;">
+                <label style="color:var(--purple); font-weight:bold;">📅 Período de Cálculo:</label>
+                <select id="filtroPeriodoPagamento" onchange="atualizarPainelPagamentos()" style="border: 2px solid var(--purple); color: var(--purple); font-weight: bold;">
+                    <option value="MES">📅 Mês Completo (Acumulado)</option>
+                    <option value="SEMANA_ATUAL">🔻 Semana Atual (Seg-Dom)</option>
+                    <option value="SEMANA_PASSADA">⏪ Semana Passada</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Funcionário</label>
+                <select id="selectFuncionarioPagamento" onchange="atualizarPainelPagamentos()">
+                    <option value="">Selecione...</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="display:none;"> <label>Tipo</label>
+                <select id="tipoLancamento">
+                    <option value="Pagamento">💰 Pagamento Salário</option>
+                    <option value="Vale">🎫 Vale / Adiantamento</option>
+                    <option value="Passagem">🚌 Pagamento Passagem</option> </select>
+            </div>
+
+            <div class="form-group" id="divSubTipoSalario">
+                <label>Operação</label>
+                <select id="subTipoSalario">
+                    <option value="Pagamento">✅ Pagar Salário</option>
+                    <option value="Vale">🎫 Dar Vale</option>
+                </select>
+            </div>
+
+            <div class="form-group"><label>Data</label><input type="date" id="dataPagamento" onchange="atualizarPainelPagamentos()"></div>
+            <div class="form-group"><label>Valor (R$)</label><input type="number" id="valorPagamento" placeholder="0.00"></div>
+            <div class="form-group" style="grid-column: span 2;"><label>Descrição</label><input type="text" id="descPagamento"></div>
+        </div>
+
+        <div id="avisoSaldo" class="alert-box"></div>
+        
+        <button class="action-btn" style="width: 100%; margin-top:15px;" onclick="lancarPagamento()">Registrar Operação</button>
+        <button class="action-btn btn-excel" onclick="exportarExcel()">📥 Baixar Relatório</button>
+    </div>
+
+    <div id="resumoFinanceiro" class="resumo-financeiro" style="display: none;">
+        <div class="resumo-item"><span class="resumo-label">Salários Pagos</span><span class="resumo-valor" style="color: var(--success);" id="resumoSalario">R$ 0,00</span></div>
+        <div class="resumo-item"><span class="resumo-label">Passagens Pagas</span><span class="resumo-valor" style="color: var(--purple);" id="resumoPassagem">R$ 0,00</span></div>
+        <div class="resumo-item"><span class="resumo-label">Vales Retirados</span><span class="resumo-valor" style="color: var(--warning);" id="resumoVale">R$ 0,00</span></div>
+    </div>
+
+    <div id="gridPagamentos" class="grid-container"></div>
+</div>
         
 
 <div id="previsao" class="section">

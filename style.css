@@ -541,3 +541,17 @@ tr:hover { background-color: rgba(0,0,0,0.05); }
     border-radius: 4px; font-size: 0.7rem; font-weight: bold; cursor: pointer;
 }
 .btn-pay-card:hover { background: #219150; }
+
+/* --- ABAS DE PAGAMENTO --- */
+.pay-tabs { display: flex; gap: 10px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+.pay-tab {
+    flex: 1; padding: 12px; border: none; background: #f0f0f0; 
+    border-radius: 8px; font-weight: bold; color: #7f8c8d; cursor: pointer;
+    transition: 0.3s;
+}
+.pay-tab:hover { background: #e0e0e0; }
+.pay-tab.active { background: var(--primary); color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+
+/* Cor específica para cards de Passagem */
+.pag-passagem { border-top-color: var(--purple) !important; }
+.valor-passagem { color: var(--purple); }

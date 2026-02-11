@@ -538,6 +538,14 @@
 </div>
         <div id="seguranca" class="section">
             <h1>🛡️ Log de Auditoria</h1>
+            <div class="card" style="border-left: 5px solid #2980b9; background:#eaf2f8; margin-bottom: 20px;">
+        <h3 style="color:#2980b9; margin-top:0;">💾 Backup de Segurança</h3>
+        <p style="font-size:0.9rem; color:#555;">Baixe uma cópia dos dados para seu computador ou restaure um arquivo antigo caso precise.</p>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="action-btn" onclick="window.baixarBackupLocal()" style="background-color: #2980b9;">📥 Baixar Backup (.json)</button>
+            <button class="action-btn" onclick="window.restaurarBackupLocal()" style="background-color: #f39c12; color:black;">📤 Restaurar Arquivo</button>
+            </div>
+           </div>
             <div class="card">
                 <p style="color:var(--text-sub); margin-bottom:15px;">Histórico de todas as ações críticas realizadas no sistema.</p>
                 <div style="max-height: 500px; overflow-y: auto;">
@@ -590,7 +598,7 @@ const dbFirestore = getFirestore(app, "sera");
             return resultado;
         }
 
-        onSnapshot(docRef, (docSnap) => {
+       onSnapshot(docRef, (docSnap) => {
             if (isSaving) return; 
             if (docSnap.metadata.hasPendingWrites) return;
             const statusEl = document.getElementById('status-connection');
@@ -616,9 +624,12 @@ const dbFirestore = getFirestore(app, "sera");
 
                 if(window.atualizarInterface) window.atualizarInterface();
             } else { 
-                statusEl.innerHTML = "🟡 Criando BD...";
-                window.db = { funcionarios: [], presencas: {}, pagamentos: [], extras: [], entregas: [], boletos: [], audit: [], lastUpdate: Date.now() };
-                setDoc(docRef, window.db);
+                // 🚨 TRAVA DE SEGURANÇA ATIVADA 🚨
+                // Se não achar nada no banco, ele NÃO CRIA um novo vazio.
+                // Ele apenas avisa e espera você restaurar o backup.
+                statusEl.innerHTML = "⚠️ BD Vazio (Use Restaurar)";
+                statusEl.style.color = "orange";
+                console.warn("Banco de dados não encontrado ou vazio. Aguardando restauração manual.");
             }
         });
 

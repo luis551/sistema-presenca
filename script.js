@@ -2524,3 +2524,95 @@ window.lancarPagamento = function() {
     window.atualizarPainelPagamentos(); 
     alert("Operação registrada com sucesso!");
 }
+// ============================================================
+// === SISTEMA DE BACKUP LOCAL (SEGURANÇA TOTAL) ===
+// ============================================================
+
+// 1. FUNÇÃO PARA BAIXAR O ARQUIVO (EXPORTAR)
+window.baixarBackupLocal = function() {
+    // Verifica se tem algo pra salvar
+    if(!window.db || !window.db.funcionarios) {
+        if(!confirm("O sistema parece estar vazio. Deseja baixar um arquivo vazio mesmo assim?")) return;
+    }
+
+    // Cria o nome do arquivo com data e hora (Ex: BACKUP_RH_2026-02-11_19h30.json)
+    const agora = new Date();
+    const dataStr = agora.toISOString().split('T')[0];
+    const horaStr = agora.getHours() + "h" + agora.getMinutes();
+    const nomeArquivo = `BACKUP_RH_${dataStr}_${horaStr}.json`;
+
+    // Transforma os dados do sistema em texto
+    const dadosTexto = JSON.stringify(window.db, null, 2);
+
+    // Cria um link invisível para baixar
+    const blob = new Blob([dadosTexto], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nomeArquivo;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    alert(`✅ Backup baixado: ${nomeArquivo}\nGuarde este arquivo em um local seguro (ex: Pen Drive ou Google Drive)!`);
+}
+
+// 2. FUNÇÃO PARA LER O ARQUIVO E RESTAURAR (IMPORTAR)
+window.restaurarBackupLocal = function() {
+    // Só deixa restaurar se tiver permissão de Admin (Financeiro)
+    if(!checkPerm('fin')) return alert("Apenas Administradores podem restaurar backups.");
+
+    if(!confirm("⚠️ PERIGO: Isso vai SUBSTITUIR todos os dados atuais da tela pelos dados do arquivo que você selecionar.\n\nDeseja continuar?")) return;
+
+    // Cria um input de arquivo invisível
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+
+    input.onchange = e => {
+        const arquivo = e.target.files[0];
+        if (!arquivo) return;
+
+        const leitor = new FileReader();
+        
+        leitor.onload = evento => {
+            try {
+                // Tenta ler o arquivo
+                const dadosRestaurados = JSON.parse(evento.target.result);
+
+                // Verificação de segurança: É um arquivo do nosso sistema?
+                if(!dadosRestaurados.funcionarios) {
+                    return alert("❌ Erro: Este arquivo não parece ser um backup válido do Sistema RH.");
+                }
+
+                // CARREGA OS DADOS NA TELA
+                window.db = dadosRestaurados;
+                
+                // Força atualização da data para o sistema entender que é uma versão nova
+                window.db.lastUpdate = Date.now(); 
+
+                // Atualiza toda a interface visual
+                if(window.atualizarInterface) window.atualizarInterface();
+                if(window.atualizarDashboard) window.atualizarDashboard();
+                if(window.atualizarPainelPagamentos) window.atualizarPainelPagamentos();
+                if(window.renderizarMotoboys) window.renderizarMotoboys();
+
+                // Pergunta se quer salvar na nuvem agora
+                if(confirm("✅ Dados carregados na tela com sucesso!\n\nDeseja SALVAR esses dados na nuvem (Firebase) agora para garantir?")) {
+                    if(window.salvarNuvem) window.salvarNuvem();
+                } else {
+                    alert("Ok! Os dados estão na tela, mas AINDA NÃO foram salvos na nuvem.");
+                }
+
+            } catch (erro) {
+                alert("❌ Erro ao ler o arquivo: " + erro.message);
+                console.error(erro);
+            }
+        };
+
+        leitor.readAsText(arquivo);
+    };
+
+    input.click(); // Abre a janela do Windows/Mac para escolher o arquivo
+}

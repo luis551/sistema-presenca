@@ -2412,8 +2412,9 @@ window.atualizarPainelPagamentos = function() {
             htmlDetalhes += `</div>`;
 
             divAviso.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                     <span style="font-size:1.4rem;">💰 Líquido Salário: <strong>${fmtMoeda(saldoLiquidoSalario)}</strong></span>
+                    ${func.pix ? `<div style="font-size:0.9rem; background:rgba(255,255,255,0.4); padding:4px 8px; border-radius:4px; border:1px solid rgba(0,0,0,0.1);"><strong>🔑 Pix:</strong> ${func.pix} <button class="btn-copy" onclick="copiarTexto('${func.pix}')">Copiar</button></div>` : `<div style="font-size:0.85rem; color:#c0392b; font-weight:bold;">🔑 Pix não cadastrado</div>`}
                 </div>
                 ${htmlDetalhes}
                 <div style="font-size:0.8rem; margin-top:5px; text-align:center; opacity:0.8;">(Passagem separada na outra aba)</div>
@@ -2434,8 +2435,9 @@ window.atualizarPainelPagamentos = function() {
             htmlDetalhes += `</div>`;
 
             divAviso.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                     <span style="font-size:1.4rem;">🚌 Líquido Passagem: <strong>${fmtMoeda(saldoLiquidoPassagem)}</strong></span>
+                    ${func.pix ? `<div style="font-size:0.9rem; background:rgba(255,255,255,0.4); padding:4px 8px; border-radius:4px; border:1px solid rgba(0,0,0,0.1);"><strong>🔑 Pix:</strong> ${func.pix} <button class="btn-copy" onclick="copiarTexto('${func.pix}')">Copiar</button></div>` : `<div style="font-size:0.85rem; color:#c0392b; font-weight:bold;">🔑 Pix não cadastrado</div>`}
                 </div>
                 ${htmlDetalhes}
             `;

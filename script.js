@@ -1149,51 +1149,73 @@ window.getTotalPagoNoMes = function(idFunc, dataReferencia) {
     }).reduce((acc, p) => acc + p.valor, 0);
 }
 // --- CORREÇÃO DO SALDO ANTERIOR (OLHANDO O MÊS CHEIO) ---
+// --- CORREÇÃO DO SALDO ANTERIOR SEPARADO (SALÁRIO E PASSAGEM) ---
 window.getSaldoMesAnterior = function(idFunc, dataRefStr) {
     const parts = dataRefStr.split('-');
     const ano = parseInt(parts[0]);
     const mes = parseInt(parts[1]); 
 
-    // 🚨 TRAVA DE ANO NOVO (Mantida)
-    if (mes === 1) return 0; 
+    // Ignora Janeiro (pois dezembro é outro ano e não temos o ref do ano passado configurado pra virada ainda)
+    if (mes === 1) return { salario: 0, passagem: 0 }; 
 
     let mesAnt = mes - 1;
     let anoAnt = ano;
-    
     if (mesAnt === 0) { 
         mesAnt = 12;
         anoAnt = ano - 1;
     }
     
-    // --- O PULO DO GATO 🐱 ---
-    // Descobre qual é o último dia do mês anterior (28, 30 ou 31)
-    // O "0" no Date pega o último dia do mês anterior automaticamente.
+    // Pega o último dia do mês anterior
     const ultimoDia = new Date(anoAnt, mesAnt, 0).getDate(); 
-    
-    // Monta a data no fim do mês (ex: 2026-01-31)
-    // Assim o cálculo de salário libera 100% do valor
     const refAnterior = `${anoAnt}-${String(mesAnt).padStart(2, '0')}-${ultimoDia}`;
 
-    // Agora calcula com o mês FECHADO
-    const ganhosAnt = window.calcularGanhosNoMes(idFunc, refAnterior);
-    const pagosAnt = window.getTotalPagoNoMes(idFunc, refAnterior);
+    const func = window.db.funcionarios.find(f => f.id == idFunc);
+    if(!func) return { salario: 0, passagem: 0 };
 
-    return ganhosAnt - pagosAnt;
-}
-// 6. Renderizar Cards (Visual dos Pagamentos)
-window.renderizarCardsPagamento = function(listaPagamentos) {
-    const gridPag = document.getElementById('gridPagamentos');
-    if (listaPagamentos.length === 0) { gridPag.innerHTML = '<p style="color:#aaa; width:100%; text-align:center;">Nenhum registro encontrado.</p>'; return; }
-    listaPagamentos.forEach(p => {
-        const isVale = p.tipo === 'Vale';
-        const cardClass = isVale ? 'pagamento-card pag-vale' : 'pagamento-card pag-salario';
-        const valorClass = isVale ? 'pag-valor valor-vale' : 'pag-valor valor-salario';
-        const icone = isVale ? '🎫 VALE' : '💰 PAGAMENTO';
-        const card = document.createElement('div'); card.className = cardClass;
-        card.innerHTML = `<div class="pag-header"><span class="pag-date">📅 ${fmtData(p.data)}</span><div class="pag-nome">${p.nomeFunc}</div></div><div class="pag-desc" style="font-weight:bold; font-size:0.8em; color:var(--text-sub);">${icone}</div><div class="pag-desc">"${p.desc || 'Sem descrição'}"</div><div class="pag-footer"><div class="${valorClass}">${fmtMoeda(p.valor)}</div><div><button class="btn-print-pag" onclick="gerarRecibo(${p.id})">🖨️</button><button class="btn-delete-pag" onclick="removerPagamento(${p.id})">🗑️</button></div></div>`;
-        gridPag.appendChild(card);
+    // 1. Calcula Ganhos Separados
+    let ganhoSalario = 0;
+    let ganhoPassagem = 0;
+
+    const valorDiaria = parseFloat(func.salario) || 0;
+    const valorPassagem = parseFloat(func.passagem) || 0;
+
+    if (func.tipo !== 'Diaria') ganhoSalario += window.calcularTetoLiberado(func, refAnterior);
+
+    Object.keys(window.db.presencas).forEach(diaStr => {
+        if(diaStr.startsWith(`${anoAnt}-${String(mesAnt).padStart(2, '0')}`)) { 
+            const reg = window.db.presencas[diaStr].find(r => r.id == idFunc);
+            if(reg) {
+                if (func.tipo !== 'Diaria') { 
+                    if(['Presente', 'Atrasado'].includes(reg.status)) ganhoPassagem += valorPassagem; 
+                } else { 
+                    if(reg.status === 'Presente') ganhoSalario += valorDiaria;
+                    else if(reg.status === 'Atrasado') ganhoSalario += (valorDiaria / 2);
+                }
+            }
+        }
     });
+
+    ganhoSalario += window.getTotalComissoesMes(idFunc, refAnterior);
+    ganhoSalario += window.getTotalMotoboyMes(idFunc, refAnterior);
+
+    // 2. Calcula Pagamentos Separados
+    let pagoSalario = 0;
+    let pagoPassagem = 0;
+
+    window.db.pagamentos.forEach(p => {
+        if (p.idFunc == idFunc && p.data.startsWith(`${anoAnt}-${String(mesAnt).padStart(2, '0')}`)) {
+            if (p.tipo === 'Passagem') pagoPassagem += p.valor;
+            else pagoSalario += p.valor; // Salário e Vale descontam do Salário
+        }
+    });
+
+    // Retorna as duas carteiras separadas!
+    return {
+        salario: ganhoSalario - pagoSalario,
+        passagem: ganhoPassagem - pagoPassagem
+    };
 }
+
 
 // 8. Remover Pagamento
 window.removerPagamento = function(id) {
@@ -1338,6 +1360,15 @@ window.atualizarInterface = function() {
     const selectionAtualExtra = selVendedor ? selVendedor.value : '';
 
     if(selectPag) selectPag.innerHTML = '<option value="">Selecione...</option>'; 
+    const listContainer = document.getElementById('customSelectOptionsList');
+    if(listContainer) {
+        listContainer.innerHTML = `
+            <div class="custom-option-item" onclick="selecionarFuncionarioCustom('', '🔍 Selecione um funcionário...')">
+                <div class="custom-opt-avatar" style="background:#e74c3c">❌</div>
+                <div class="custom-opt-info"><span class="custom-opt-name">Limpar Seleção</span></div>
+            </div>
+        `;
+    }
     if(selVendedor) selVendedor.innerHTML = '<option value="">Selecione...</option>'; 
     if(selFiltroExtras) selFiltroExtras.innerHTML = '<option value="">Todos (Geral)</option><option value="DESPESAS">🔸 Despesas / Eventos</option>'; 
     if(selPrevisao) selPrevisao.innerHTML = '<option value="">Todos da Equipe</option>';
@@ -1347,6 +1378,21 @@ window.atualizarInterface = function() {
     
     // --- PARTE 1: Preencher os Menus (Carrega TODOS) ---
     funcsOrdenados.forEach(f => {
+        if(listContainer) {
+            const inicial = f.nome.charAt(0);
+            listContainer.innerHTML += `
+                <div class="custom-option-item" data-nome="${f.nome.toLowerCase()}" onclick="selecionarFuncionarioCustom('${f.id}', '${f.nome}')">
+                    <div class="custom-opt-avatar">${inicial}</div>
+                    <div class="custom-opt-info">
+                        <span class="custom-opt-name">${f.nome}</span>
+                        <span class="custom-opt-role">
+                            <span class="role-badge">💼 ${f.cargo || 'Sem Cargo'}</span>
+                            <span class="empresa-badge">🏢 ${f.empresa || 'Sem Loja'}</span>
+                        </span>
+                    </div>
+                </div>
+            `;
+        }
         if(selectPag) selectPag.innerHTML += `<option value="${f.id}">${f.nome}</option>`; 
         if(selVendedor) selVendedor.innerHTML += `<option value="${f.id}">${f.nome}</option>`; 
         if(selFiltroExtras) selFiltroExtras.innerHTML += `<option value="${f.id}">${f.nome}</option>`; 
@@ -2262,19 +2308,16 @@ window.mudarModoPagamento = function(modo) {
     
     // Atualiza a cor dos botões
     document.querySelectorAll('.pay-tab').forEach(b => b.classList.remove('active'));
-    document.getElementById(modo === 'Salario' ? 'tabSalario' : 'tabPassagem').classList.add('active');
+    document.getElementById('tab' + modo).classList.add('active');
 
-    // Mostra/Esconde o seletor de "Vale/Pagamento" (Só existe no modo Salário)
+    // Esconde o menu antigo de subTipoSalario (caso você não tenha apagado no HTML)
     const divSub = document.getElementById('divSubTipoSalario');
-    if(divSub) {
-        divSub.style.display = (modo === 'Salario') ? 'block' : 'none';
-    }
+    if(divSub) divSub.style.display = 'none';
 
     // Recalcula tudo na tela
     window.atualizarPainelPagamentos();
 }
 
-// --- ATUALIZAR PAINEL PAGAMENTOS (CORRIGIDO: PUXA SALDO ANTERIOR PARA TODOS) ---
 window.atualizarPainelPagamentos = function() {
     const idFunc = document.getElementById('selectFuncionarioPagamento').value;
     const dataInput = document.getElementById('dataPagamento').value; 
@@ -2290,11 +2333,9 @@ window.atualizarPainelPagamentos = function() {
     const tipoPeriodo = filtroPeriodo ? filtroPeriodo.value : 'MES';
     const func = window.db.funcionarios.find(f => f.id == idFunc);
     
-    // Define Datas
     let range = null;
     if(tipoPeriodo !== 'MES') range = window.getRangeDatas(tipoPeriodo, dataRefStr);
 
-    // 1. CALCULA EXTRAS (Comissões e Motoboy)
     let totalComissoes = 0;
     let totalEntregas = 0;
 
@@ -2316,7 +2357,6 @@ window.atualizarPainelPagamentos = function() {
         }
     }
 
-    // 2. CÁLCULO GERAL (Salário, Passagem, Dívidas)
     const valorPassagem = parseFloat(func.passagem) || 0;
     const valorDiaria = parseFloat(func.salario) || 0;
     const [anoRef, mesRef] = dataRefStr.split('-');
@@ -2324,8 +2364,8 @@ window.atualizarPainelPagamentos = function() {
     let valorTotalPassagem = 0;
     let valorTotalDiarias = 0;
     let diasContados = 0;
+    let diasPassagemList = []; 
 
-    // Loop Presenças
     Object.keys(window.db.presencas).forEach(diaStr => {
         let deveContar = false;
         if(tipoPeriodo === 'MES') { if(diaStr.startsWith(`${anoRef}-${mesRef}`)) deveContar = true; }
@@ -2337,6 +2377,8 @@ window.atualizarPainelPagamentos = function() {
                 if(func.tipo !== 'Diaria' && ['Presente', 'Atrasado'].includes(reg.status)) {
                     valorTotalPassagem += valorPassagem;
                     diasContados++;
+                    const partesDia = diaStr.split('-');
+                    diasPassagemList.push(`${partesDia[2]}/${partesDia[1]}`);
                 } else if(func.tipo === 'Diaria') {
                     if(reg.status === 'Presente') { valorTotalDiarias += valorDiaria; diasContados++; }
                     else if (reg.status === 'Atrasado') { valorTotalDiarias += (valorDiaria / 2); diasContados++; }
@@ -2346,14 +2388,17 @@ window.atualizarPainelPagamentos = function() {
     });
 
     let salarioBase = 0;
-    let saldoAnterior = 0;
+    let saldoAnteriorSalario = 0;
+    let saldoAnteriorPassagem = 0;
 
-    // --- CORREÇÃO AQUI: Saldo Anterior agora calcula para TODOS (inclusive Diarista) ---
     if(tipoPeriodo === 'MES' && window.getSaldoMesAnterior) {
-        saldoAnterior = window.getSaldoMesAnterior(idFunc, dataRefStr);
+        const saldos = window.getSaldoMesAnterior(idFunc, dataRefStr);
+        if (typeof saldos === 'object') {
+            saldoAnteriorSalario = saldos.salario;
+            saldoAnteriorPassagem = saldos.passagem;
+        }
     }
 
-    // Cálculo do Salário Base (Só para quem NÃO é Diarista)
     if(func.tipo !== 'Diaria') {
         if(tipoPeriodo === 'MES') {
             salarioBase = window.calcularTetoLiberado(func, dataRefStr);
@@ -2362,14 +2407,14 @@ window.atualizarPainelPagamentos = function() {
         }
     }
 
-    // 3. SEPARA OS BOLSOS
-    const ganhosPassagemTotal = valorTotalPassagem;
-    // Aqui somamos TUDO no salário
-    const ganhosSalarioTotal = salarioBase + valorTotalDiarias + totalComissoes + totalEntregas + saldoAnterior;
+    const ganhosPassagemTotal = valorTotalPassagem + saldoAnteriorPassagem;
+    const ganhosSalarioTotal = salarioBase + valorTotalDiarias + totalComissoes + totalEntregas + saldoAnteriorSalario;
 
-    // 4. DESCONTA O QUE JÁ FOI PAGO
+    // 🔮 SEPARAÇÃO DOS VALES: Abertos e Descontados
     let pagoSalario = 0;
     let pagoPassagem = 0;
+    let totalValesAbertos = 0;
+    let totalValesDescontados = 0;
 
     window.db.pagamentos.forEach(p => {
         if(String(p.idFunc) !== String(idFunc)) return;
@@ -2379,65 +2424,97 @@ window.atualizarPainelPagamentos = function() {
 
         if(entra) {
             if(p.tipo === 'Passagem') pagoPassagem += p.valor;
+            else if(p.tipo === 'Vale') {
+                if(p.status === 'PENDENTE') totalValesAbertos += p.valor;
+                else totalValesDescontados += p.valor; // Descontados ou vales antigos
+            }
             else pagoSalario += p.valor;
         }
     });
 
     const saldoLiquidoPassagem = ganhosPassagemTotal - pagoPassagem;
-    const saldoLiquidoSalario = ganhosSalarioTotal - pagoSalario;
+    // 💸 SÓ DESCONTA O QUE VOCÊ CLICOU EM "DESCONTAR"
+    const saldoLiquidoSalario = ganhosSalarioTotal - pagoSalario - totalValesDescontados; 
 
-    // 5. ATUALIZA A TELA
     if(divAviso) {
         divAviso.style.display = 'block';
         let htmlDetalhes = `<div style="margin-top:10px; padding-top:8px; border-top:1px solid rgba(0,0,0,0.1); font-size:0.85rem;">`;
 
         if(modoPagamentoAtual === 'Salario') {
-            // --- ABA SALÁRIO ---
             const cor = saldoLiquidoSalario >= 0 ? '#d4edda' : '#f8d7da';
             const textoCor = saldoLiquidoSalario >= 0 ? '#155724' : '#721c24';
             divAviso.style.backgroundColor = cor;
             divAviso.style.color = textoCor;
             divAviso.style.border = `1px solid ${cor}`;
 
-            // MOSTRA O SALDO ANTERIOR (Agora vai aparecer!)
-            if(saldoAnterior !== 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; font-weight:bold;"><span>${saldoAnterior > 0 ? '💚 Crédito Anterior' : '🔻 Dívida Anterior'}:</span> <span>${fmtMoeda(saldoAnterior)}</span></div>`;
-            
+            if(saldoAnteriorSalario !== 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; font-weight:bold;"><span>${saldoAnteriorSalario > 0 ? '💚 Crédito Anterior' : '🔻 Dívida Anterior'}:</span> <span>${fmtMoeda(saldoAnteriorSalario)}</span></div>`;            
             if(salarioBase > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between;"><span>📅 Salário Base:</span> <span>${fmtMoeda(salarioBase)}</span></div>`;
             if(valorTotalDiarias > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between;"><span>☀️ Diárias (${diasContados}):</span> <span>${fmtMoeda(valorTotalDiarias)}</span></div>`;
             if(totalComissoes > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#8e44ad;"><span>⭐ Comissões:</span> <span>${fmtMoeda(totalComissoes)}</span></div>`;
             if(totalEntregas > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#d35400;"><span>🏍️ Entregas:</span> <span>${fmtMoeda(totalEntregas)}</span></div>`;
             
-            if(pagoSalario > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#c0392b; margin-top:5px; border-top:1px dashed #ccc;"><span>💸 Já Recebido:</span> <span>- ${fmtMoeda(pagoSalario)}</span></div>`;
+            // AVISOS DE VALES NO SALÁRIO
+            if(totalValesAbertos > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#e67e22; font-weight:bold; margin-top:5px; border-top:1px dashed #ccc; padding-top:5px;"><span>⚠️ Vales Pendentes (NÃO descontado ainda):</span> <span>${fmtMoeda(totalValesAbertos)}</span></div>`;
+            if(totalValesDescontados > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#c0392b; font-weight:bold; margin-top:5px; border-top:1px dashed #ccc; padding-top:5px;"><span>🎫 Vales Já Descontados:</span> <span>- ${fmtMoeda(totalValesDescontados)}</span></div>`;
+            if(pagoSalario > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#c0392b; margin-top:5px; border-top:1px dashed #ccc; padding-top:5px;"><span>💸 Já Recebido:</span> <span>- ${fmtMoeda(pagoSalario)}</span></div>`;
             
             htmlDetalhes += `</div>`;
 
             divAviso.innerHTML = `
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                     <span style="font-size:1.4rem;">💰 Líquido Salário: <strong>${fmtMoeda(saldoLiquidoSalario)}</strong></span>
-                    ${func.pix ? `<div style="font-size:0.9rem; background:rgba(255,255,255,0.4); padding:4px 8px; border-radius:4px; border:1px solid rgba(0,0,0,0.1);"><strong>🔑 Pix:</strong> ${func.pix} <button class="btn-copy" onclick="copiarTexto('${func.pix}')">Copiar</button></div>` : `<div style="font-size:0.85rem; color:#c0392b; font-weight:bold;">🔑 Pix não cadastrado</div>`}
+                    ${func.pix ? `<div style="font-size:0.9rem; background:rgba(255,255,255,0.4); padding:4px 8px; border-radius:4px; border:1px solid rgba(0,0,0,0.1);"><strong>🔑 Pix:</strong> ${func.pix} <button class="btn-copy" onclick="copiarTexto('${func.pix}')">Copiar</button></div>` : ``}
                 </div>
                 ${htmlDetalhes}
-                <div style="font-size:0.8rem; margin-top:5px; text-align:center; opacity:0.8;">(Passagem separada na outra aba)</div>
+                <div style="font-size:0.8rem; margin-top:5px; text-align:center; opacity:0.8;">(Passagem e Vales na outra aba)</div>
             `;
             const inputVal = document.getElementById('valorPagamento');
             if(inputVal && document.activeElement !== inputVal) inputVal.value = saldoLiquidoSalario > 0 ? saldoLiquidoSalario.toFixed(2) : '';
 
+        } else if(modoPagamentoAtual === 'Vale') {
+            const cor = '#fcf3cf'; 
+            const textoCor = '#d35400';
+            divAviso.style.backgroundColor = cor;
+            divAviso.style.color = textoCor;
+            divAviso.style.border = `1px solid #f1c40f`;
+
+            htmlDetalhes += `<div style="display:flex; justify-content:space-between;"><span>💰 Saldo Total do Mês (Bruto):</span> <span>${fmtMoeda(ganhosSalarioTotal)}</span></div>`;
+            if(pagoSalario > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#c0392b;"><span>💸 Salário Já Pago:</span> <span>- ${fmtMoeda(pagoSalario)}</span></div>`;
+            
+            htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#e67e22; font-weight:bold; margin-top:5px; border-top:1px dashed #e67e22; padding-top:5px;"><span>⚠️ Vales Pendentes:</span> <span>${fmtMoeda(totalValesAbertos)}</span></div>`;
+            if(totalValesDescontados > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#c0392b; font-weight:bold; margin-top:5px; border-top:1px dashed #e67e22; padding-top:5px;"><span>🎫 Vales Já Descontados:</span> <span>- ${fmtMoeda(totalValesDescontados)}</span></div>`;
+
+            htmlDetalhes += `</div>`;
+
+            divAviso.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                    <span style="font-size:1.4rem;">🎫 Total Pendente p/ Descontar: <strong>${fmtMoeda(totalValesAbertos)}</strong></span>
+                </div>
+                ${htmlDetalhes}
+                <div style="font-size:0.8rem; margin-top:5px; text-align:center; opacity:0.8; font-weight:bold; color:#e67e22;">(O vale listado NÃO desconta do salário até você clicar em "Descontar do Salário" lá embaixo)</div>
+            `;
+            const inputVal = document.getElementById('valorPagamento');
+            if(inputVal && document.activeElement !== inputVal) inputVal.value = ''; 
+        
         } else {
-            // --- ABA PASSAGEM ---
             const cor = saldoLiquidoPassagem >= 0 ? '#e8daef' : '#f8d7da';
             const textoCor = saldoLiquidoPassagem >= 0 ? '#8e44ad' : '#721c24';
             divAviso.style.backgroundColor = cor;
             divAviso.style.color = textoCor;
             divAviso.style.border = `1px solid ${cor}`;
 
-            if(valorTotalPassagem > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between;"><span>🚌 Passagem Acumulada (${diasContados}d):</span> <span>${fmtMoeda(valorTotalPassagem)}</span></div>`;
+            if(saldoAnteriorPassagem !== 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; font-weight:bold;"><span>${saldoAnteriorPassagem > 0 ? '💚 Crédito Anterior' : '🔻 Dívida Anterior'}:</span> <span>${fmtMoeda(saldoAnteriorPassagem)}</span></div>`;
+
+            if(valorTotalPassagem > 0) {
+                htmlDetalhes += `<div style="display:flex; justify-content:space-between;"><span>🚌 Passagem Acumulada (${diasContados}d):</span> <span>${fmtMoeda(valorTotalPassagem)}</span></div>`;
+                if (diasPassagemList.length > 0) htmlDetalhes += `<div style="font-size:0.75rem; color:#8e44ad; opacity:0.8; margin-top:2px; margin-bottom:5px; font-style:italic;">Dias computados: ${diasPassagemList.join(', ')}</div>`;
+            }
             if(pagoPassagem > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#c0392b;"><span>💸 Já Pago:</span> <span>- ${fmtMoeda(pagoPassagem)}</span></div>`;
             htmlDetalhes += `</div>`;
 
             divAviso.innerHTML = `
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                     <span style="font-size:1.4rem;">🚌 Líquido Passagem: <strong>${fmtMoeda(saldoLiquidoPassagem)}</strong></span>
-                    ${func.pix ? `<div style="font-size:0.9rem; background:rgba(255,255,255,0.4); padding:4px 8px; border-radius:4px; border:1px solid rgba(0,0,0,0.1);"><strong>🔑 Pix:</strong> ${func.pix} <button class="btn-copy" onclick="copiarTexto('${func.pix}')">Copiar</button></div>` : `<div style="font-size:0.85rem; color:#c0392b; font-weight:bold;">🔑 Pix não cadastrado</div>`}
                 </div>
                 ${htmlDetalhes}
             `;
@@ -2450,13 +2527,12 @@ window.atualizarPainelPagamentos = function() {
         divResumo.style.display = 'flex';
         document.getElementById('resumoSalario').innerText = fmtMoeda(pagoSalario);
         document.getElementById('resumoPassagem').innerText = fmtMoeda(pagoPassagem);
-        document.getElementById('resumoVale').innerText = fmtMoeda(pagoSalario);
+        document.getElementById('resumoVale').innerText = fmtMoeda(totalValesDescontados); 
     }
 
     window.filtrarGridPagamentos(idFunc, tipoPeriodo, dataRefStr, range);
 }
-
-// 3. Atualiza a Lista de Pagamentos (Visual)
+// 3. Atualiza a Lista de Pagamentos (Visual - Agora separando pelas Abas!)
 window.filtrarGridPagamentos = function(idFunc, tipoPeriodo, dataRefStr, range) {
     const gridPag = document.getElementById('gridPagamentos');
     if(!gridPag) return;
@@ -2464,8 +2540,17 @@ window.filtrarGridPagamentos = function(idFunc, tipoPeriodo, dataRefStr, range) 
 
     let lista = window.db.pagamentos.filter(p => {
         if(String(p.idFunc) !== String(idFunc)) return false;
-        if(tipoPeriodo === 'MES') return p.data.startsWith(dataRefStr.slice(0,7));
-        if(range) return p.data >= range.start && p.data <= range.end;
+        if(tipoPeriodo === 'MES') {
+            if(!p.data.startsWith(dataRefStr.slice(0,7))) return false;
+        } else if(range) {
+            if(p.data < range.start || p.data > range.end) return false;
+        }
+
+        // 🔮 MAGIA DO FILTRO DAS ABAS: Só mostra os cards da aba que está aberta
+        if (modoPagamentoAtual === 'Salario' && p.tipo !== 'Pagamento') return false;
+        if (modoPagamentoAtual === 'Vale' && p.tipo !== 'Vale') return false;
+        if (modoPagamentoAtual === 'Passagem' && p.tipo !== 'Passagem') return false;
+
         return true;
     });
 
@@ -2495,6 +2580,7 @@ window.renderizarCardsPagamento = function(lista) {
 }
 
 // 4. Lançar (Agora sabe qual aba está aberta)
+// 4. Lançar (Agora sabe qual aba está aberta automaticamente)
 window.lancarPagamento = function() {
     if(!checkPerm('fin')) return; 
 
@@ -2503,20 +2589,16 @@ window.lancarPagamento = function() {
     const data = document.getElementById('dataPagamento').value;
     const desc = document.getElementById('descPagamento').value;
     
-    // DECIDE O TIPO AUTOMATICAMENTE PELA ABA SELECIONADA
     let tipo = '';
-    if(modoPagamentoAtual === 'Passagem') {
-        tipo = 'Passagem';
-    } else {
-        // Se for aba Salário, vê se escolheu Vale ou Pagamento no sub-menu
-        const sub = document.getElementById('subTipoSalario');
-        tipo = sub ? sub.value : 'Pagamento';
-    }
+    let statusVale = null; // Status escondido pra não atrapalhar
+    if(modoPagamentoAtual === 'Passagem') tipo = 'Passagem';
+    else if(modoPagamentoAtual === 'Vale') { tipo = 'Vale'; statusVale = 'PENDENTE'; }
+    else tipo = 'Pagamento'; 
 
     if(!idFunc || !valor || !data) return alert("Preencha todos os campos obrigatórios!");
     const func = window.db.funcionarios.find(f => f.id == idFunc);
 
-    window.db.pagamentos.push({ id: Date.now(), idFunc: parseInt(idFunc), nomeFunc: func.nome, tipo: tipo, valor: valor, data: data, desc: desc });
+    window.db.pagamentos.push({ id: Date.now(), idFunc: parseInt(idFunc), nomeFunc: func.nome, tipo: tipo, valor: valor, data: data, desc: desc, status: statusVale });
     registrarLog('Financeiro', `Lançou ${tipo} de ${fmtMoeda(valor)} para ${func.nome}`);
     
     if(window.salvarNuvem) window.salvarNuvem(); 
@@ -2525,6 +2607,57 @@ window.lancarPagamento = function() {
     document.getElementById('descPagamento').value = '';
     window.atualizarPainelPagamentos(); 
     alert("Operação registrada com sucesso!");
+}
+
+window.renderizarCardsPagamento = function(lista) {
+    const grid = document.getElementById('gridPagamentos');
+    if (lista.length === 0) { grid.innerHTML = '<p style="color:#aaa; width:100%; text-align:center;">Nenhum registro.</p>'; return; }
+    
+    lista.forEach(p => {
+        let cardClass = '', valorClass = '', icone = '';
+        let botoesExtras = ''; // O Botão de Descontar do Vale
+        
+        if(p.tipo === 'Vale') {
+            if (p.status === 'PENDENTE') {
+                cardClass = 'pagamento-card pag-vale'; 
+                valorClass = 'pag-valor valor-vale'; 
+                icone = '⏳ VALE (AGUARDANDO DESCONTO)';
+                botoesExtras = `<button style="background:var(--success); color:white; border:none; padding:8px 10px; border-radius:4px; cursor:pointer; font-weight:bold; width:100%; margin-bottom:10px;" onclick="toggleStatusValePagamento(${p.id})">💸 Descontar do Salário Agora</button>`;
+            } else {
+                cardClass = 'pagamento-card'; 
+                cardClass += ' pag-salario'; 
+                valorClass = 'pag-valor'; 
+                icone = '✅ VALE (JÁ DESCONTADO)';
+                botoesExtras = `<button style="background:#bdc3c7; color:white; border:none; padding:8px 10px; border-radius:4px; cursor:pointer; font-weight:bold; width:100%; margin-bottom:10px;" onclick="toggleStatusValePagamento(${p.id})">↩️ Desfazer Desconto</button>`;
+            }
+        } else if (p.tipo === 'Passagem') {
+            cardClass = 'pagamento-card pag-passagem'; valorClass = 'pag-valor valor-passagem'; icone = '🚌 PASSAGEM';
+        } else {
+            cardClass = 'pagamento-card pag-salario'; valorClass = 'pag-valor valor-salario'; icone = '💰 SALÁRIO';
+        }
+
+        const card = document.createElement('div'); card.className = cardClass;
+        
+        // Deixa o card cinza/transparente se o vale já foi descontado
+        if(p.tipo === 'Vale' && p.status !== 'PENDENTE') {
+            card.style.opacity = '0.7';
+            card.style.borderTopColor = '#7f8c8d';
+        }
+
+        card.innerHTML = `
+            <div class="pag-header"><span class="pag-date">📅 ${fmtData(p.data)}</span><div class="pag-nome">${p.nomeFunc}</div></div>
+            <div class="pag-desc" style="font-weight:bold; font-size:0.8em; color:var(--text-sub);">${icone}</div>
+            <div class="pag-desc">"${p.desc || 'Sem descrição'}"</div>
+            ${botoesExtras}
+            <div class="pag-footer">
+                <div class="${valorClass}">${fmtMoeda(p.valor)}</div>
+                <div>
+                    <button class="btn-print-pag" onclick="gerarRecibo(${p.id})">🖨️</button>
+                    <button class="btn-delete-pag" onclick="removerPagamento(${p.id})">🗑️</button>
+                </div>
+            </div>`;
+        grid.appendChild(card);
+    });
 }
 // ============================================================
 // === SISTEMA DE BACKUP LOCAL (SEGURANÇA TOTAL) ===
@@ -2617,4 +2750,71 @@ window.restaurarBackupLocal = function() {
     };
 
     input.click(); // Abre a janela do Windows/Mac para escolher o arquivo
+}
+// ============================================================
+// === CONTROLE DO MENU CUSTOMIZADO DE FUNCIONÁRIOS ===
+// ============================================================
+window.toggleCustomSelect = function() {
+    document.getElementById('customSelectDropdown').classList.toggle('show');
+    document.getElementById('customSelectSearch').focus();
+}
+
+window.filtrarCustomSelect = function() {
+    const termo = document.getElementById('customSelectSearch').value.toLowerCase();
+    const items = document.querySelectorAll('.custom-option-item');
+    items.forEach(item => {
+        const nomeAttr = item.getAttribute('data-nome');
+        if(!nomeAttr) return; 
+        if(nomeAttr.includes(termo)) {
+            item.style.display = 'flex';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
+window.selecionarFuncionarioCustom = function(id, nome) {
+    // 1. Muda o visual pro nome do cara
+    document.getElementById('customSelectLabel').innerHTML = id ? `✅ ${nome}` : `🔍 Selecione um funcionário...`;
+    document.getElementById('customSelectDropdown').classList.remove('show');
+    document.getElementById('customSelectSearch').value = ''; 
+    window.filtrarCustomSelect(); // Reseta a busca
+
+    // 2. Atualiza o select escondido pro sistema não bugar
+    const selectOriginal = document.getElementById('selectFuncionarioPagamento');
+    if(selectOriginal) {
+        selectOriginal.value = id;
+        window.atualizarPainelPagamentos(); // Roda os cálculos!
+    }
+}
+
+// Magia de furtividade: Fecha a lista se clicar fora dela
+document.addEventListener('click', function(e) {
+    const trigger = document.getElementById('customSelectTrigger');
+    const dropdown = document.getElementById('customSelectDropdown');
+    if(trigger && dropdown) {
+        if(!trigger.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.classList.remove('show');
+        }
+    }
+});
+// ============================================================
+// === SISTEMA DE STATUS DO VALE (PENDENTE / DESCONTADO) ===
+// ============================================================
+window.toggleStatusValePagamento = function(id) {
+    if(!checkPerm('fin')) return;
+    
+    const p = window.db.pagamentos.find(x => x.id === id);
+    if(p && p.tipo === 'Vale') {
+        if(p.status === 'PENDENTE') {
+            p.status = 'DESCONTADO';
+            registrarLog('Financeiro', `Descontou vale de ${fmtMoeda(p.valor)} de ${p.nomeFunc}`);
+        } else {
+            p.status = 'PENDENTE';
+            registrarLog('Financeiro', `Reabriu vale de ${fmtMoeda(p.valor)} de ${p.nomeFunc}`);
+        }
+        
+        if(window.salvarNuvem) window.salvarNuvem();
+        window.atualizarPainelPagamentos(); // Recalcula a tela instantaneamente
+    }
 }

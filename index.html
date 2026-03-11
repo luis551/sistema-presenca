@@ -413,7 +413,8 @@
     <div class="card">
         
         <div class="pay-tabs">
-            <button class="pay-tab active" id="tabSalario" onclick="mudarModoPagamento('Salario')">💰 Salário & Vales</button>
+            <button class="pay-tab active" id="tabSalario" onclick="mudarModoPagamento('Salario')">💰 Salário</button>
+            <button class="pay-tab" id="tabVale" onclick="mudarModoPagamento('Vale')">🎫 Vales</button>
             <button class="pay-tab" id="tabPassagem" onclick="mudarModoPagamento('Passagem')">🚌 Passagem</button>
         </div>
 
@@ -427,11 +428,21 @@
                 </select>
             </div>
 
-            <div class="form-group">
+            <div class="form-group" style="position: relative;">
                 <label>Funcionário</label>
-                <select id="selectFuncionarioPagamento" onchange="atualizarPainelPagamentos()">
+                <select id="selectFuncionarioPagamento" style="display:none;" onchange="atualizarPainelPagamentos()">
                     <option value="">Selecione...</option>
                 </select>
+
+                <div id="customSelectTrigger" class="custom-select-trigger" onclick="toggleCustomSelect()">
+                    <div id="customSelectLabel">🔍 Selecione um funcionário...</div>
+                    <span>▼</span>
+                </div>
+
+                <div id="customSelectDropdown" class="custom-options">
+                    <input type="text" id="customSelectSearch" placeholder="Buscar guerreiro..." onkeyup="filtrarCustomSelect()" onclick="event.stopPropagation()">
+                    <div id="customSelectOptionsList"></div>
+                </div>
             </div>
 
             <div class="form-group" style="display:none;"> <label>Tipo</label>

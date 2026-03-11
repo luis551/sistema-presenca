@@ -555,3 +555,87 @@ tr:hover { background-color: rgba(0,0,0,0.05); }
 /* Cor específica para cards de Passagem */
 .pag-passagem { border-top-color: var(--purple) !important; }
 .valor-passagem { color: var(--purple); }
+
+/* --- CUSTOM SELECT FUNCIONÁRIOS (PAGAMENTOS) --- */
+.custom-select-trigger {
+    padding: 12px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--input-bg);
+    color: var(--text-main);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: bold;
+    transition: 0.2s;
+}
+.custom-select-trigger:hover { border-color: var(--accent); }
+
+.custom-options {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 320px; /* 🔮 MAGIA AQUI: Força a lista a ser larga o suficiente */
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    margin-top: 5px;
+    z-index: 1000;
+    overflow-x: hidden; /* 🗡️ Mata a barra de rolagem horizontal */
+}
+.custom-options.show { display: block; animation: fadeIn 0.2s; }
+
+#customSelectSearch {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.95rem;
+    box-sizing: border-box;
+    outline: none;
+    background: var(--input-bg);
+    color: var(--text-main);
+}
+#customSelectSearch:focus { border-bottom: 2px solid var(--accent); }
+
+#customSelectOptionsList {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.custom-option-item {
+    padding: 12px 15px;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: background 0.2s;
+}
+.custom-option-item:hover { background: rgba(41, 128, 185, 0.05); }
+
+.custom-opt-avatar {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: var(--secondary);
+    color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: bold; font-size: 1.2rem;
+    text-transform: uppercase;
+    flex-shrink: 0; /* 🛡️ Impede a bolinha da foto de virar um ovo */
+}
+.custom-opt-info { display: flex; flex-direction: column; }
+.custom-opt-name { font-weight: bold; font-size: 1rem; color: var(--text-main); text-transform: capitalize; }
+.custom-opt-role { font-size: 0.8rem; color: var(--text-sub); margin-top: 4px; display: flex; gap: 5px; flex-wrap: wrap;}
+
+.role-badge { background: var(--accent); color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+.empresa-badge { background: #f1c40f; color: black; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+#customSelectLabel {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 85%; /* Faz o texto botar "..." no final se for muito grande */
+}

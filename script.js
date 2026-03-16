@@ -600,3 +600,53 @@ window.removerBoleto = async function(id) {
         if(window.deletarItemNuvem) await window.deletarItemNuvem('rh_boletos', id);
     }
 }
+// --- SISTEMA DE LOGIN ---
+window.tentarLogin = function() {
+    const user = document.getElementById('loginUser').value.toLowerCase();
+    const pass = document.getElementById('loginPass').value;
+    
+    // Verifica se o banco de usuários já carregou da nuvem
+    if(!window.db.users || window.db.users.length === 0) {
+        alert("⏳ O sistema ainda está baixando os dados da nuvem. Aguarde 2 segundos e tente de novo.");
+        return;
+    }
+
+    const u = window.db.users.find(x => x.user.toLowerCase() === user && x.pass === pass);
+    
+    if(u) {
+        window.currentUser = u;
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('user-badge').innerText = `👤 ${u.user}`;
+        registrarLog('Sistema', 'Usuário logou no painel');
+        window.showSection('dashboard');
+    } else { 
+        alert("❌ Usuário ou Senha incorretos!"); 
+    }
+}
+
+// --- CONTROLE DE SEÇÕES (ABAS) ---
+window.showSection = function(id) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
+    
+    document.getElementById(id).classList.add('active');
+    
+    const btn = document.querySelector(`[onclick="showSection('${id}')"]`);
+    if(btn) btn.classList.add('active');
+    
+    if(id === 'dashboard') window.atualizarDashboard();
+    if(id === 'pagamentos') window.atualizarPainelPagamentos();
+}
+
+// --- DASHBOARD ---
+window.atualizarDashboard = function() {
+    const totalSalarios = window.db.pagamentos ? window.db.pagamentos.filter(p => p.tipo === 'Salário').reduce((a,b)=>a+b.valor, 0) : 0;
+    const totalBoletos = window.db.boletos ? window.db.boletos.filter(b => b.status === 'PENDENTE').reduce((a,b)=>a+b.valor, 0) : 0;
+    
+    if(document.getElementById('dashTotalSalarios')) document.getElementById('dashTotalSalarios').innerText = fmtMoeda(totalSalarios);
+    if(document.getElementById('dashContasAbertas')) document.getElementById('dashContasAbertas').innerText = fmtMoeda(totalBoletos);
+    if(document.getElementById('dashTotalFuncionarios')) document.getElementById('dashTotalFuncionarios').innerText = window.db.funcionarios.length;
+}
+
+// Inicialização Final
+window.atualizarInterface();

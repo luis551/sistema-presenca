@@ -577,8 +577,8 @@
     <script src="script.js"></script>
 
    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, doc, setDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, doc, setDoc, onSnapshot, getDoc, runTransaction } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = { 
             apiKey: "AIzaSyBQFsxlyyyLVTpIAdbjdoIOyFA6zIj9Ka4", 
@@ -591,128 +591,147 @@
         };
 
         const app = initializeApp(firebaseConfig); 
-        // ATENÇÃO: Troque "NOME-DO-SEU-BANCO-NOVO" pelo nome exato que você criou lá no Google
-const dbFirestore = getFirestore(app, "sera"); 
+        const dbFirestore = getFirestore(app, "sera"); 
         const docRef = doc(dbFirestore, "sistema_rh", "dados_gerais");
 
         let lastCloudUpdate = 0; 
         let isSaving = false; 
 
-        function mesclarListas(listaLocal, listaNuvem) {
+        // NOVA FUNÇÃO DE MESCLA COM INTELIGÊNCIA
+        function mesclarListas(listaLocal, listaNuvem, ultimoSyncTime) {
             if (!listaLocal) return listaNuvem || [];
             if (!listaNuvem) return listaLocal || [];
-            const resultado = [...listaNuvem];
-            listaLocal.forEach(itemLocal => {
-                const existeNaNuvem = resultado.find(itemNuvem => itemNuvem.id === itemLocal.id);
-                if (!existeNaNuvem) resultado.push(itemLocal);
+
+            const mapaLocal = new Map(listaLocal.map(i => [i.id, i]));
+            const resultado = [];
+
+            listaNuvem.forEach(itemNuvem => {
+                if (mapaLocal.has(itemNuvem.id)) {
+                    resultado.push(mapaLocal.get(itemNuvem.id));
+                    mapaLocal.delete(itemNuvem.id);
+                } else {
+                    if (itemNuvem.id > ultimoSyncTime) {
+                        resultado.push(itemNuvem);
+                    }
+                }
             });
-            return resultado;
+
+            mapaLocal.forEach(itemLocal => {
+                resultado.push(itemLocal);
+            });
+
+            return resultado.sort((a, b) => b.id - a.id);
         }
 
-       onSnapshot(docRef, (docSnap) => {
-            if (isSaving) return; 
-            if (docSnap.metadata.hasPendingWrites) return;
-            const statusEl = document.getElementById('status-connection');
-            
+        // 👁️ MAGIA DE VIDÊNCIA (RECUPERADA): Atualiza a tela em tempo real se alguém mexer
+        onSnapshot(docRef, (docSnap) => {
+            if (isSaving) return; // Se eu estou salvando, não recarrega agora pra não piscar a tela
+
             if (docSnap.exists()) {
-                const data = docSnap.data();
-                window.db = data;
-                lastCloudUpdate = data.lastUpdate || 0;
+                const cloudData = docSnap.data();
+                const cloudTime = cloudData.lastUpdate || 0;
 
-                if(!window.db.funcionarios) window.db.funcionarios = [];
-                if(!window.db.presencas) window.db.presencas = {};
-                if(!window.db.pagamentos) window.db.pagamentos = [];
-                if(!window.db.extras) window.db.extras = [];
-                if(!window.db.entregas) window.db.entregas = []; 
-                if(!window.db.boletos) window.db.boletos = []; 
-                if(!window.db.audit) window.db.audit = []; 
-                if(!window.db.users || window.db.users.length === 0) { 
-                    window.db.users = [ { user: 'admin', pass: '1234', isAdmin: true } ]; 
+                if (cloudTime > lastCloudUpdate) {
+                    const statusEl = document.getElementById('status-connection');
+                    if(statusEl) statusEl.innerHTML = "⬇️ Baixando Atualizações...";
+
+                    // Puxa os dados da nuvem
+                    window.db.funcionarios = cloudData.funcionarios || [];
+                    window.db.pagamentos = cloudData.pagamentos || [];
+                    window.db.presencas = cloudData.presencas || {};
+                    window.db.extras = cloudData.extras || [];
+                    window.db.users = cloudData.users || [];
+                    window.db.entregas = cloudData.entregas || [];
+                    window.db.boletos = cloudData.boletos || [];
+                    window.db.audit = cloudData.audit || [];
+
+                    // Atualiza o relógio
+                    lastCloudUpdate = cloudTime;
+                    window.db.lastUpdate = cloudTime;
+
+                    // Atualiza o visual
+                    if (window.atualizarInterface) window.atualizarInterface();
+                    if (window.atualizarDashboard) window.atualizarDashboard();
+                    
+                    // Se a tela de pagamentos estiver aberta, já atualiza ela
+                    if (document.getElementById('pagamentos') && document.getElementById('pagamentos').classList.contains('active')) {
+                        if (window.atualizarPainelPagamentos) window.atualizarPainelPagamentos();
+                    }
+
+                    if(statusEl) {
+                        statusEl.innerHTML = "🟢 Online";
+                    }
                 }
-
-                statusEl.innerHTML = "🟢 Online"; 
-                statusEl.style.color = "#27ae60";
-
-                if(window.atualizarInterface) window.atualizarInterface();
-            } else { 
-                // 🚨 TRAVA DE SEGURANÇA ATIVADA 🚨
-                // Se não achar nada no banco, ele NÃO CRIA um novo vazio.
-                // Ele apenas avisa e espera você restaurar o backup.
-                statusEl.innerHTML = "⚠️ BD Vazio (Use Restaurar)";
-                statusEl.style.color = "orange";
-                console.warn("Banco de dados não encontrado ou vazio. Aguardando restauração manual.");
             }
         });
 
-        // --- SALVAMENTO BLINDADO (Anti-Reset) ---
-        // 👇 COLAR O CÓDIGO NOVO AQUI 👇
+        // 🛡️ SALVAMENTO BLINDADO COM TRANSAÇÃO (Bloqueia sobreposição de dados)
         window.salvarNuvem = async function(silencioso = false) { 
-            // TRAVA DE SEGURANÇA DO MESTRE EXPETO
             if ((!window.db.funcionarios || window.db.funcionarios.length === 0) && 
                 (!window.db.pagamentos || window.db.pagamentos.length === 0)) {
-                console.error("⛔ SALVAMENTO BLOQUEADO: O banco local parece vazio/resetado!");
-                if(!silencioso) alert("⛔ ERRO CRÍTICO: O sistema parece ter perdido a conexão e está vazio.\n\nO salvamento foi bloqueado para proteger seus dados na nuvem.\n\n👉 RECARREGUE A PÁGINA (F5) para tentar baixar os dados novamente.");
+                console.error("⛔ SALVAMENTO BLOQUEADO: O banco local parece vazio!");
+                if(!silencioso) alert("⛔ ERRO CRÍTICO: Sistema vazio. Recarregue a página (F5) para restaurar a conexão.");
                 return; 
             }
 
             isSaving = true; 
             const statusEl = document.getElementById('status-connection'); 
-            if(!silencioso) statusEl.innerHTML = "🔄 Processando..."; 
+            if(!silencioso) statusEl.innerHTML = "🔄 Salvando..."; 
             
             try {
-                const checkSnap = await getDoc(docRef);
-                
-                if (checkSnap.exists()) {
-                    const cloudData = checkSnap.data();
-                    const cloudTime = cloudData.lastUpdate || 0;
+                await runTransaction(dbFirestore, async (transaction) => {
+                    const cloudDoc = await transaction.get(docRef);
+                    
+                    if (cloudDoc.exists()) {
+                        const cloudData = cloudDoc.data();
+                        const cloudTime = cloudData.lastUpdate || 0;
 
-                    if (cloudTime > lastCloudUpdate) {
-                        if(!silencioso) statusEl.innerHTML = "⚡ Mesclando...";
-                        
-                        window.db.funcionarios = mesclarListas(window.db.funcionarios, cloudData.funcionarios);
-                        window.db.pagamentos = mesclarListas(window.db.pagamentos, cloudData.pagamentos);
-                        window.db.extras = mesclarListas(window.db.extras, cloudData.extras);
-                        window.db.entregas = mesclarListas(window.db.entregas, cloudData.entregas);
-                        window.db.boletos = mesclarListas(window.db.boletos, cloudData.boletos);
-                        
-                        const presencasNuvem = cloudData.presencas || {};
-                        const dataNaTela = document.getElementById('dataPresenca') ? document.getElementById('dataPresenca').value : null;
-                        
-                        let meuTrabalhoHoje = null;
-                        if (dataNaTela && window.db.presencas && window.db.presencas[dataNaTela]) {
-                            meuTrabalhoHoje = window.db.presencas[dataNaTela];
+                        if (cloudTime > lastCloudUpdate) {
+                            if(!silencioso) statusEl.innerHTML = "⚡ Sincronizando Conflitos...";
+                            
+                            window.db.funcionarios = mesclarListas(window.db.funcionarios, cloudData.funcionarios, lastCloudUpdate);
+                            window.db.pagamentos = mesclarListas(window.db.pagamentos, cloudData.pagamentos, lastCloudUpdate);
+                            window.db.extras = mesclarListas(window.db.extras, cloudData.extras, lastCloudUpdate);
+                            window.db.entregas = mesclarListas(window.db.entregas, cloudData.entregas, lastCloudUpdate);
+                            window.db.boletos = mesclarListas(window.db.boletos, cloudData.boletos, lastCloudUpdate);
+                            
+                            const presencasNuvem = cloudData.presencas || {};
+                            const dataNaTela = document.getElementById('dataPresenca') ? document.getElementById('dataPresenca').value : null;
+                            let meuTrabalhoHoje = null;
+                            
+                            if (dataNaTela && window.db.presencas && window.db.presencas[dataNaTela]) {
+                                meuTrabalhoHoje = window.db.presencas[dataNaTela];
+                            }
+                            window.db.presencas = { ...presencasNuvem };
+
+                            if (dataNaTela && meuTrabalhoHoje) {
+                                const listaNuvemDesseDia = presencasNuvem[dataNaTela] || [];
+                                const mapNuvem = new Map(listaNuvemDesseDia.map(item => [item.id, item]));
+
+                                const diaMesclado = meuTrabalhoHoje.map(meuItem => {
+                                    const itemNuvem = mapNuvem.get(meuItem.id);
+                                    if (!meuItem.status && itemNuvem && itemNuvem.status) return itemNuvem; 
+                                    return meuItem;
+                                });
+                                window.db.presencas[dataNaTela] = diaMesclado;
+                            }
+                            
+                            window.db.audit = [...cloudData.audit, ...window.db.audit].slice(-200);
                         }
-
-                        window.db.presencas = { ...presencasNuvem };
-
-                        if (dataNaTela && meuTrabalhoHoje) {
-                            const listaNuvemDesseDia = presencasNuvem[dataNaTela] || [];
-                            const mapNuvem = new Map(listaNuvemDesseDia.map(item => [item.id, item]));
-
-                            const diaMesclado = meuTrabalhoHoje.map(meuItem => {
-                                const itemNuvem = mapNuvem.get(meuItem.id);
-                                if (!meuItem.status && itemNuvem && itemNuvem.status) {
-                                    return itemNuvem; 
-                                }
-                                return meuItem;
-                            });
-                            window.db.presencas[dataNaTela] = diaMesclado;
-                        }
-                        
-                        window.db.audit = [...cloudData.audit, ...window.db.audit];
-                        window.db.audit = window.db.audit.slice(-200);
                     }
-                }
 
-                window.db.lastUpdate = Date.now();
+                    window.db.lastUpdate = Date.now();
+                    transaction.set(docRef, window.db); 
+                });
+                
                 lastCloudUpdate = window.db.lastUpdate; 
 
-                await setDoc(docRef, window.db); 
-                
                 if(!silencioso) {
                     statusEl.innerHTML = "🟢 Salvo!"; 
                     setTimeout(() => { statusEl.innerHTML = "🟢 Online"; }, 2000);
                 }
+
+                if(window.atualizarInterface) window.atualizarInterface();
 
             } catch (e) { 
                 console.error(e); 
@@ -722,7 +741,6 @@ const dbFirestore = getFirestore(app, "sera");
                 isSaving = false; 
             }
         }
-        // 👆 FIM DO CÓDIGO NOVO 👆
     </script>
     
 <div id="modalDetalhes">

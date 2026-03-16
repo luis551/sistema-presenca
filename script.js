@@ -650,3 +650,367 @@ window.atualizarDashboard = function() {
 
 // Inicialização Final
 window.atualizarInterface();
+// --- RENDERIZAÇÃO DE FUNCIONÁRIOS ---
+window.atualizarInterface = function() {
+    const tbody = document.querySelector('#tabelaFuncionarios tbody');
+    if(!tbody) return;
+    tbody.innerHTML = '';
+    
+    const busca = document.getElementById('buscaFuncionario')?.value.toLowerCase() || '';
+    
+    const listaFiltrada = window.db.funcionarios.filter(f => 
+        f.nome.toLowerCase().includes(busca) || (f.cpf && f.cpf.includes(busca))
+    ).sort((a,b) => a.nome.localeCompare(b.nome));
+
+    listaFiltrada.forEach(f => {
+        tbody.innerHTML += `
+            <tr>
+                <td><strong>${f.nome}</strong><br><small>${f.cpf || 'Sem CPF'}</small></td>
+                <td>${f.cargo}<br><small>🏢 ${f.empresa}</small></td>
+                <td>📱 ${f.tel || '-'}<br><small>📍 ${f.end || '-'}</small></td>
+                <td>${fmtMoeda(f.salario)}<br><small>(${f.tipo})</small></td>
+                <td>
+                    <button class="btn-edit" onclick="prepararEdicao(${f.id})">✏️</button>
+                    <button class="btn-delete" onclick="removerFuncionario(${f.id})">🗑️</button>
+                </td>
+            </tr>`;
+    });
+
+    // Atualiza os seletores de funcionários em outras abas
+    const seletores = ['selMotoId', 'selVendedorExtra', 'selectFuncionarioPagamento', 'filtroExtras'];
+    seletores.forEach(id => {
+        const el = document.getElementById(id);
+        if(el) {
+            const atual = el.value;
+            el.innerHTML = id === 'filtroExtras' ? '<option value="">Todos (Geral)</option><option value="DESPESAS">🔸 Despesas Loja</option>' : '<option value="">Selecione...</option>';
+            window.db.funcionarios.forEach(f => {
+                el.innerHTML += `<option value="${f.id}">${f.nome} (${f.empresa})</option>`;
+            });
+            el.value = atual;
+        }
+    });
+}
+
+// --- ATUALIZAÇÃO DO DASHBOARD (NÚMEROS E RANKING) ---
+window.atualizarDashboard = function() {
+    // 1. Números Principais
+    const totalSalarios = window.db.pagamentos.filter(p => p.tipo === 'Salário').reduce((a,b) => a + b.valor, 0);
+    const totalComissoes = window.db.extras.filter(e => e.tipo === 'Comissao').reduce((a,b) => a + b.valor, 0);
+    const totalEntregas = window.db.entregas.reduce((a,b) => a + b.valorTotal, 0);
+    const totalDespesas = window.db.extras.filter(e => e.tipo === 'Despesa').reduce((a,b) => a + b.valor, 0);
+
+    if(document.getElementById('dashSalarios')) document.getElementById('dashSalarios').innerText = fmtMoeda(totalSalarios);
+    if(document.getElementById('dashComissoes')) document.getElementById('dashComissoes').innerText = fmtMoeda(totalComissoes);
+    if(document.getElementById('dashMotoboys')) document.getElementById('dashMotoboys').innerText = fmtMoeda(totalEntregas);
+    if(document.getElementById('dashDespesas')) document.getElementById('dashDespesas').innerText = fmtMoeda(totalDespesas);
+
+    // 2. Ranking de Vendas
+    const rankingContainer = document.getElementById('rankingContainer');
+    if(rankingContainer) {
+        rankingContainer.innerHTML = '';
+        const vendasPorFunc = {};
+        window.db.extras.filter(e => e.tipo === 'Comissao').forEach(c => {
+            vendasPorFunc[c.beneficiario] = (vendasPorFunc[c.beneficiario] || 0) + c.valor;
+        });
+
+        const ranking = Object.entries(vendasPorFunc).sort((a,b) => b[1] - a[1]);
+        ranking.forEach(([nome, valor], i) => {
+            const medalha = i === 0 ? '🥇' : (i === 1 ? '🥈' : (i === 2 ? '🥉' : '👤'));
+            rankingContainer.innerHTML += `
+                <div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #eee;">
+                    <span>${medalha} ${nome}</span>
+                    <strong>${fmtMoeda(valor)}</strong>
+                </div>`;
+        });
+    }
+}
+// --- O DESPERTAR DO SISTEMA (GATILHOS INICIAIS) ---
+
+// Essa função avisa o sistema para desenhar tudo quando os dados mudam
+window.renderizarTudo = function() {
+    console.log("🎲 Sincronizando dados com o Painel...");
+    if(window.atualizarInterface) window.atualizarInterface();
+    if(window.atualizarDashboard) window.atualizarDashboard();
+    if(window.renderizarBoletos) window.renderizarBoletos();
+    if(window.renderizarExtras) window.renderizarExtras();
+    if(window.renderizarMotoboys) window.renderizarMotoboys();
+}
+
+// Substituímos a inicialização final para garantir que ela rode
+setTimeout(() => {
+    window.renderizarTudo();
+}, 2000);
+
+// Força a atualização da interface no momento do login
+const loginOriginal = window.tentarLogin;
+window.tentarLogin = function() {
+    loginOriginal();
+    setTimeout(() => {
+        window.renderizarTudo();
+    }, 1000);
+};
+// --- RENDERIZAÇÃO DE MOTOBOYS E ENTREGAS ---
+window.renderizarMotoboys = function() {
+    const grid = document.getElementById('gridMotoboys');
+    const filtroMoto = document.getElementById('filtroMotoHist')?.value;
+    const resumo = document.getElementById('painelResumoMoto');
+    
+    if(!grid) return;
+    grid.innerHTML = '';
+
+    let lista = [...window.db.entregas];
+
+    // Filtra por motoboy específico se selecionado
+    if (filtroMoto) {
+        lista = lista.filter(e => String(e.idFunc) === String(filtroMoto));
+        if(resumo) resumo.style.display = 'flex';
+    } else {
+        if(resumo) resumo.style.display = 'none';
+    }
+
+    // Ordena por data (mais recente primeiro)
+    lista.sort((a,b) => new Date(b.data) - new Date(a.data));
+
+    if (lista.length === 0) {
+        grid.innerHTML = '<p style="color:#aaa; width:100%; text-align:center; padding:20px;">Nenhum registro de entrega encontrado.</p>';
+        return;
+    }
+
+    let totalV = 0;
+    let totalE = 0;
+
+    lista.forEach(e => {
+        totalV += e.valorTotal;
+        totalE += e.totalEntregas;
+
+        grid.innerHTML += `
+            <div class="card-entrega" style="border-left: 5px solid var(--moto); background: var(--bg-card); padding: 15px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow);">
+                <div>
+                    <strong style="font-size: 1.1rem; color: var(--text-main);">${e.nomeFunc}</strong><br>
+                    <small style="color: var(--text-sub);">📅 ${fmtDataSimples(e.data)} | 🌙 ${e.turno}</small><br>
+                    <span style="font-size: 0.85rem; color: var(--text-sub);">🔴 ${e.ifood} | 🟡 ${e.app99} | 🟢 ${e.zap}</span>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-weight: 800; color: var(--moto); font-size: 1.2rem;">${fmtMoeda(e.valorTotal)}</div>
+                    <button class="btn-delete-pag" onclick="removerEntrega(${e.id})" style="background:none; border:none; cursor:pointer; margin-top:5px;">🗑️</button>
+                </div>
+            </div>`;
+    });
+
+    // Atualiza os números do resumo se o filtro estiver ativo
+    if(document.getElementById('sumEntregas')) document.getElementById('sumEntregas').innerText = totalE;
+    if(document.getElementById('sumValorMoto')) document.getElementById('sumValorMoto').innerText = fmtMoeda(totalV);
+
+    // Atualiza o seletor de motoboys no filtro do histórico
+    const selFiltro = document.getElementById('filtroMotoHist');
+    if(selFiltro && selFiltro.options.length <= 1) {
+        const motoboys = window.db.funcionarios.filter(f => f.cargo.toLowerCase().includes('moto') || f.tipo === 'Diaria');
+        motoboys.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.id;
+            opt.text = `🏍️ ${m.nome}`;
+            selFiltro.add(opt);
+        });
+    }
+}
+
+// Adiciona o gatilho de renderização de motoboys na função geral
+const renderizarTudoOriginal = window.renderizarTudo;
+window.renderizarTudo = function() {
+    if(renderizarTudoOriginal) renderizarTudoOriginal();
+    window.renderizarMotoboys();
+}
+// --- RENDERIZAÇÃO DE EXTRAS E COMISSÕES ---
+window.renderizarExtras = function() {
+    const grid = document.getElementById('gridExtras');
+    const filtroId = document.getElementById('filtroExtras')?.value;
+    
+    if(!grid) return;
+    grid.innerHTML = '';
+    
+    // Pega todos os registros da coleção rh_extras
+    let lista = [...window.db.extras];
+    
+    // Aplica o filtro de busca
+    if (filtroId) {
+        if (filtroId === 'DESPESAS') {
+            lista = lista.filter(item => item.tipo === 'Despesa');
+        } else {
+            lista = lista.filter(item => String(item.idFunc) === String(filtroId));
+        }
+    }
+    
+    // Ordena por data (mais recente primeiro)
+    lista.sort((a,b) => new Date(b.data) - new Date(a.data));
+
+    if (lista.length === 0) {
+        grid.innerHTML = '<p style="color:#aaa; width:100%; text-align:center; padding:20px;">Nenhum extra ou despesa encontrado.</p>';
+        return;
+    }
+
+    // Renderiza os cards (limitado aos 50 mais recentes para não travar)
+    lista.slice(0, 50).forEach(item => {
+        const corCard = item.tipo === 'Comissao' ? 'extra-comissao' : 'extra-despesa';
+        const corTexto = item.tipo === 'Comissao' ? 'txt-purple' : 'txt-orange';
+        
+        grid.innerHTML += `
+            <div class="extra-card ${corCard}" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; margin-bottom: 8px; border-radius: 8px; background: var(--bg-card); box-shadow: var(--shadow);">
+                <div class="extra-info">
+                    <h4 class="${corTexto}" style="margin:0;">${item.categoria} - ${item.beneficiario}</h4>
+                    <span style="font-size:0.85rem; color:var(--text-sub);">📅 ${fmtDataSimples(item.data)} | ${item.obs || ''}</span>
+                </div>
+                <div style="text-align: right;">
+                    <div class="extra-val ${corTexto}" style="font-weight:bold; font-size:1.1rem;">${fmtMoeda(item.valor)}</div>
+                    <button class="btn-delete-pag" onclick="removerExtra(${item.id})" style="background:none; border:none; cursor:pointer; margin-top:5px;">🗑️</button>
+                </div>
+            </div>`;
+    });
+}
+
+// Atualiza o seletor de vendedores no formulário de comissão
+const atualizarInterfaceOriginal = window.atualizarInterface;
+window.atualizarInterface = function() {
+    if(atualizarInterfaceOriginal) atualizarInterfaceOriginal();
+    
+    const selVendedor = document.getElementById('selVendedorExtra');
+    if(selVendedor) {
+        const atual = selVendedor.value;
+        selVendedor.innerHTML = '<option value="">Selecione...</option>';
+        // Filtra apenas funcionários que podem vender (ou todos, se preferir)
+        window.db.funcionarios.sort((a,b)=>a.nome.localeCompare(b.nome)).forEach(f => {
+            selVendedor.innerHTML += `<option value="${f.id}">${f.nome} (${f.empresa})</option>`;
+        });
+        selVendedor.value = atual;
+    }
+}
+// --- RENDERIZAÇÃO DE BOLETOS E CONTAS ---
+window.renderizarBoletos = function() {
+    const grid = document.getElementById('gridBoletos');
+    const filtro = document.getElementById('filtroBoletos')?.value || 'TODOS';
+    
+    if(!grid) return;
+    grid.innerHTML = '';
+    
+    if(!window.db.boletos) window.db.boletos = [];
+
+    let totalVencido = 0; 
+    let totalAberto = 0; 
+    let totalPago = 0;
+    
+    const hoje = new Date(); 
+    hoje.setHours(0,0,0,0);
+
+    // Ordena por vencimento (as mais próximas primeiro)
+    const listaOrdenada = [...window.db.boletos].sort((a,b) => new Date(a.vencimento) - new Date(b.vencimento));
+
+    listaOrdenada.forEach(b => {
+        const dataVenc = new Date(b.vencimento + 'T12:00:00');
+        const diffTempo = dataVenc - hoje;
+        const diasRestantes = Math.ceil(diffTempo / (1000 * 60 * 60 * 24)); 
+
+        // Cálculos dos Totais do Dashboard de Boletos
+        if(b.status === 'PAGO') {
+            totalPago += b.valor;
+        } else {
+            totalAberto += b.valor;
+            if(diasRestantes < 0) totalVencido += b.valor;
+        }
+
+        // Aplica o filtro de visualização
+        if(filtro === 'PENDENTE' && b.status === 'PAGO') return;
+        if(filtro === 'PAGO' && b.status !== 'PAGO') return;
+
+        // Define as cores e badges baseados no status e data
+        let classeBorda = '', badgeData = '', textoData = '';
+        if (b.status === 'PAGO') { 
+            classeBorda = 'b-pago'; badgeData = 'badge-green'; textoData = '✅ PAGO'; 
+        } else {
+            if (diasRestantes < 0) { 
+                classeBorda = 'b-vencido'; badgeData = 'badge-red'; textoData = `🚨 Venceu há ${Math.abs(diasRestantes)} dias`; 
+            } else if (diasRestantes === 0) { 
+                classeBorda = 'b-vencido'; badgeData = 'badge-red'; textoData = `⚠️ VENCE HOJE!`; 
+            } else if (diasRestantes <= 3) { 
+                classeBorda = 'b-atencao'; badgeData = 'badge-yellow'; textoData = `⏳ Vence em ${diasRestantes} dias`; 
+            } else { 
+                classeBorda = 'b-dia'; badgeData = 'badge-blue'; textoData = `📅 Vence em ${diasRestantes} dias`; 
+            }
+        }
+
+        const btnAcao = b.status === 'PENDENTE' 
+            ? `<button class="btn-pagar pendente" onclick="toggleStatusBoleto(${b.id})" style="width:100%; padding:8px; background:var(--primary); color:white; border:none; border-radius:4px; cursor:pointer;">💸 Confirmar Pagamento</button>` 
+            : `<button class="btn-pagar desfazer" onclick="toggleStatusBoleto(${b.id})" style="width:100%; padding:8px; background:#95a5a6; color:white; border:none; border-radius:4px; cursor:pointer;">↩️ Desfazer</button>`;
+
+        grid.innerHTML += `
+            <div class="boleto-card ${classeBorda}" style="background:var(--bg-card); padding:15px; border-radius:8px; margin-bottom:10px; border-left: 8px solid; box-shadow: var(--shadow); display:flex; justify-content:space-between; align-items:center;">
+                <div style="flex:1;">
+                    <div style="display:flex; gap:10px; align-items:center; margin-bottom:5px;">
+                        <span class="${badgeData}" style="padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:bold; color:white;">${textoData}</span>
+                        <small style="color:#888;">#${b.id.toString().slice(-4)}</small>
+                    </div>
+                    <div style="font-weight:bold; font-size:1.1rem; color:var(--text-main);">${b.desc}</div>
+                    <div style="font-size:0.8rem; color:var(--text-sub);">📅 Vencimento: ${fmtDataSimples(b.vencimento)}</div>
+                    ${b.codigo ? `<div style="font-size:0.7rem; color:#aaa; margin-top:5px; font-family:monospace;">📠 ${b.codigo}</div>` : ''}
+                </div>
+                <div style="text-align:right; min-width:150px;">
+                    <div style="font-size:1.3rem; font-weight:800; color:var(--text-main); margin-bottom:10px;">${fmtMoeda(b.valor)}</div>
+                    ${btnAcao}
+                    <button onclick="removerBoleto(${b.id})" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:0.8rem; margin-top:8px; width:100%;">Excluir</button>
+                </div>
+            </div>`;
+    });
+
+    // Atualiza os contadores no topo da página de Boletos
+    if(document.getElementById('bolTotalVencido')) document.getElementById('bolTotalVencido').innerText = fmtMoeda(totalVencido);
+    if(document.getElementById('bolTotalAberto')) document.getElementById('bolTotalAberto').innerText = fmtMoeda(totalAberto);
+    if(document.getElementById('bolTotalPago')) document.getElementById('bolTotalPago').innerText = fmtMoeda(totalPago);
+}
+// --- SISTEMA DE AUDITORIA E BACKUP ---
+window.renderizarAudit = function() {
+    const tbody = document.getElementById('tbodyAudit');
+    if(!tbody) return;
+    tbody.innerHTML = '';
+    
+    // Pega os logs da coleção (se você criou uma) ou do array local
+    const logs = [...(window.db.audit || [])].sort((a,b) => new Date(b.data) - new Date(a.data)).slice(0, 100);
+    
+    if(logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:#aaa;">Nenhum registro encontrado.</td></tr>';
+        return;
+    }
+
+    logs.forEach(l => {
+        const d = new Date(l.data);
+        const dataFmt = d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR');
+        tbody.innerHTML += `<tr><td>${dataFmt}</td><td><strong>${l.user}</strong></td><td>${l.acao}</td><td>${l.detalhes}</td></tr>`;
+    });
+}
+
+// Magia para baixar todos os dados das coleções em um arquivo só
+window.baixarBackupLocal = function() {
+    const dataAtual = new Date().toISOString().split('T')[0];
+    const nomeArquivo = `BACKUP_SISTEMA_V3_${dataAtual}.json`;
+    
+    const blob = new Blob([JSON.stringify(window.db, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nomeArquivo;
+    a.click();
+    registrarLog('Sistema', 'Realizou backup manual dos dados');
+}
+
+// Abre o portal de restauração (Reutiliza a página de migração que você criou)
+window.restaurarBackupLocal = function() {
+    if(confirm("⚠️ AVISO: Isso abrirá o Portal de Migração. Você deve selecionar um arquivo .json para injetar os dados nas novas coleções. Deseja continuar?")) {
+        window.open('migracao.html', '_blank');
+    }
+}
+
+// Garante que o log seja atualizado ao trocar de seção
+const showSectionOriginal = window.showSection;
+window.showSection = function(id, btn) {
+    if(showSectionOriginal) showSectionOriginal(id, btn);
+    if(id === 'seguranca') window.renderizarAudit();
+}
+// Garante que o botão de "Acessar" encontre a função certa
+window.checkLogin = window.tentarLogin;

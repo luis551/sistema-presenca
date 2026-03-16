@@ -577,8 +577,8 @@
     <script src="script.js"></script>
 
    <script type="module">
-       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, doc, setDoc, onSnapshot, getDoc, runTransaction } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = { 
             apiKey: "AIzaSyBQFsxlyyyLVTpIAdbjdoIOyFA6zIj9Ka4", 
@@ -586,161 +586,66 @@
             projectId: "sistema-presenca-99791", 
             storageBucket: "sistema-presenca-99791.firebasestorage.app", 
             messagingSenderId: "205211862116", 
-            appId: "1:205211862116:web:090e6efe0ec4d8c71a8b71", 
-            measurementId: "G-JKHE7BNDP5" 
+            appId: "1:205211862116:web:090e6efe0ec4d8c71a8b71"
         };
 
         const app = initializeApp(firebaseConfig); 
         const dbFirestore = getFirestore(app, "sera"); 
-        const docRef = doc(dbFirestore, "sistema_rh", "dados_gerais");
 
-        let lastCloudUpdate = 0; 
-        let isSaving = false; 
+        const statusEl = document.getElementById('status-connection');
+        if(statusEl) statusEl.innerHTML = "🔄 Conectando aos novos reinos...";
 
-        // NOVA FUNÇÃO DE MESCLA COM INTELIGÊNCIA
-        function mesclarListas(listaLocal, listaNuvem, ultimoSyncTime) {
-            if (!listaLocal) return listaNuvem || [];
-            if (!listaNuvem) return listaLocal || [];
+        // 👁️ 1. VIGÍLIA CONSTANTE NAS 7 COLEÇÕES
+        const colecoes = ['rh_funcionarios', 'rh_pagamentos', 'rh_presencas', 'rh_extras', 'rh_entregas', 'rh_boletos', 'rh_users'];
 
-            const mapaLocal = new Map(listaLocal.map(i => [i.id, i]));
-            const resultado = [];
+        colecoes.forEach(nomeCol => {
+            onSnapshot(collection(dbFirestore, nomeCol), (snapshot) => {
+                const tempArray = [];
+                snapshot.forEach(docSnap => tempArray.push(docSnap.data()));
 
-            listaNuvem.forEach(itemNuvem => {
-                if (mapaLocal.has(itemNuvem.id)) {
-                    resultado.push(mapaLocal.get(itemNuvem.id));
-                    mapaLocal.delete(itemNuvem.id);
-                } else {
-                    if (itemNuvem.id > ultimoSyncTime) {
-                        resultado.push(itemNuvem);
-                    }
+                // Atualiza o banco local dependendo de qual coleção mudou
+                if (nomeCol === 'rh_funcionarios') window.db.funcionarios = tempArray;
+                if (nomeCol === 'rh_pagamentos') window.db.pagamentos = tempArray;
+                if (nomeCol === 'rh_extras') window.db.extras = tempArray;
+                if (nomeCol === 'rh_entregas') window.db.entregas = tempArray;
+                if (nomeCol === 'rh_boletos') window.db.boletos = tempArray;
+                if (nomeCol === 'rh_users') window.db.users = tempArray;
+
+                // A Presença tem aquela mecânica de objeto especial separada por dia
+                if (nomeCol === 'rh_presencas') {
+                    const presObj = {};
+                    tempArray.forEach(item => { presObj[item.data] = item.registros; });
+                    window.db.presencas = presObj;
                 }
-            });
 
-            mapaLocal.forEach(itemLocal => {
-                resultado.push(itemLocal);
-            });
-
-            return resultado.sort((a, b) => b.id - a.id);
-        }
-
-        // 👁️ MAGIA DE VIDÊNCIA (RECUPERADA): Atualiza a tela em tempo real se alguém mexer
-        onSnapshot(docRef, (docSnap) => {
-            if (isSaving) return; // Se eu estou salvando, não recarrega agora pra não piscar a tela
-
-            if (docSnap.exists()) {
-                const cloudData = docSnap.data();
-                const cloudTime = cloudData.lastUpdate || 0;
-
-                if (cloudTime > lastCloudUpdate) {
-                    const statusEl = document.getElementById('status-connection');
-                    if(statusEl) statusEl.innerHTML = "⬇️ Baixando Atualizações...";
-
-                    // Puxa os dados da nuvem
-                    window.db.funcionarios = cloudData.funcionarios || [];
-                    window.db.pagamentos = cloudData.pagamentos || [];
-                    window.db.presencas = cloudData.presencas || {};
-                    window.db.extras = cloudData.extras || [];
-                    window.db.users = cloudData.users || [];
-                    window.db.entregas = cloudData.entregas || [];
-                    window.db.boletos = cloudData.boletos || [];
-                    window.db.audit = cloudData.audit || [];
-
-                    // Atualiza o relógio
-                    lastCloudUpdate = cloudTime;
-                    window.db.lastUpdate = cloudTime;
-
-                    // Atualiza o visual
-                    if (window.atualizarInterface) window.atualizarInterface();
-                    if (window.atualizarDashboard) window.atualizarDashboard();
-                    
-                    // Se a tela de pagamentos estiver aberta, já atualiza ela
-                    if (document.getElementById('pagamentos') && document.getElementById('pagamentos').classList.contains('active')) {
-                        if (window.atualizarPainelPagamentos) window.atualizarPainelPagamentos();
-                    }
-
-                    if(statusEl) {
-                        statusEl.innerHTML = "🟢 Online";
-                    }
+                // Dispara os gatilhos pra atualizar o visual da tela
+                if (window.atualizarInterface) window.atualizarInterface();
+                if (window.atualizarDashboard) window.atualizarDashboard();
+                if (document.getElementById('pagamentos') && document.getElementById('pagamentos').classList.contains('active')) {
+                    if (window.atualizarPainelPagamentos) window.atualizarPainelPagamentos();
                 }
-            }
+                
+                if(statusEl) statusEl.innerHTML = "🟢 Online (Nível 99)";
+            });
         });
 
-        // 🛡️ SALVAMENTO BLINDADO COM TRANSAÇÃO (Bloqueia sobreposição de dados)
-        window.salvarNuvem = async function(silencioso = false) { 
-            if ((!window.db.funcionarios || window.db.funcionarios.length === 0) && 
-                (!window.db.pagamentos || window.db.pagamentos.length === 0)) {
-                console.error("⛔ SALVAMENTO BLOQUEADO: O banco local parece vazio!");
-                if(!silencioso) alert("⛔ ERRO CRÍTICO: Sistema vazio. Recarregue a página (F5) para restaurar a conexão.");
-                return; 
-            }
-
-            isSaving = true; 
-            const statusEl = document.getElementById('status-connection'); 
-            if(!silencioso) statusEl.innerHTML = "🔄 Salvando..."; 
-            
+        // 🗡️ 2. NOVAS MAGIAS DE ESCRITA (Para o seu script.js usar)
+        window.salvarItemNuvem = async function(colecao, idDocumento, dados) {
             try {
-                await runTransaction(dbFirestore, async (transaction) => {
-                    const cloudDoc = await transaction.get(docRef);
-                    
-                    if (cloudDoc.exists()) {
-                        const cloudData = cloudDoc.data();
-                        const cloudTime = cloudData.lastUpdate || 0;
+                await setDoc(doc(dbFirestore, colecao, String(idDocumento)), dados);
+            } catch(e) { console.error("Erro no ataque (Salvar):", e); }
+        };
 
-                        if (cloudTime > lastCloudUpdate) {
-                            if(!silencioso) statusEl.innerHTML = "⚡ Sincronizando Conflitos...";
-                            
-                            window.db.funcionarios = mesclarListas(window.db.funcionarios, cloudData.funcionarios, lastCloudUpdate);
-                            window.db.pagamentos = mesclarListas(window.db.pagamentos, cloudData.pagamentos, lastCloudUpdate);
-                            window.db.extras = mesclarListas(window.db.extras, cloudData.extras, lastCloudUpdate);
-                            window.db.entregas = mesclarListas(window.db.entregas, cloudData.entregas, lastCloudUpdate);
-                            window.db.boletos = mesclarListas(window.db.boletos, cloudData.boletos, lastCloudUpdate);
-                            
-                            const presencasNuvem = cloudData.presencas || {};
-                            const dataNaTela = document.getElementById('dataPresenca') ? document.getElementById('dataPresenca').value : null;
-                            let meuTrabalhoHoje = null;
-                            
-                            if (dataNaTela && window.db.presencas && window.db.presencas[dataNaTela]) {
-                                meuTrabalhoHoje = window.db.presencas[dataNaTela];
-                            }
-                            window.db.presencas = { ...presencasNuvem };
+        window.deletarItemNuvem = async function(colecao, idDocumento) {
+            try {
+                await deleteDoc(doc(dbFirestore, colecao, String(idDocumento)));
+            } catch(e) { console.error("Erro na exclusão:", e); }
+        };
 
-                            if (dataNaTela && meuTrabalhoHoje) {
-                                const listaNuvemDesseDia = presencasNuvem[dataNaTela] || [];
-                                const mapNuvem = new Map(listaNuvemDesseDia.map(item => [item.id, item]));
-
-                                const diaMesclado = meuTrabalhoHoje.map(meuItem => {
-                                    const itemNuvem = mapNuvem.get(meuItem.id);
-                                    if (!meuItem.status && itemNuvem && itemNuvem.status) return itemNuvem; 
-                                    return meuItem;
-                                });
-                                window.db.presencas[dataNaTela] = diaMesclado;
-                            }
-                            
-                            window.db.audit = [...cloudData.audit, ...window.db.audit].slice(-200);
-                        }
-                    }
-
-                    window.db.lastUpdate = Date.now();
-                    transaction.set(docRef, window.db); 
-                });
-                
-                lastCloudUpdate = window.db.lastUpdate; 
-
-                if(!silencioso) {
-                    statusEl.innerHTML = "🟢 Salvo!"; 
-                    setTimeout(() => { statusEl.innerHTML = "🟢 Online"; }, 2000);
-                }
-
-                if(window.atualizarInterface) window.atualizarInterface();
-
-            } catch (e) { 
-                console.error(e); 
-                statusEl.innerHTML = "🔴 Erro!";
-                alert("Erro ao salvar: " + e.message);
-            } finally {
-                isSaving = false; 
-            }
-        }
+        // 🛡️ 3. DESATIVA O FEITIÇO ANTIGO PRA NÃO DAR RUIM
+        window.salvarNuvem = function() {
+            console.warn("🛡️ A magia antiga salvarNuvem() foi aposentada! Agora o sistema salva direto nas coleções.");
+        };
     </script>
     
 <div id="modalDetalhes">

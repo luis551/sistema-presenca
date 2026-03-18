@@ -628,12 +628,15 @@
             });
         });
 
-        // 🗡️ 2. NOVAS MAGIAS DE ESCRITA (Para o seu script.js usar)
-        window.salvarItemNuvem = async function(colecao, idDocumento, dados) {
-            try {
-                await setDoc(doc(dbFirestore, colecao, String(idDocumento)), dados);
-            } catch(e) { console.error("Erro no ataque (Salvar):", e); }
-        };
+       window.salvarItemNuvem = async function(colecao, idDocumento, dados) {
+    try {
+        await setDoc(doc(dbFirestore, colecao, String(idDocumento)), dados);
+        return true;
+    } catch(e) {
+        console.error("Erro no ataque (Salvar):", e);
+        throw e;
+    }
+    };
 
         window.deletarItemNuvem = async function(colecao, idDocumento) {
             try {

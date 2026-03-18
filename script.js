@@ -111,14 +111,21 @@ window.lancarEntregaMoto = async function() {
     const idFunc = document.getElementById('selMotoId').value;
     const data = document.getElementById('dataMoto').value;
     const turno = document.getElementById('selMotoTurno').value;
-    if(!idFunc || !data) return alert("Selecione Motoboy e Data!");
+
+    if(!idFunc || !data) {
+        return alert("Selecione Motoboy e Data!");
+    }
 
     const calc = window.calcularMotoPreview();
-    const func = window.db.funcionarios.find(f => f.id == idFunc);
+    const func = window.db.funcionarios.find(f => String(f.id) === String(idFunc));
+
+    if(!func) {
+        return alert("Motoboy não encontrado.");
+    }
 
     const novoRegistro = {
         id: Date.now(),
-        idFunc: idFunc,
+        idFunc: String(idFunc),
         nomeFunc: func.nome,
         data: data,
         turno: turno,
@@ -130,21 +137,26 @@ window.lancarEntregaMoto = async function() {
     };
 
     if(!window.db.entregas) window.db.entregas = [];
-    window.db.entregas.push(novoRegistro);
 
-    registrarLog('Motoboy', `Lançou diária de ${fmtMoeda(calc.totalReceber)} para ${func.nome}`);
+    try {
+        await salvarRegistro(FIREBASE_AREAS.entregas, novoRegistro.id, novoRegistro);
 
-    await salvarRegistro(FIREBASE_AREAS.entregas, novoRegistro.id, novoRegistro);
+        window.db.entregas.push(novoRegistro);
+        registrarLog('Motoboy', `Lançou diária de ${fmtMoeda(calc.totalReceber)} para ${func.nome}`);
 
-    alert("Fechamento do Motoboy Salvo!");
+        alert("Fechamento do Motoboy salvo na nuvem com sucesso!");
 
-    document.getElementById('qtdIfood').value = '';
-    document.getElementById('qtd99').value = '';
-    document.getElementById('qtdZap').value = '';
-    window.renderizarMotoboys();
-    window.atualizarDashboard();
+        document.getElementById('qtdIfood').value = '';
+        document.getElementById('qtd99').value = '';
+        document.getElementById('qtdZap').value = '';
+
+        window.renderizarMotoboys();
+        window.atualizarDashboard();
+    } catch (erro) {
+        console.error("Falha real ao salvar motoboy:", erro);
+        alert("❌ ERRO: não foi possível salvar a diária do motoboy na nuvem. Nada foi confirmado.");
+    }
 }
-
 window.renderizarMotoboys = function() {
     const grid = document.getElementById('gridMotoboys');
     const filtro = document.getElementById('filtroMotoHist');

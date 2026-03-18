@@ -596,7 +596,36 @@
 
         // 👁️ 1. VIGÍLIA CONSTANTE NAS 7 COLEÇÕES
         const colecoes = ['rh_funcionarios', 'rh_pagamentos', 'rh_presencas', 'rh_extras', 'rh_entregas', 'rh_boletos', 'rh_users'];
+        let refreshTimer = null;
 
+        function agendarAtualizacaoVisual() {
+         clearTimeout(refreshTimer);
+         refreshTimer = setTimeout(() => {
+               if (window.atualizarInterface) window.atualizarInterface();
+              if (window.atualizarDashboard) window.atualizarDashboard();
+
+             const secaoAtiva = document.querySelector('.section.active')?.id;
+
+               if (secaoAtiva === 'pagamentos' && window.atualizarPainelPagamentos) {
+               window.atualizarPainelPagamentos();
+            }
+              if (secaoAtiva === 'motoboys' && window.renderizarMotoboys) {
+             window.renderizarMotoboys();
+            }
+                 if (secaoAtiva === 'extras' && window.renderizarExtras) {
+                 window.renderizarExtras();
+            }
+                  if (secaoAtiva === 'boletos' && window.renderizarBoletos) {
+               window.renderizarBoletos();
+            }
+                if (secaoAtiva === 'seguranca' && window.renderizarAudit) {
+                 window.renderizarAudit();
+            }
+
+                 const statusEl = document.getElementById('status-connection');
+                if (statusEl) statusEl.innerHTML = "🟢 Online (Nível 99)";
+              }, 80);
+         }   
         colecoes.forEach(nomeCol => {
             onSnapshot(collection(dbFirestore, nomeCol), (snapshot) => {
                 const tempArray = [];
@@ -617,14 +646,7 @@
                     window.db.presencas = presObj;
                 }
 
-                // Dispara os gatilhos pra atualizar o visual da tela
-                if (window.atualizarInterface) window.atualizarInterface();
-                if (window.atualizarDashboard) window.atualizarDashboard();
-                if (document.getElementById('pagamentos') && document.getElementById('pagamentos').classList.contains('active')) {
-                    if (window.atualizarPainelPagamentos) window.atualizarPainelPagamentos();
-                }
-                
-                if(statusEl) statusEl.innerHTML = "🟢 Online (Nível 99)";
+                agendarAtualizacaoVisual();
             });
         });
 

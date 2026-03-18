@@ -97,7 +97,7 @@
             <p style="color:var(--text-sub); margin-bottom: 15px;">Painel RH - Identifique-se:</p>
             <input type="text" id="loginUser" placeholder="Usuário" onkeyup="if(event.key==='Enter') document.getElementById('loginPass').focus()">
             <input type="password" id="loginPass" placeholder="Senha" onkeyup="if(event.key==='Enter') checkLogin()">
-            <button class="action-btn" onclick="tentarLogin()" style="width:100%; margin-top:15px;">Acessar</button>
+            <button class="action-btn" onclick="checkLogin()" style="width:100%; margin-top:15px;">Acessar</button>
             <p id="loginError" style="color: red; display: none; margin-top: 10px; font-size:0.9rem;">Usuário ou senha inválidos!</p>
         </div>
     </div>
@@ -202,7 +202,6 @@
 </div>
 
 <div id="gridMotoboys" class="grid-container"></div>
-            <div id="gridMotoboys" class="grid-container"></div>
         </div>
 
         <div id="funcionarios" class="section">

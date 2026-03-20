@@ -16,16 +16,16 @@
                 <h4 id="recibo-empresa" style="margin:0; font-weight:normal;">Empresa Exemplo</h4>
             </div>
             <div class="recibo-body">
-                <p>Eu, <strong><span id="recibo-funcionario">NOME DO FUNCIONÃRIO</span></strong>,</p>
-                <p>Recebi a importÃ¢ncia de <strong><span id="recibo-valor">R$ 0,00</span></strong></p>
-                <p>Referente a: <strong><span id="recibo-tipo">Pagamento de SalÃ¡rio</span></strong>.</p>
-                <p>DescriÃ§Ã£o adicional: <span id="recibo-desc">---</span></p>
+                <p>Eu, <strong><span id="recibo-funcionario">NOME DO FUNCIONÁRIO</span></strong>,</p>
+                <p>Recebi a importância de <strong><span id="recibo-valor">R$ 0,00</span></strong></p>
+                <p>Referente a: <strong><span id="recibo-tipo">Pagamento de Salário</span></strong>.</p>
+                <p>Descrição adicional: <span id="recibo-desc">---</span></p>
                 <br>
                 <p style="text-align: right;">Rio de Janeiro, <span id="recibo-data">--/--/----</span>.</p>
             </div>
             <div class="recibo-footer">
                 <div class="assinatura-box">Assinatura do Pagador (Empresa)</div>
-                <div class="assinatura-box">Assinatura do Recebedor (FuncionÃ¡rio)</div>
+                <div class="assinatura-box">Assinatura do Recebedor (Funcionário)</div>
             </div>
             <div class="no-print" style="text-align:center; margin-top:30px;">
                 <button onclick="window.print()" style="padding:10px 20px; font-size:1.2rem; background:black; color:white; border:none; cursor:pointer;">IMPRIMIR AGORA</button>
@@ -40,14 +40,14 @@
                 <h2>FOLHA DE PONTO</h2>
                 <h4 id="ponto-empresa" style="margin:0; font-weight:normal;">Empresa</h4>
                 <div style="display:flex; justify-content:space-between; margin-top:15px; font-size:0.9rem; font-weight:bold;">
-                    <span>FuncionÃ¡rio: <span id="ponto-nome">---</span></span>
-                    <span>MÃªs/Ano: <span id="ponto-mes">---</span></span>
+                    <span>Funcionário: <span id="ponto-nome">---</span></span>
+                    <span>Mês/Ano: <span id="ponto-mes">---</span></span>
                 </div>
             </div>
             <div id="tabela-ponto-container"></div>
             <div class="recibo-footer">
-                <div class="assinatura-box">Assinatura do FuncionÃ¡rio</div>
-                <div class="assinatura-box">Visto do ResponsÃ¡vel</div>
+                <div class="assinatura-box">Assinatura do Funcionário</div>
+                <div class="assinatura-box">Visto do Responsável</div>
             </div>
             <div class="no-print" style="text-align:center; margin-top:30px;">
                 <button onclick="window.print()" style="padding:10px 20px; font-size:1.2rem; background:black; color:white; border:none; cursor:pointer;">IMPRIMIR AGORA</button>
@@ -58,21 +58,21 @@
 
     <div id="modalUsers">
         <div class="modal-content">
-            <h2 style="margin-top:0;">âš™ï¸ GestÃ£o de Acesso</h2>
+            <h2 style="margin-top:0;">⚙️ Gestão de Acesso</h2>
             <div style="background:rgba(0,0,0,0.05); padding:15px; border-radius:8px; margin-bottom:20px;">
                 <input type="hidden" id="editUserIndex" value="">
-                <label style="font-weight:bold; font-size:0.9rem;" id="tituloFormUser">Adicionar Novo UsuÃ¡rio</label>
-                <input type="text" id="novoUser" placeholder="Nome de UsuÃ¡rio" style="margin:5px 0;">
+                <label style="font-weight:bold; font-size:0.9rem;" id="tituloFormUser">Adicionar Novo Usuário</label>
+                <input type="text" id="novoUser" placeholder="Nome de Usuário" style="margin:5px 0;">
                 <input type="password" id="novaSenha" placeholder="Senha" style="margin:5px 0;">
                 <div style="margin: 10px 0;">
                     <input type="checkbox" id="checkIsAdmin" style="width:auto;" onchange="togglePermBoxes()"> 
-                    <label for="checkIsAdmin" style="cursor:pointer; display:inline;">Ã‰ Administrador (Acesso Total)?</label>
+                    <label for="checkIsAdmin" style="cursor:pointer; display:inline;">É Administrador (Acesso Total)?</label>
                 </div>
                 
                 <div id="areaPermissoes" class="perm-box">
-                    <p style="grid-column: span 2; margin:0 0 5px 0; font-weight:bold; font-size:0.8rem;">PermissÃµes de EdiÃ§Ã£o:</p>
-                    <label><input type="checkbox" id="p_func"> FuncionÃ¡rios</label>
-                    <label><input type="checkbox" id="p_pres"> PresenÃ§a</label>
+                    <p style="grid-column: span 2; margin:0 0 5px 0; font-weight:bold; font-size:0.8rem;">Permissões de Edição:</p>
+                    <label><input type="checkbox" id="p_func"> Funcionários</label>
+                    <label><input type="checkbox" id="p_pres"> Presença</label>
                     <label><input type="checkbox" id="p_fin"> Financeiro</label>
                     <label><input type="checkbox" id="p_moto"> Motoboys</label>
                     
@@ -80,11 +80,11 @@
                 </div>
 
                 <div style="display: flex; gap: 10px; margin-top: 10px;">
-                    <button class="action-btn" id="btnSalvarUser" style="width:100%; font-size:0.9rem;" onclick="salvarUsuario()">+ Criar UsuÃ¡rio</button>
+                    <button class="action-btn" id="btnSalvarUser" style="width:100%; font-size:0.9rem;" onclick="salvarUsuario()">+ Criar Usuário</button>
                     <button class="action-btn" id="btnCancelarUser" style="width:100%; font-size:0.9rem; background:#95a5a6; display:none;" onclick="cancelarEdicaoUser()">Cancelar</button>
                 </div>
             </div>
-            <h4 style="margin-bottom:10px;">UsuÃ¡rios Cadastrados:</h4>
+            <h4 style="margin-bottom:10px;">Usuários Cadastrados:</h4>
             <div id="listaUsuarios"></div>
             <button onclick="document.getElementById('modalUsers').style.display='none'" style="width:100%; padding:10px; margin-top:20px; border:none; background:#ccc; cursor:pointer; border-radius:4px; color:#333;">Fechar</button>
         </div>
@@ -92,111 +92,111 @@
 
     <div id="login-screen">
         <div class="login-box">
-            <button class="btn-config-login" onclick="abrirGestaoUsuarios()">âš™ï¸</button>
-            <h2 style="color: var(--primary);">ðŸ” Acesso Administrativo</h2>
+            <button class="btn-config-login" onclick="abrirGestaoUsuarios()">⚙️</button>
+            <h2 style="color: var(--primary);">🔐 Acesso Administrativo</h2>
             <p style="color:var(--text-sub); margin-bottom: 15px;">Painel RH - Identifique-se:</p>
-            <input type="text" id="loginUser" placeholder="UsuÃ¡rio" onkeyup="if(event.key==='Enter') document.getElementById('loginPass').focus()">
+            <input type="text" id="loginUser" placeholder="Usuário" onkeyup="if(event.key==='Enter') document.getElementById('loginPass').focus()">
             <input type="password" id="loginPass" placeholder="Senha" onkeyup="if(event.key==='Enter') checkLogin()">
             <button class="action-btn" onclick="checkLogin()" style="width:100%; margin-top:15px;">Acessar</button>
-            <p id="loginError" style="color: red; display: none; margin-top: 10px; font-size:0.9rem;">UsuÃ¡rio ou senha invÃ¡lidos!</p>
+            <p id="loginError" style="color: red; display: none; margin-top: 10px; font-size:0.9rem;">Usuário ou senha inválidos!</p>
         </div>
     </div>
 
     <div class="sidebar">
-        <h2>ðŸš€ Admin RH</h2>
+        <h2>🚀 Admin RH</h2>
         <div id="user-badge">Visitante</div>
 
         <div class="menu-category">Principal</div>
-        <button class="menu-btn active" onclick="showSection('dashboard', this)">ðŸ“Š VisÃ£o Geral</button>
+        <button class="menu-btn active" onclick="showSection('dashboard', this)">📊 Visão Geral</button>
 
         <div class="menu-category">Operacional</div>
-        <button class="menu-btn" onclick="showSection('funcionarios', this)">ðŸ‘¥ FuncionÃ¡rios</button>
-        <button class="menu-btn" onclick="showSection('presenca', this)">ðŸ“… Lista de PresenÃ§a</button>
+        <button class="menu-btn" onclick="showSection('funcionarios', this)">👥 Funcionários</button>
+        <button class="menu-btn" onclick="showSection('presenca', this)">📅 Lista de Presença</button>
 
         <div class="menu-category">Financeiro</div>
-        <button class="menu-btn" onclick="showSection('motoboys', this)">ðŸï¸ Motoboys</button>
-        <button class="menu-btn" onclick="showSection('extras', this)">ðŸ’¸ Extras & Despesas</button>
-        <button class="menu-btn" onclick="showSection('pagamentos', this)">ðŸ’° Pagamentos</button>
+        <button class="menu-btn" onclick="showSection('motoboys', this)">🏍️ Motoboys</button>
+        <button class="menu-btn" onclick="showSection('extras', this)">💸 Extras & Despesas</button>
+        <button class="menu-btn" onclick="showSection('pagamentos', this)">💰 Pagamentos</button>
         
-<button class="menu-btn" id="btnMenuBoletos" onclick="showSection('boletos', this)">ðŸ§¾ Contas & Boletos</button>
+<button class="menu-btn" id="btnMenuBoletos" onclick="showSection('boletos', this)">🧾 Contas & Boletos</button>
 
-        <button class="menu-btn" onclick="showSection('previsao', this)">ðŸ”® PrevisÃ£o</button>
+        <button class="menu-btn" onclick="showSection('previsao', this)">🔮 Previsão</button>
 
         <div class="menu-category">Sistema</div>
-        <button class="menu-btn" id="btnSeguranca" onclick="showSection('seguranca', this)">ðŸ›¡ï¸ SeguranÃ§a (Audit)</button>
-        <button class="menu-btn" onclick="toggleDarkMode()">ðŸŒ™ Modo Escuro</button>
+        <button class="menu-btn" id="btnSeguranca" onclick="showSection('seguranca', this)">🛡️ Segurança (Audit)</button>
+        <button class="menu-btn" onclick="toggleDarkMode()">🌙 Modo Escuro</button>
 
         <div class="system-controls">
-            <div id="status-connection">â³ Conectando...</div>
+            <div id="status-connection">⏳ Conectando...</div>
             <p><small>Sistema v39.1</small></p>
         </div>
     </div>
 
     <div class="main-content">
         <div id="dashboard" class="section active">
-            <h1>VisÃ£o de Ãguia ðŸ¦…</h1>
+            <h1>Visão de Águia 🦅</h1>
             <div class="chart-area">
     <div class="chart-card" onclick="window.abrirGraficoBI('financeiro')" style="cursor:pointer; position:relative;" title="Clique para ampliar">
-        <div style="position:absolute; top:10px; right:10px; font-size:1.2rem;">ðŸ”</div>
+        <div style="position:absolute; top:10px; right:10px; font-size:1.2rem;">🔍</div>
         <canvas id="graficoPizza"></canvas>
         </div>
     
         <div class="chart-card" onclick="window.abrirGraficoBI('vendas')" style="cursor:pointer; position:relative;" title="Clique para ampliar">
-        <div style="position:absolute; top:10px; right:10px; font-size:1.2rem;">ðŸ”</div>
+        <div style="position:absolute; top:10px; right:10px; font-size:1.2rem;">🔍</div>
         <canvas id="graficoBarra"></canvas>
            </div>
          </div>
             <div class="dash-grid">
-                <div class="dash-card"><div class="dash-title">Pago em SalÃ¡rios (MÃªs)</div><div class="dash-number dash-green" id="dashSalarios">R$ 0,00</div></div>
-                <div class="dash-card"><div class="dash-title">Total ComissÃµes (XP)</div><div class="dash-number dash-purple" id="dashComissoes">R$ 0,00</div></div>
+                <div class="dash-card"><div class="dash-title">Pago em Salários (Mês)</div><div class="dash-number dash-green" id="dashSalarios">R$ 0,00</div></div>
+                <div class="dash-card"><div class="dash-title">Total Comissões (XP)</div><div class="dash-number dash-purple" id="dashComissoes">R$ 0,00</div></div>
                 <div class="dash-card"><div class="dash-title">Entregas Motoboys</div><div class="dash-number dash-moto" id="dashMotoboys">R$ 0,00</div></div>
                 <div class="dash-card"><div class="dash-title">Gastos Extras Loja</div><div class="dash-number dash-red" id="dashDespesas">R$ 0,00</div></div>
             </div>
-            <div class="ranking-list"><h3 style="margin-top:0; color:var(--text-main);">ðŸ† Ranking de Vendas (ComissÃ£o 7%)</h3><div id="rankingContainer"></div></div>
+            <div class="ranking-list"><h3 style="margin-top:0; color:var(--text-main);">🏆 Ranking de Vendas (Comissão 7%)</h3><div id="rankingContainer"></div></div>
         </div>
 
         <div id="motoboys" class="section">
-            <h1 style="border-color: var(--moto);">Entregas & Motoboys ðŸï¸</h1>
+            <h1 style="border-color: var(--moto);">Entregas & Motoboys 🏍️</h1>
             <div class="card">
-                <h3 style="color: var(--moto);">ðŸš€ Fechamento de Turno</h3>
+                <h3 style="color: var(--moto);">🚀 Fechamento de Turno</h3>
                 <div class="form-grid">
                     <div class="form-group"><label>Motoboy</label><select id="selMotoId"><option value="">Selecione...</option></select></div>
                     <div class="form-group">
                         <label>Turno de Trabalho</label>
                         <select id="selMotoTurno" onchange="atualizarInfoMoto()">
-                            <option value="Noite">ðŸŒ™ Noite (Fixa 60 + 5/entrega)</option>
-                            <option value="Dia">â˜€ï¸ Dia (Sem Fixa + 9/entrega)</option>
+                            <option value="Noite">🌙 Noite (Fixa 60 + 5/entrega)</option>
+                            <option value="Dia">☀️ Dia (Sem Fixa + 9/entrega)</option>
                         </select>
                     </div>
                     <div class="form-group"><label>Data</label><input type="date" id="dataMoto"></div>
                 </div>
                 <div class="form-grid" style="margin-top:15px; background:rgba(0,0,0,0.05); padding:10px; border-radius:5px;">
-                    <div class="form-group"><label>Qtd. iFood ðŸ”´</label><input type="number" id="qtdIfood" placeholder="0" oninput="calcularMotoPreview()"></div>
-                    <div class="form-group"><label>Qtd. 99Food ðŸŸ¡</label><input type="number" id="qtd99" placeholder="0" oninput="calcularMotoPreview()"></div>
-                    <div class="form-group"><label>Qtd. Zap/Outros ðŸŸ¢</label><input type="number" id="qtdZap" placeholder="0" oninput="calcularMotoPreview()"></div>
+                    <div class="form-group"><label>Qtd. iFood 🔴</label><input type="number" id="qtdIfood" placeholder="0" oninput="calcularMotoPreview()"></div>
+                    <div class="form-group"><label>Qtd. 99Food 🟡</label><input type="number" id="qtd99" placeholder="0" oninput="calcularMotoPreview()"></div>
+                    <div class="form-group"><label>Qtd. Zap/Outros 🟢</label><input type="number" id="qtdZap" placeholder="0" oninput="calcularMotoPreview()"></div>
                 </div>
                 <div style="margin-top:20px; text-align:right;">
                     <span style="font-size:1.2rem; margin-right:15px;">Total a Receber: <strong id="previewMotoTotal" style="color:var(--moto);">R$ 0,00</strong></span>
-                    <button class="action-btn" style="background-color: var(--moto);" onclick="lancarEntregaMoto()">Salvar DiÃ¡ria</button>
+                    <button class="action-btn" style="background-color: var(--moto);" onclick="lancarEntregaMoto()">Salvar Diária</button>
                 </div>
             </div>
            <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; margin-bottom: 15px; background: rgba(0,0,0,0.03); padding: 10px; border-radius: 8px;">
-    <h3 style="margin:0;">HistÃ³rico de Entregas</h3>
+    <h3 style="margin:0;">Histórico de Entregas</h3>
     
     <div style="display:flex; gap:10px; align-items:center;">
         <select id="filtroMotoHist" onchange="window.renderizarMotoboys()" style="padding: 8px; width: 200px; font-weight:bold;">
-            <option value="">ðŸï¸ Todos os Motoboys</option>
+            <option value="">🏍️ Todos os Motoboys</option>
             </select>
     </div>
 </div>
 
 <div id="painelResumoMoto" style="display:none; gap:15px; margin-bottom:20px;">
     <div class="card" style="flex:1; padding:15px; border-left: 5px solid var(--moto); margin:0; display:flex; justify-content:space-between; align-items:center;">
-        <span style="font-weight:bold; color:var(--text-sub);">ðŸ“¦ Total Entregas</span>
+        <span style="font-weight:bold; color:var(--text-sub);">📦 Total Entregas</span>
         <span id="sumEntregas" style="font-size:1.5rem; font-weight:800; color:var(--text-main);">0</span>
     </div>
     <div class="card" style="flex:1; padding:15px; border-left: 5px solid var(--success); margin:0; display:flex; justify-content:space-between; align-items:center;">
-        <span style="font-weight:bold; color:var(--text-sub);">ðŸ’° Total a Receber</span>
+        <span style="font-weight:bold; color:var(--text-sub);">💰 Total a Receber</span>
         <span id="sumValorMoto" style="font-size:1.5rem; font-weight:800; color:var(--success);">R$ 0,00</span>
     </div>
 </div>
@@ -205,48 +205,48 @@
         </div>
 
         <div id="funcionarios" class="section">
-            <h1>GestÃ£o de Equipe</h1>
+            <h1>Gestão de Equipe</h1>
             <div class="card" id="formFuncionarioCard">
-                <h3 style="margin-top:0" id="tituloFormFunc">Cadastrar Novo FuncionÃ¡rio</h3>
+                <h3 style="margin-top:0" id="tituloFormFunc">Cadastrar Novo Funcionário</h3>
                 <div class="form-grid">
-                    <div class="form-group"><label>Nome Completo *</label><input type="text" id="fNome" placeholder="Ex: JoÃ£o da Silva"></div>
+                    <div class="form-group"><label>Nome Completo *</label><input type="text" id="fNome" placeholder="Ex: João da Silva"></div>
                     <div class="form-group">
     <label>Empresa *</label>
     <select id="fEmpresa">
         <option value="">Selecione...</option>
-        <option value="Bar AraÃºjo">Bar AraÃºjo</option>
+        <option value="Bar Araújo">Bar Araújo</option>
         <option value="Ventura">Ventura</option>
         <option value="Armazem do Bras">Armazem do Bras</option>
         <option value="Bar de colegio">Bar de colegio</option>
         <option value="Escritorio">Escritorio</option>
         <option value="Contento">Contento</option> 
     </select></div>
-                    <div class="form-group"><label>Regime de ContrataÃ§Ã£o *</label><select id="fTipoPrincipal" onchange="toggleTipoPagamento()"><option value="Mensalista">ðŸ“… Mensalista (Fixo)</option><option value="Diaria">â˜€ï¸ Diarista / Motoboy</option></select></div>
-                    <div class="form-group" id="divFrequencia"><label>FrequÃªncia de Pagamento *</label><select id="fFrequencia"><option value="Mensal">1x por MÃªs (Mensal)</option><option value="Quinzenal">2x por MÃªs (Quinzenal)</option><option value="Semanal">4x por MÃªs (Semanal)</option></select></div>
-                    <div class="form-group"><label>Cargo / FunÃ§Ã£o *</label><input type="text" id="fCargo" placeholder="Ex: Vendedor"></div>
-                    <div class="form-group"><label id="lblSalario">SalÃ¡rio Base Mensal (R$) *</label><input type="number" id="fSalario" placeholder="0.00"></div>
-                    <div class="form-group" id="divPassagem"><label>Valor Passagem DiÃ¡ria (R$) *</label><input type="number" id="fPassagem" placeholder="Ex: 10.00"></div>
+                    <div class="form-group"><label>Regime de Contratação *</label><select id="fTipoPrincipal" onchange="toggleTipoPagamento()"><option value="Mensalista">📅 Mensalista (Fixo)</option><option value="Diaria">☀️ Diarista / Motoboy</option></select></div>
+                    <div class="form-group" id="divFrequencia"><label>Frequência de Pagamento *</label><select id="fFrequencia"><option value="Mensal">1x por Mês (Mensal)</option><option value="Quinzenal">2x por Mês (Quinzenal)</option><option value="Semanal">4x por Mês (Semanal)</option></select></div>
+                    <div class="form-group"><label>Cargo / Função *</label><input type="text" id="fCargo" placeholder="Ex: Vendedor"></div>
+                    <div class="form-group"><label id="lblSalario">Salário Base Mensal (R$) *</label><input type="number" id="fSalario" placeholder="0.00"></div>
+                    <div class="form-group" id="divPassagem"><label>Valor Passagem Diária (R$) *</label><input type="number" id="fPassagem" placeholder="Ex: 10.00"></div>
                     <div class="form-group"><label>Chave Pix</label><input type="text" id="fPix"></div>
                     <div class="form-group"><label>Telefone</label><input type="text" id="fTel"></div>
                     <div class="form-group"><label>CPF</label><input type="text" id="fCpf"></div>
                     <div class="form-group"><label>Data Nascimento</label><input type="date" id="fNasc"></div>
                     <div class="form-group"><label>Data Entrada</label><input type="date" id="fEntrada"></div>
-                    <div class="form-group"><label>EndereÃ§o</label><input type="text" id="fEnd"></div>
+                    <div class="form-group"><label>Endereço</label><input type="text" id="fEnd"></div>
                 </div>
-                <div class="form-buttons"><button class="action-btn btn-add-func" id="btnSalvarFunc" onclick="processarFormularioFuncionario()">+ Cadastrar FuncionÃ¡rio</button><button class="action-btn btn-cancel-edit" id="btnCancelarEdit" onclick="cancelarEdicao()">Cancelar</button></div>
+                <div class="form-buttons"><button class="action-btn btn-add-func" id="btnSalvarFunc" onclick="processarFormularioFuncionario()">+ Cadastrar Funcionário</button><button class="action-btn btn-cancel-edit" id="btnCancelarEdit" onclick="cancelarEdicao()">Cancelar</button></div>
             </div>
               <div style="margin: 20px 0;">
-                <input type="text" id="buscaFuncionario" placeholder="ðŸ” Digite o nome para buscar..." onkeyup="window.atualizarInterface()" style="padding: 12px; width: 100%; box-sizing: border-box; font-size: 1rem; border: 2px solid var(--border-color); border-radius: 6px;">
+                <input type="text" id="buscaFuncionario" placeholder="🔍 Digite o nome para buscar..." onkeyup="window.atualizarInterface()" style="padding: 12px; width: 100%; box-sizing: border-box; font-size: 1rem; border: 2px solid var(--border-color); border-radius: 6px;">
             </div>
 
             <table id="tabelaFuncionarios">
                 <thead>
                     <tr>
-                        <th width="30%">FuncionÃ¡rio / CPF</th>
+                        <th width="30%">Funcionário / CPF</th>
                         <th width="20%">Cargo / Empresa</th>
-                        <th width="25%">Contato / EndereÃ§o</th>
+                        <th width="25%">Contato / Endereço</th>
                         <th width="15%">Pagamento</th>
-                        <th width="10%">AÃ§Ã£o</th>
+                        <th width="10%">Ação</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -255,10 +255,10 @@
 
        <div id="presenca" class="section">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h1 style="border:none; margin:0;">Lista de PresenÃ§a</h1>
+        <h1 style="border:none; margin:0;">Lista de Presença</h1>
         
         <button class="action-btn" style="background-color: var(--success); display:none;" id="btnSalvarTopo" onclick="salvarPresencaDia()">
-            ðŸ’¾ Salvar Tudo
+            💾 Salvar Tudo
         </button>
     </div>
 
@@ -273,7 +273,7 @@
     <label>Filtrar por Empresa</label>
     <select id="filtroEmpresaPresenca">
         <option value="">Todas as Empresas</option>
-        <option value="Bar AraÃºjo">Bar AraÃºjo</option>
+        <option value="Bar Araújo">Bar Araújo</option>
         <option value="Ventura">Ventura</option>
         <option value="Armazem do Bras">Armazem do Bras</option>
         <option value="Bar de colegio">Bar de colegio</option>
@@ -293,16 +293,16 @@
     <h1>Extras e Despesas</h1>
     
     <div class="form-group" style="margin-bottom:20px;">
-        <label>Filtrar HistÃ³rico:</label>
+        <label>Filtrar Histórico:</label>
         <select id="filtroExtras" onchange="renderizarExtras()">
             <option value="">Todos (Geral)</option>
-            <option value="DESPESAS">ðŸ”¸ Despesas / Eventos</option>
+            <option value="DESPESAS">🔸 Despesas / Eventos</option>
         </select>
     </div>
 
     <div class="extra-split">
         <div class="card" style="border-top: 4px solid var(--purple);">
-            <h3 style="margin-top:0; color:var(--purple);">ðŸŸ£ LanÃ§ar Vendas (Gera 7%)</h3>
+            <h3 style="margin-top:0; color:var(--purple);">🟣 Lançar Vendas (Gera 7%)</h3>
             <div class="form-group">
                 <label>Vendedor</label>
                 <select id="selVendedorExtra"><option value="">Selecione...</option></select>
@@ -316,22 +316,22 @@
                 <input type="number" id="valorVendasInput" placeholder="Ex: 1000.00" oninput="atualizarPreviewComissao()">
             </div>
             <div style="margin-top: 10px; background: #f3e5f5; padding: 10px; border-radius: 5px; color: var(--purple); font-weight: bold; display: flex; justify-content: space-between;">
-                <span>ComissÃ£o (7%):</span>
+                <span>Comissão (7%):</span>
                 <span id="previewComissaoValor">R$ 0,00</span>
             </div>
-            <button class="action-btn" style="width:100%; margin-top:15px; background:var(--purple);" onclick="lancarComissao()">LanÃ§ar ComissÃ£o</button>
+            <button class="action-btn" style="width:100%; margin-top:15px; background:var(--purple);" onclick="lancarComissao()">Lançar Comissão</button>
         </div>
 
         <div class="card" style="border-top: 4px solid var(--orange);">
-            <h3 style="margin-top:0; color:var(--orange);">ðŸŸ  Despesas / Eventos</h3>
+            <h3 style="margin-top:0; color:var(--orange);">🟠 Despesas / Eventos</h3>
             <div class="form-group">
                 <label>Tipo de Despesa</label>
                 <select id="tipoDespesa">
-                    <option value="DJ">ðŸŽ§ DJ</option>
-                    <option value="Limpeza">ðŸ§¹ Limpeza / Faxina</option>
-                    <option value="ManutenÃ§Ã£o">ðŸ› ï¸ ManutenÃ§Ã£o</option>
-                    <option value="Compras">ðŸ›’ Compras Loja</option>
-                    <option value="Outros">ðŸ“¦ Outros</option>
+                    <option value="DJ">🎧 DJ</option>
+                    <option value="Limpeza">🧹 Limpeza / Faxina</option>
+                    <option value="Manutenção">🛠️ Manutenção</option>
+                    <option value="Compras">🛒 Compras Loja</option>
+                    <option value="Outros">📦 Outros</option>
                 </select>
             </div>
             <div class="form-group" style="margin-top:10px;">
@@ -346,28 +346,28 @@
                 <label>Obs (Opcional)</label>
                 <input type="text" id="obsDespesa">
             </div>
-            <button class="action-btn" style="width:100%; margin-top:15px; background:var(--orange);" onclick="lancarDespesa()">LanÃ§ar Despesa</button>
+            <button class="action-btn" style="width:100%; margin-top:15px; background:var(--orange);" onclick="lancarDespesa()">Lançar Despesa</button>
         </div>
     </div> 
 
-    <h3>HistÃ³rico de Extras</h3>
+    <h3>Histórico de Extras</h3>
     <div id="gridExtras" class="grid-container"></div>
 </div>
 
 <div id="boletos" class="section">
-    <h1>GestÃ£o de Contas a Pagar ðŸ§¾</h1>
+    <h1>Gestão de Contas a Pagar 🧾</h1>
     
     <div class="dash-grid">
         <div class="dash-card">
-            <div class="dash-title">ðŸ”´ Vencidos (Urgente)</div>
+            <div class="dash-title">🔴 Vencidos (Urgente)</div>
             <div class="dash-number dash-red" id="bolTotalVencido">R$ 0,00</div>
         </div>
         <div class="dash-card">
-            <div class="dash-title">ðŸŸ¡ A Pagar (Aberto)</div>
+            <div class="dash-title">🟡 A Pagar (Aberto)</div>
             <div class="dash-number" style="color:var(--warning)" id="bolTotalAberto">R$ 0,00</div>
         </div>
         <div class="dash-card">
-            <div class="dash-title">ðŸŸ¢ Total Pago</div>
+            <div class="dash-title">🟢 Total Pago</div>
             <div class="dash-number dash-green" id="bolTotalPago">R$ 0,00</div>
         </div>
     </div>
@@ -376,7 +376,7 @@
         <h3>Novo Boleto / Conta</h3>
         <div class="form-grid">
             <div class="form-group">
-                <label>DescriÃ§Ã£o / Fornecedor</label>
+                <label>Descrição / Fornecedor</label>
                 <input type="text" id="bolDesc" placeholder="Ex: Conta de Luz, Aluguel...">
             </div>
             <div class="form-group">
@@ -388,7 +388,7 @@
                 <input type="date" id="bolData">
             </div>
             <div class="form-group">
-                <label>CÃ³digo de Barras (Opcional)</label>
+                <label>Código de Barras (Opcional)</label>
                 <input type="text" id="bolCodigo">
             </div>
         </div>
@@ -399,8 +399,8 @@
         <h3 style="margin:0;">Minhas Contas</h3>
         <select id="filtroBoletos" onchange="renderizarBoletos()" style="width:200px; padding:5px;">
             <option value="TODOS">Ver Tudo</option>
-            <option value="PENDENTE">â³ A Pagar / Vencidos</option>
-            <option value="PAGO">âœ… JÃ¡ Pagos</option>
+            <option value="PENDENTE">⏳ A Pagar / Vencidos</option>
+            <option value="PAGO">✅ Já Pagos</option>
         </select>
     </div>
 
@@ -412,30 +412,30 @@
     <div class="card">
         
         <div class="pay-tabs">
-            <button class="pay-tab active" id="tabSalario" onclick="mudarModoPagamento('Salario')">ðŸ’° SalÃ¡rio</button>
-            <button class="pay-tab" id="tabVale" onclick="mudarModoPagamento('Vale')">ðŸŽ« Vales</button>
-            <button class="pay-tab" id="tabPassagem" onclick="mudarModoPagamento('Passagem')">ðŸšŒ Passagem</button>
+            <button class="pay-tab active" id="tabSalario" onclick="mudarModoPagamento('Salario')">💰 Salário</button>
+            <button class="pay-tab" id="tabVale" onclick="mudarModoPagamento('Vale')">🎫 Vales</button>
+            <button class="pay-tab" id="tabPassagem" onclick="mudarModoPagamento('Passagem')">🚌 Passagem</button>
         </div>
 
         <div class="form-grid" style="margin-top: 20px;">
             <div class="form-group" style="grid-column: span 2; border-bottom: 1px dashed #ccc; padding-bottom: 15px; margin-bottom: 10px;">
-                <label style="color:var(--purple); font-weight:bold;">ðŸ“… PerÃ­odo de CÃ¡lculo:</label>
+                <label style="color:var(--purple); font-weight:bold;">📅 Período de Cálculo:</label>
                 <select id="filtroPeriodoPagamento" onchange="atualizarPainelPagamentos()" style="border: 2px solid var(--purple); color: var(--purple); font-weight: bold;">
-                    <option value="MES">ðŸ“… MÃªs Completo (Acumulado)</option>
-                    <option value="SEMANA_ATUAL">ðŸ”» Semana Atual (Seg-Dom)</option>
-                    <option value="SEMANA_PASSADA">âª Semana Passada</option>
+                    <option value="MES">📅 Mês Completo (Acumulado)</option>
+                    <option value="SEMANA_ATUAL">🔻 Semana Atual (Seg-Dom)</option>
+                    <option value="SEMANA_PASSADA">⏪ Semana Passada</option>
                 </select>
             </div>
 
             <div class="form-group" style="position: relative;">
-                <label>FuncionÃ¡rio</label>
+                <label>Funcionário</label>
                 <select id="selectFuncionarioPagamento" style="display:none;" onchange="atualizarPainelPagamentos()">
                     <option value="">Selecione...</option>
                 </select>
 
                 <div id="customSelectTrigger" class="custom-select-trigger" onclick="toggleCustomSelect()">
-                    <div id="customSelectLabel">ðŸ” Selecione um funcionÃ¡rio...</div>
-                    <span>â–¼</span>
+                    <div id="customSelectLabel">🔍 Selecione um funcionário...</div>
+                    <span>▼</span>
                 </div>
 
                 <div id="customSelectDropdown" class="custom-options">
@@ -446,32 +446,32 @@
 
             <div class="form-group" style="display:none;"> <label>Tipo</label>
                 <select id="tipoLancamento">
-                    <option value="Pagamento">ðŸ’° Pagamento SalÃ¡rio</option>
-                    <option value="Vale">ðŸŽ« Vale / Adiantamento</option>
-                    <option value="Passagem">ðŸšŒ Pagamento Passagem</option> </select>
+                    <option value="Pagamento">💰 Pagamento Salário</option>
+                    <option value="Vale">🎫 Vale / Adiantamento</option>
+                    <option value="Passagem">🚌 Pagamento Passagem</option> </select>
             </div>
 
             <div class="form-group" id="divSubTipoSalario">
-                <label>OperaÃ§Ã£o</label>
+                <label>Operação</label>
                 <select id="subTipoSalario">
-                    <option value="Pagamento">âœ… Pagar SalÃ¡rio</option>
-                    <option value="Vale">ðŸŽ« Dar Vale</option>
+                    <option value="Pagamento">✅ Pagar Salário</option>
+                    <option value="Vale">🎫 Dar Vale</option>
                 </select>
             </div>
 
             <div class="form-group"><label>Data</label><input type="date" id="dataPagamento" onchange="atualizarPainelPagamentos()"></div>
             <div class="form-group"><label>Valor (R$)</label><input type="number" id="valorPagamento" placeholder="0.00"></div>
-            <div class="form-group" style="grid-column: span 2;"><label>DescriÃ§Ã£o</label><input type="text" id="descPagamento"></div>
+            <div class="form-group" style="grid-column: span 2;"><label>Descrição</label><input type="text" id="descPagamento"></div>
         </div>
 
         <div id="avisoSaldo" class="alert-box"></div>
         
-        <button class="action-btn" style="width: 100%; margin-top:15px;" onclick="lancarPagamento()">Registrar OperaÃ§Ã£o</button>
-        <button class="action-btn btn-excel" onclick="exportarExcel()">ðŸ“¥ Baixar RelatÃ³rio</button>
+        <button class="action-btn" style="width: 100%; margin-top:15px;" onclick="lancarPagamento()">Registrar Operação</button>
+        <button class="action-btn btn-excel" onclick="exportarExcel()">📥 Baixar Relatório</button>
     </div>
 
     <div id="resumoFinanceiro" class="resumo-financeiro" style="display: none;">
-        <div class="resumo-item"><span class="resumo-label">SalÃ¡rios Pagos</span><span class="resumo-valor" style="color: var(--success);" id="resumoSalario">R$ 0,00</span></div>
+        <div class="resumo-item"><span class="resumo-label">Salários Pagos</span><span class="resumo-valor" style="color: var(--success);" id="resumoSalario">R$ 0,00</span></div>
         <div class="resumo-item"><span class="resumo-label">Passagens Pagas</span><span class="resumo-valor" style="color: var(--purple);" id="resumoPassagem">R$ 0,00</span></div>
         <div class="resumo-item"><span class="resumo-label">Vales Retirados</span><span class="resumo-valor" style="color: var(--warning);" id="resumoVale">R$ 0,00</span></div>
     </div>
@@ -483,7 +483,7 @@
 <div id="previsao" class="section">
     <div class="glass-header">
         <div style="display:flex; align-items:center; gap:15px;">
-            <h1 style="border:none; margin:0; font-size:1.8rem;">ðŸ”® Cronograma Financeiro</h1>
+            <h1 style="border:none; margin:0; font-size:1.8rem;">🔮 Cronograma Financeiro</h1>
             <span class="badge-count" id="totalGeralPrev">R$ 0,00</span>
         </div>
         
@@ -492,8 +492,8 @@
     <div class="input-wrapper">
         <label>Filtrar Loja:</label>
         <select id="filtroEmpresaPrevisao" onchange="window.atualizarPrevisao()">
-            <option value="">ðŸ¢ Todas as Lojas</option>
-            <option value="Bar AraÃºjo">Bar AraÃºjo</option>
+            <option value="">🏢 Todas as Lojas</option>
+            <option value="Bar Araújo">Bar Araújo</option>
             <option value="Ventura">Ventura</option>
             <option value="Armazem do Bras">Armazem do Bras</option>
             <option value="Bar de colegio">Bar de colegio</option>
@@ -503,11 +503,11 @@
     </div>
 
     <div class="input-wrapper">
-        <label>PerÃ­odo de AnÃ¡lise:</label>
+        <label>Período de Análise:</label>
         <select id="filtroPeriodoPrevisao" onchange="window.atualizarPrevisao()" style="border: 2px solid var(--purple); color: var(--purple); font-weight: bold;">
-            <option value="MES">ðŸ“… MÃªs Completo (Acumulado)</option>
-            <option value="SEMANA_ATUAL">ðŸ”» Semana Atual (Seg-Dom)</option>
-            <option value="SEMANA_PASSADA">âª Semana Passada</option>
+            <option value="MES">📅 Mês Completo (Acumulado)</option>
+            <option value="SEMANA_ATUAL">🔻 Semana Atual (Seg-Dom)</option>
+            <option value="SEMANA_PASSADA">⏪ Semana Passada</option>
         </select>
     </div>
     <div class="input-wrapper">
@@ -522,7 +522,7 @@
         
         <div class="kanban-col col-urgent">
             <div class="kanban-header header-red">
-                <div class="k-title">ðŸ”¥ Giro DiÃ¡rio / Atrasados</div>
+                <div class="k-title">🔥 Giro Diário / Atrasados</div>
                 <div class="k-total" id="sumUrgent">R$ 0,00</div>
             </div>
             <div id="listUrgent" class="kanban-list"></div>
@@ -530,7 +530,7 @@
 
         <div class="kanban-col col-weekly">
             <div class="kanban-header header-blue">
-                <div class="k-title">ðŸ“… Semanal / Quinzenal</div>
+                <div class="k-title">📅 Semanal / Quinzenal</div>
                 <div class="k-total" id="sumWeekly">R$ 0,00</div>
             </div>
             <div id="listWeekly" class="kanban-list"></div>
@@ -538,7 +538,7 @@
 
         <div class="kanban-col col-monthly">
             <div class="kanban-header header-green">
-                <div class="k-title">ðŸ“† Fechamento MÃªs</div>
+                <div class="k-title">📆 Fechamento Mês</div>
                 <div class="k-total" id="sumMonthly">R$ 0,00</div>
             </div>
             <div id="listMonthly" class="kanban-list"></div>
@@ -547,24 +547,24 @@
     </div>
 </div>
         <div id="seguranca" class="section">
-            <h1>ðŸ›¡ï¸ Log de Auditoria</h1>
+            <h1>🛡️ Log de Auditoria</h1>
             <div class="card" style="border-left: 5px solid #2980b9; background:#eaf2f8; margin-bottom: 20px;">
-        <h3 style="color:#2980b9; margin-top:0;">ðŸ’¾ Backup de SeguranÃ§a</h3>
-        <p style="font-size:0.9rem; color:#555;">Baixe uma cÃ³pia dos dados para seu computador ou restaure um arquivo antigo caso precise.</p>
+        <h3 style="color:#2980b9; margin-top:0;">💾 Backup de Segurança</h3>
+        <p style="font-size:0.9rem; color:#555;">Baixe uma cópia dos dados para seu computador ou restaure um arquivo antigo caso precise.</p>
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
-            <button class="action-btn" onclick="window.baixarBackupLocal()" style="background-color: #2980b9;">ðŸ“¥ Baixar Backup (.json)</button>
-            <button class="action-btn" onclick="window.restaurarBackupLocal()" style="background-color: #f39c12; color:black;">ðŸ“¤ Restaurar Arquivo</button>
+            <button class="action-btn" onclick="window.baixarBackupLocal()" style="background-color: #2980b9;">📥 Baixar Backup (.json)</button>
+            <button class="action-btn" onclick="window.restaurarBackupLocal()" style="background-color: #f39c12; color:black;">📤 Restaurar Arquivo</button>
             </div>
            </div>
             <div class="card">
-                <p style="color:var(--text-sub); margin-bottom:15px;">HistÃ³rico de todas as aÃ§Ãµes crÃ­ticas realizadas no sistema.</p>
+                <p style="color:var(--text-sub); margin-bottom:15px;">Histórico de todas as ações críticas realizadas no sistema.</p>
                 <div style="max-height: 500px; overflow-y: auto;">
                     <table style="width:100%;">
                         <thead>
                             <tr>
                                 <th width="20%">Data/Hora</th>
-                                <th width="15%">UsuÃ¡rio</th>
-                                <th width="20%">AÃ§Ã£o</th>
+                                <th width="15%">Usuário</th>
+                                <th width="20%">Ação</th>
                                 <th>Detalhes</th>
                             </tr>
                         </thead>
@@ -592,9 +592,9 @@
         const dbFirestore = getFirestore(app, "sera"); 
 
         const statusEl = document.getElementById('status-connection');
-        if(statusEl) statusEl.innerHTML = "ðŸ”„ Conectando aos novos reinos...";
+        if(statusEl) statusEl.innerHTML = "🔄 Conectando aos novos reinos...";
 
-        // ðŸ‘ï¸ 1. VIGÃLIA CONSTANTE NAS 7 COLEÃ‡Ã•ES
+        // 👁️ 1. VIGÍLIA CONSTANTE NAS 7 COLEÇÕES
         const colecoes = ['rh_funcionarios', 'rh_pagamentos', 'rh_presencas', 'rh_extras', 'rh_entregas', 'rh_boletos', 'rh_users'];
         let refreshTimer = null;
         const colecoesPendentes = new Set();
@@ -634,7 +634,7 @@
                 }
 
                 const statusEl = document.getElementById('status-connection');
-                if (statusEl) statusEl.innerHTML = "ðŸŸ¢ Online (NÃ­vel 99)";
+                if (statusEl) statusEl.innerHTML = "🟢 Online (Nível 99)";
             }, 80);
         }
         colecoes.forEach(nomeCol => {
@@ -674,21 +674,21 @@
             try {
                 await deleteDoc(doc(dbFirestore, colecao, String(idDocumento)));
             } catch(e) {
-                console.error("Erro na exclusÃ£o:", e);
+                console.error("Erro na exclusão:", e);
                 throw e;
             }
         };
 
-        // ðŸ›¡ï¸ 3. DESATIVA O FEITIÃ‡O ANTIGO PRA NÃƒO DAR RUIM
+        // 🛡️ 3. DESATIVA O FEITIÇO ANTIGO PRA NÃO DAR RUIM
         window.salvarNuvem = function() {
-            console.warn("ðŸ›¡ï¸ A magia antiga salvarNuvem() foi aposentada! Agora o sistema salva direto nas coleÃ§Ãµes.");
+            console.warn("🛡️ A magia antiga salvarNuvem() foi aposentada! Agora o sistema salva direto nas coleções.");
         };
     </script>
     
 <div id="modalDetalhes">
     <div class="detalhes-content">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h3 style="margin:0; color:var(--primary);">ðŸ§¾ Extrato</h3>
+            <h3 style="margin:0; color:var(--primary);">🧾 Extrato</h3>
             <span onclick="document.getElementById('modalDetalhes').style.display='none'" style="cursor:pointer; font-size:1.5rem;">&times;</span>
         </div>
         
@@ -702,12 +702,12 @@
         
         <div style="display:flex; flex-wrap:wrap; gap:15px; align-items:end; border-bottom:1px solid var(--border-color); padding-bottom:15px; margin-bottom:15px;">
             <div style="flex:1;">
-                <h2 style="margin:0; font-size:1.5rem;" id="tituloGraficoExpandido">AnÃ¡lise Detalhada</h2>
-                <small style="color:var(--text-sub);">Personalize sua visualizaÃ§Ã£o</small>
+                <h2 style="margin:0; font-size:1.5rem;" id="tituloGraficoExpandido">Análise Detalhada</h2>
+                <small style="color:var(--text-sub);">Personalize sua visualização</small>
             </div>
 
             <div class="input-wrapper">
-                <label>InÃ­cio:</label>
+                <label>Início:</label>
                 <input type="date" id="biDataInicio" style="padding:8px;">
             </div>
             <div class="input-wrapper">
@@ -716,18 +716,18 @@
             </div>
             
             <div class="input-wrapper">
-                <label>Tipo de GrÃ¡fico:</label>
+                <label>Tipo de Gráfico:</label>
                 <select id="biTipoGrafico" style="padding:8px;" onchange="window.filtrarGraficoExpandido()">
-                    <option value="bar">ðŸ“Š Barras</option>
-                    <option value="line">ðŸ“ˆ Linha (EvoluÃ§Ã£o)</option>
-                    <option value="pie">ðŸ• Pizza</option>
-                    <option value="doughnut">ðŸ© Rosquinha</option>
-                    <option value="polarArea">â„ï¸ Polar</option>
+                    <option value="bar">📊 Barras</option>
+                    <option value="line">📈 Linha (Evolução)</option>
+                    <option value="pie">🍕 Pizza</option>
+                    <option value="doughnut">🍩 Rosquinha</option>
+                    <option value="polarArea">❄️ Polar</option>
                 </select>
             </div>
 
-            <button onclick="window.filtrarGraficoExpandido()" class="action-btn" style="height:40px;">ðŸ”„ Atualizar</button>
-            <button onclick="document.getElementById('modalGraficozao').style.display='none'" style="background:var(--danger); color:white; border:none; padding:10px 15px; border-radius:5px; cursor:pointer;">âŒ Fechar</button>
+            <button onclick="window.filtrarGraficoExpandido()" class="action-btn" style="height:40px;">🔄 Atualizar</button>
+            <button onclick="document.getElementById('modalGraficozao').style.display='none'" style="background:var(--danger); color:white; border:none; padding:10px 15px; border-radius:5px; cursor:pointer;">❌ Fechar</button>
         </div>
 
         <div style="flex:1; position:relative; width:100%; overflow:hidden;">

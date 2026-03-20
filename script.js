@@ -36,9 +36,9 @@ function registrarLog(acao, detalhes) {
     // ADICIONA O NOVO LOG
     window.db.audit.push(log);
 
-    // CORREÃ‡ÃƒO CRÃTICA: Manter apenas os Ãºltimos 200 registros para nÃ£o travar o banco
+    // CORREÇÃO CRÍTICA: Manter apenas os últimos 200 registros para não travar o banco
     if (window.db.audit.length > 200) {
-        // MantÃ©m apenas os Ãºltimos 200 itens do array
+        // Mantém apenas os últimos 200 itens do array
         window.db.audit = window.db.audit.slice(-200);
     }
 }
@@ -58,7 +58,7 @@ function renderizarAudit() {
     tbody.innerHTML = linhas;
 }
 
-// --- SISTEMA DE PERMISSÃ•ES ---
+// --- SISTEMA DE PERMISSÕES ---
 function verificarPermissao(tipo) {
     if (window.currentUser && window.currentUser.isAdmin) return true;
     if (window.currentUser && window.currentUser.perms && window.currentUser.perms[tipo] === true) return true;
@@ -67,7 +67,7 @@ function verificarPermissao(tipo) {
 
 function checkPerm(tipo) {
     if (!verificarPermissao(tipo)) {
-        alert("â›” ACESSO NEGADO: VocÃª nÃ£o tem permissÃ£o para realizar esta aÃ§Ã£o.");
+        alert("⛔ ACESSO NEGADO: Você não tem permissão para realizar esta ação.");
         return false;
     }
     return true;
@@ -120,7 +120,7 @@ window.lancarEntregaMoto = async function() {
     const func = window.db.funcionarios.find(f => String(f.id) === String(idFunc));
 
     if(!func) {
-        return alert("Motoboy nÃ£o encontrado.");
+        return alert("Motoboy não encontrado.");
     }
 
     const novoRegistro = {
@@ -142,7 +142,7 @@ window.lancarEntregaMoto = async function() {
         await salvarRegistro(FIREBASE_AREAS.entregas, novoRegistro.id, novoRegistro);
 
         window.db.entregas.push(novoRegistro);
-        registrarLog('Motoboy', `LanÃ§ou diÃ¡ria de ${fmtMoeda(calc.totalReceber)} para ${func.nome}`);
+        registrarLog('Motoboy', `Lançou diária de ${fmtMoeda(calc.totalReceber)} para ${func.nome}`);
 
         document.getElementById('qtdIfood').value = '';
         document.getElementById('qtd99').value = '';
@@ -153,27 +153,27 @@ window.lancarEntregaMoto = async function() {
         alert("Fechamento do Motoboy salvo na nuvem com sucesso!");
     } catch (erro) {
         console.error("Falha real ao salvar motoboy:", erro);
-        alert("Erro: nÃ£o foi possÃ­vel salvar a diÃ¡ria do motoboy na nuvem. Nada foi confirmado.");
+        alert("Erro: não foi possível salvar a diária do motoboy na nuvem. Nada foi confirmado.");
     }
 }
 window.renderizarMotoboys = function() {
     const grid = document.getElementById('gridMotoboys');
     const filtro = document.getElementById('filtroMotoHist');
     const painelResumo = document.getElementById('painelResumoMoto');
-    const idFiltro = filtro.value; // Quem tÃ¡ selecionado?
+    const idFiltro = filtro.value; // Quem tá selecionado?
 
     grid.innerHTML = '';
     if(!window.db.entregas) window.db.entregas = [];
 
     // 1. Preenche o Select (Dropdow) se estiver vazio
     if (filtro.options.length <= 1) {
-        // Pega nomes Ãºnicos para nÃ£o repetir
+        // Pega nomes únicos para não repetir
         const mapNomes = new Map();
         window.db.funcionarios.forEach(f => {
             mapNomes.set(String(f.id), f.nome);
         });
 
-        // Adiciona quem tem entrega mas talvez nÃ£o seja funcionÃ¡rio ativo
+        // Adiciona quem tem entrega mas talvez não seja funcionário ativo
         window.db.entregas.forEach(e => {
             if(!mapNomes.has(String(e.idFunc))) {
                 mapNomes.set(String(e.idFunc), e.nomeFunc);
@@ -188,7 +188,7 @@ window.renderizarMotoboys = function() {
         });
     }
 
-    // 2. Filtra a Lista (AGORA COM VISÃƒO VERDADEIRA)
+    // 2. Filtra a Lista (AGORA COM VISÃO VERDADEIRA)
     let lista = [...window.db.entregas];
     
     if (idFiltro) {
@@ -202,7 +202,7 @@ window.renderizarMotoboys = function() {
             const nomeItem = String(e.nomeFunc || "").toLowerCase().trim();
 
             const bateuID = (idItem === String(idFiltro));
-            // Verifica se o nome contÃ©m parte do nome alvo (ex: "Alex" acha "Alex da Silva")
+            // Verifica se o nome contém parte do nome alvo (ex: "Alex" acha "Alex da Silva")
             const bateuNome = (nomeAlvo !== "" && nomeItem.includes(nomeAlvo));
 
             return bateuID || bateuNome;
@@ -216,11 +216,11 @@ window.renderizarMotoboys = function() {
     // Ordena do mais recente para o antigo
     lista.sort((a,b) => new Date(b.data) - new Date(a.data));
 
-    // 3. Calcula os Totais (Isso jÃ¡ estava certo, mas mantemos)
+    // 3. Calcula os Totais (Isso já estava certo, mas mantemos)
     const totalEntregas = lista.reduce((acc, curr) => acc + (parseInt(curr.totalEntregas) || 0), 0);
     const totalGrana = lista.reduce((acc, curr) => acc + (parseFloat(curr.valorTotal) || 0), 0);
 
-    // Atualiza os nÃºmeros
+    // Atualiza os números
     document.getElementById('sumEntregas').innerText = totalEntregas;
     document.getElementById('sumValorMoto').innerText = totalGrana.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
 
@@ -230,24 +230,24 @@ window.renderizarMotoboys = function() {
         return; 
     }
 
-    // Limita a 50 pra nÃ£o travar
+    // Limita a 50 pra não travar
     const listaVisivel = lista.slice(0, 50);
 
     const htmlCards = listaVisivel.map(item => {
         const badgeClass = item.turno === 'Noite' ? 'shift-noite' : 'shift-dia';
-        const icone = item.turno === 'Noite' ? 'ðŸŒ™' : 'â˜€ï¸';
+        const icone = item.turno === 'Noite' ? '🌙' : '☀️';
 
         return `
             <div class="moto-card">
                 <div class="moto-info">
                     <h4>${item.nomeFunc} <span class="badge-shift ${badgeClass}">${icone} ${item.turno}</span></h4>
-                    <small>ðŸ“… ${fmtData(item.data)}</small><br>
-                    <small style="font-size:0.85rem">ðŸ”´ iFood: ${item.ifood} | ðŸŸ¡ 99: ${item.app99} | ðŸŸ¢ Zap: ${item.zap}</small>
+                    <small>📅 ${fmtData(item.data)}</small><br>
+                    <small style="font-size:0.85rem">🔴 iFood: ${item.ifood} | 🟡 99: ${item.app99} | 🟢 Zap: ${item.zap}</small>
                 </div>
                 <div class="moto-values">
                     <div style="font-size:0.9rem; color:var(--text-sub);">Total: ${item.totalEntregas} entregas</div>
                     <div class="moto-total">${fmtMoeda(item.valorTotal)}</div>
-                    <button class="btn-delete-pag" onclick="removerEntrega(${item.id})">ðŸ—‘ï¸</button>
+                    <button class="btn-delete-pag" onclick="removerEntrega(${item.id})">🗑️</button>
                 </div>
             </div>
         `;
@@ -259,19 +259,19 @@ window.renderizarMotoboys = function() {
 window.removerEntrega = async function(id) {
     if(!checkPerm('moto')) return;
 
-    if(!confirm("Deseja apagar este lanÃ§amento?")) return;
+    if(!confirm("Deseja apagar este lançamento?")) return;
 
     const item = window.db.entregas.find(e => e.id === id);
 
     try {
         await deletarRegistro(FIREBASE_AREAS.entregas, id);
-        if(item) registrarLog('Motoboy', `Removeu lanÃ§amento de ${item.nomeFunc}`);
+        if(item) registrarLog('Motoboy', `Removeu lançamento de ${item.nomeFunc}`);
         window.db.entregas = window.db.entregas.filter(e => e.id !== id);
         window.renderizarMotoboys();
         window.atualizarDashboard();
     } catch (erro) {
         console.error("Falha ao excluir entrega:", erro);
-        alert("Erro: nÃ£o foi possÃ­vel excluir a entrega na nuvem. Nenhuma alteraÃ§Ã£o local foi aplicada.");
+        alert("Erro: não foi possível excluir a entrega na nuvem. Nenhuma alteração local foi aplicada.");
     }
 }
 
@@ -280,14 +280,14 @@ window.imprimirFolhaPonto = function(idFunc) {
     const func = window.db.funcionarios.find(f => f.id === idFunc);
     if(!func) return;
 
-    const mesAno = prompt("Digite o MÃªs/Ano para a folha (ex: 01/2026):", new Date().toLocaleDateString('pt-BR', {month:'2-digit', year:'numeric'}));
+    const mesAno = prompt("Digite o Mês/Ano para a folha (ex: 01/2026):", new Date().toLocaleDateString('pt-BR', {month:'2-digit', year:'numeric'}));
     if(!mesAno) return;
 
     const [mes, ano] = mesAno.split('/');
     const diasNoMes = new Date(ano, mes, 0).getDate();
     const container = document.getElementById('tabela-ponto-container');
     
-    let html = `<table class="tabela-ponto"><thead><tr><th>Dia</th><th>Semana</th><th>Status / Entrada - SaÃ­da</th><th>Assinatura</th></tr></thead><tbody>`;
+    let html = `<table class="tabela-ponto"><thead><tr><th>Dia</th><th>Semana</th><th>Status / Entrada - Saída</th><th>Assinatura</th></tr></thead><tbody>`;
     
     for(let i=1; i<=diasNoMes; i++) {
         const diaStr = i.toString().padStart(2, '0');
@@ -330,15 +330,15 @@ window.gerarRecibo = function(idPagamento) {
     
     document.getElementById('recibo-funcionario').innerText = pag.nomeFunc;
     document.getElementById('recibo-valor').innerText = pag.valor.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
-    document.getElementById('recibo-tipo').innerText = pag.tipo === 'Vale' ? 'Adiantamento / Vale' : 'Pagamento de SalÃ¡rio';
-    document.getElementById('recibo-desc').innerText = pag.desc || 'Sem observaÃ§Ãµes';
+    document.getElementById('recibo-tipo').innerText = pag.tipo === 'Vale' ? 'Adiantamento / Vale' : 'Pagamento de Salário';
+    document.getElementById('recibo-desc').innerText = pag.desc || 'Sem observações';
     document.getElementById('recibo-data').innerText = new Date().toLocaleDateString('pt-BR');
     document.getElementById('recibo-empresa').innerText = func ? func.empresa : 'Empresa';
     
     document.getElementById('area-impressao').style.display = 'flex';
 }
 
-// --- SISTEMA DE LOGIN E PERMISSÃ•ES ---
+// --- SISTEMA DE LOGIN E PERMISSÕES ---
 window.togglePermBoxes = function() {
     const isAdmin = document.getElementById('checkIsAdmin').checked;
     const area = document.getElementById('areaPermissoes');
@@ -350,7 +350,7 @@ window.togglePermBoxes = function() {
 }
 
 window.abrirGestaoUsuarios = function() {
-    const senha = prompt("ðŸ”’ Ãrea Restrita.\nDigite sua SENHA DE ADMINISTRADOR:");
+    const senha = prompt("🔒 Área Restrita.\nDigite sua SENHA DE ADMINISTRADOR:");
     if(!senha) return;
     const adminEncontrado = window.db.users.find(u => u.pass === senha && u.isAdmin === true);
     if(adminEncontrado) {
@@ -358,7 +358,7 @@ window.abrirGestaoUsuarios = function() {
         renderizarListaUsuarios();
         cancelarEdicaoUser();
     } else {
-        alert("âŒ Acesso Negado: Senha incorreta ou usuÃ¡rio nÃ£o Ã© admin.");
+        alert("❌ Acesso Negado: Senha incorreta ou usuário não é admin.");
     }
 }
 
@@ -366,9 +366,9 @@ window.renderizarListaUsuarios = function() {
     const lista = document.getElementById('listaUsuarios');
     const html = window.db.users.map((u, index) => {
         const badge = u.isAdmin ? '<span class="badge-admin">ADMIN</span>' : '<span style="font-size:0.7rem; background:#ccc; padding:2px 5px; border-radius:4px;">USER</span>';
-        const btnPass = `<button onclick="alert('Senha: ${u.pass}')" style="background:#3498db; color:white; border:none; border-radius:4px; cursor:pointer; padding:5px 10px; margin-right:5px;">ðŸ‘ï¸</button>`;
-        const btnEdit = `<button onclick="editarUsuario(${index})" style="background:#f39c12; color:white; border:none; border-radius:4px; cursor:pointer; padding:5px 10px; margin-right:5px;">âœï¸</button>`;
-        return `<div class="user-list-item"><div><strong>${u.user}</strong> ${badge}</div><div>${btnPass}${btnEdit}<button onclick="removerUsuario(${index})" style="background:#e74c3c; color:white; border:none; border-radius:4px; cursor:pointer; padding:5px 10px;">ðŸ—‘ï¸</button></div></div>`;
+        const btnPass = `<button onclick="alert('Senha: ${u.pass}')" style="background:#3498db; color:white; border:none; border-radius:4px; cursor:pointer; padding:5px 10px; margin-right:5px;">👁️</button>`;
+        const btnEdit = `<button onclick="editarUsuario(${index})" style="background:#f39c12; color:white; border:none; border-radius:4px; cursor:pointer; padding:5px 10px; margin-right:5px;">✏️</button>`;
+        return `<div class="user-list-item"><div><strong>${u.user}</strong> ${badge}</div><div>${btnPass}${btnEdit}<button onclick="removerUsuario(${index})" style="background:#e74c3c; color:white; border:none; border-radius:4px; cursor:pointer; padding:5px 10px;">🗑️</button></div></div>`;
     }).join('');
     lista.innerHTML = html;
 }
@@ -379,8 +379,8 @@ window.salvarUsuario = async function() {
     const isAdmin = document.getElementById('checkIsAdmin').checked;
     const editIndex = document.getElementById('editUserIndex').value;
 
-    if(!user || !pass) return alert("Preencha usuÃ¡rio e senha!");
-    if(editIndex === "" && window.db.users.find(u => u.user === user)) return alert("UsuÃ¡rio jÃ¡ existe!");
+    if(!user || !pass) return alert("Preencha usuário e senha!");
+    if(editIndex === "" && window.db.users.find(u => u.user === user)) return alert("Usuário já existe!");
 
     const perms = {
         func: document.getElementById('p_func').checked,
@@ -403,8 +403,8 @@ window.salvarUsuario = async function() {
 
             await salvarRegistro(FIREBASE_AREAS.users, usuarioAtualizado.id, usuarioAtualizado);
             window.db.users[editIndex] = usuarioAtualizado;
-            registrarLog('Admin', `Editou usuÃ¡rio ${user}`);
-            alert("UsuÃ¡rio atualizado com sucesso!");
+            registrarLog('Admin', `Editou usuário ${user}`);
+            alert("Usuário atualizado com sucesso!");
         } else {
             const novoObjeto = {
                 id: Date.now(),
@@ -416,12 +416,12 @@ window.salvarUsuario = async function() {
 
             await salvarRegistro(FIREBASE_AREAS.users, novoObjeto.id, novoObjeto);
             window.db.users.push(novoObjeto);
-            registrarLog('Admin', `Criou usuÃ¡rio ${user}`);
-            alert("UsuÃ¡rio criado!");
+            registrarLog('Admin', `Criou usuário ${user}`);
+            alert("Usuário criado!");
         }
     } catch (erro) {
-        console.error("Falha ao salvar usuÃ¡rio:", erro);
-        alert("Erro: nÃ£o foi possÃ­vel salvar o usuÃ¡rio na nuvem. OperaÃ§Ã£o cancelada.");
+        console.error("Falha ao salvar usuário:", erro);
+        alert("Erro: não foi possível salvar o usuário na nuvem. Operação cancelada.");
         return;
     }
 
@@ -448,9 +448,9 @@ window.editarUsuario = function(index) {
 
     togglePermBoxes();
 
-    document.getElementById('tituloFormUser').innerText = "âœï¸ Editando UsuÃ¡rio: " + u.user;
+    document.getElementById('tituloFormUser').innerText = "✏️ Editando Usuário: " + u.user;
     document.getElementById('tituloFormUser').style.color = "#e67e22";
-    document.getElementById('btnSalvarUser').innerText = "ðŸ’¾ Salvar AlteraÃ§Ãµes";
+    document.getElementById('btnSalvarUser').innerText = "💾 Salvar Alterações";
     document.getElementById('btnCancelarUser').style.display = "block";
 }
 
@@ -462,14 +462,14 @@ window.cancelarEdicaoUser = function() {
     document.querySelectorAll('.perm-box input').forEach(c => c.checked = false);
     togglePermBoxes();
 
-    document.getElementById('tituloFormUser').innerText = "Adicionar Novo UsuÃ¡rio";
+    document.getElementById('tituloFormUser').innerText = "Adicionar Novo Usuário";
     document.getElementById('tituloFormUser').style.color = "var(--text-main)";
-    document.getElementById('btnSalvarUser').innerText = "+ Criar UsuÃ¡rio";
+    document.getElementById('btnSalvarUser').innerText = "+ Criar Usuário";
     document.getElementById('btnCancelarUser').style.display = "none";
 }
 
 window.removerUsuario = async function(index) {
-    if(!confirm("Tem certeza que deseja apagar este usuÃ¡rio?")) return;
+    if(!confirm("Tem certeza que deseja apagar este usuário?")) return;
 
     const u = window.db.users[index];
     if (!u) return;
@@ -478,15 +478,15 @@ window.removerUsuario = async function(index) {
         if (u.id) {
             await deletarRegistro(FIREBASE_AREAS.users, u.id);
         }
-        registrarLog('Admin', `Excluiu usuÃ¡rio ${u.user}`);
+        registrarLog('Admin', `Excluiu usuário ${u.user}`);
         window.db.users.splice(index, 1);
         renderizarListaUsuarios();
         if(document.getElementById('editUserIndex').value == index) {
             cancelarEdicaoUser();
         }
     } catch (erro) {
-        console.error("Falha ao excluir usuÃ¡rio:", erro);
-        alert("Erro: nÃ£o foi possÃ­vel excluir o usuÃ¡rio na nuvem. Nada foi removido localmente.");
+        console.error("Falha ao excluir usuário:", erro);
+        alert("Erro: não foi possível excluir o usuário na nuvem. Nada foi removido localmente.");
     }
 }
 
@@ -501,19 +501,19 @@ window.checkLogin = function() {
         
         const badge = document.getElementById('user-badge');
         const btnSeguranca = document.getElementById('btnSeguranca');
-        const btnBoletos = document.getElementById('btnMenuBoletos'); // O botÃ£o novo
+        const btnBoletos = document.getElementById('btnMenuBoletos'); // O botão novo
 
         if (usuarioEncontrado.isAdmin) {
-            badge.innerHTML = `ðŸ‘‘ ${inputUser.toUpperCase()} (ADMIN)`;
+            badge.innerHTML = `👑 ${inputUser.toUpperCase()} (ADMIN)`;
             badge.style.color = '#f1c40f';
             btnSeguranca.style.display = 'flex';
-            btnBoletos.style.display = 'flex'; // Admin vÃª tudo
+            btnBoletos.style.display = 'flex'; // Admin vê tudo
         } else {
-            badge.innerHTML = `ðŸ‘¤ ${inputUser.toUpperCase()}`;
+            badge.innerHTML = `👤 ${inputUser.toUpperCase()}`;
             badge.style.color = 'white';
             btnSeguranca.style.display = 'none';
 
-            // Verifica se o usuÃ¡rio comum tem permissÃ£o
+            // Verifica se o usuário comum tem permissão
             if(usuarioEncontrado.perms && usuarioEncontrado.perms.boletos) {
                 btnBoletos.style.display = 'flex';
             } else {
@@ -527,7 +527,7 @@ window.checkLogin = function() {
 
 // --- GARANTIR QUE ABRE NA SEGUNDA-FEIRA ---
 window.onload = () => {
-    // Define as datas dos formulÃ¡rios para hoje
+    // Define as datas dos formulários para hoje
     const hojeIso = new Date().toISOString().split('T')[0];
     if(document.getElementById('dataPresenca')) document.getElementById('dataPresenca').value = hojeIso;
     if(document.getElementById('dataPagamento')) document.getElementById('dataPagamento').value = hojeIso;
@@ -535,9 +535,9 @@ window.onload = () => {
     if(document.getElementById('dataDespesa')) document.getElementById('dataDespesa').value = hojeIso;
     if(document.getElementById('dataMoto')) document.getElementById('dataMoto').value = hojeIso;
 
-    // --- AQUI ESTÃ A MÃGICA ---
-    // Assim que a tela carrega, ele jÃ¡ define o filtro para a Segunda-feira atual.
-    // Isso impede que apareÃ§am contas da semana passada.
+    // --- AQUI ESTÁ A MÁGICA ---
+    // Assim que a tela carrega, ele já define o filtro para a Segunda-feira atual.
+    // Isso impede que apareçam contas da semana passada.
     window.definirInicioSemana();
 };
 
@@ -552,7 +552,7 @@ window.toggleTipoPagamento = function() {
     const divFrequencia = document.getElementById('divFrequencia');
     const divPassagem = document.getElementById('divPassagem');
     const lblSalario = document.getElementById('lblSalario');
-    if(tipoPrincipal === 'Mensalista') { divFrequencia.style.display = 'flex'; divPassagem.style.display = 'flex'; lblSalario.innerText = "SalÃ¡rio Base Mensal (R$) *"; } else { divFrequencia.style.display = 'none'; divPassagem.style.display = 'none'; lblSalario.innerText = "Valor da DiÃ¡ria (R$) *"; }
+    if(tipoPrincipal === 'Mensalista') { divFrequencia.style.display = 'flex'; divPassagem.style.display = 'flex'; lblSalario.innerText = "Salário Base Mensal (R$) *"; } else { divFrequencia.style.display = 'none'; divPassagem.style.display = 'none'; lblSalario.innerText = "Valor da Diária (R$) *"; }
 }
 window.processarFormularioFuncionario = async function() {
     if(!checkPerm('func')) return; 
@@ -572,22 +572,22 @@ window.processarFormularioFuncionario = async function() {
     const entrada = document.getElementById('fEntrada').value;
     const end = document.getElementById('fEnd').value.trim();
 
-    if (!nome || !cargo || !empresa || isNaN(salario)) return alert("Preencha os campos obrigatÃ³rios!");
+    if (!nome || !cargo || !empresa || isNaN(salario)) return alert("Preencha os campos obrigatórios!");
     if (tipoFinal !== 'Diaria' && isNaN(passagem)) return alert("Preencha o valor da passagem!");
     if(!Array.isArray(window.db.funcionarios)) window.db.funcionarios = [];
 
     try {
         if (editingId !== null) {
-            if(!confirm(`Salvar alteraÃ§Ãµes para ${nome}?`)) return;
+            if(!confirm(`Salvar alterações para ${nome}?`)) return;
 
             const index = window.db.funcionarios.findIndex(f => String(f.id) === String(editingId));
-            if (index === -1) return alert('FuncionÃ¡rio nÃ£o encontrado para ediÃ§Ã£o.');
+            if (index === -1) return alert('Funcionário não encontrado para edição.');
 
             const funcAtualizado = { id: editingId, nome, empresa, tipo: tipoFinal, cargo, salario, passagem, pix, cpf, tel, nasc, entrada, end };
 
             await salvarRegistro(FIREBASE_AREAS.funcionarios, funcAtualizado.id, funcAtualizado);
             window.db.funcionarios[index] = funcAtualizado;
-            registrarLog('Funcionario', `Editou funcionÃ¡rio ${nome}`);
+            registrarLog('Funcionario', `Editou funcionário ${nome}`);
             alert("Atualizado!");
             window.cancelarEdicao();
         } else {
@@ -595,13 +595,13 @@ window.processarFormularioFuncionario = async function() {
 
             await salvarRegistro(FIREBASE_AREAS.funcionarios, novoFunc.id, novoFunc);
             window.db.funcionarios.push(novoFunc);
-            registrarLog('Funcionario', `Cadastrou funcionÃ¡rio ${nome}`);
+            registrarLog('Funcionario', `Cadastrou funcionário ${nome}`);
             alert("Cadastrado!");
             document.querySelectorAll('#funcionarios input').forEach(input => input.value = '');
         }
     } catch (erro) {
-        console.error("Falha ao salvar funcionÃ¡rio:", erro);
-        alert("Erro: nÃ£o foi possÃ­vel salvar na nuvem. OperaÃ§Ã£o cancelada.");
+        console.error("Falha ao salvar funcionário:", erro);
+        alert("Erro: não foi possível salvar na nuvem. Operação cancelada.");
         return;
     }
 }
@@ -624,9 +624,9 @@ window.prepararEdicao = function(id) {
     document.getElementById('fEntrada').value = func.entrada || '';
     document.getElementById('fEnd').value = func.end || '';
     editingId = id;
-    document.getElementById('tituloFormFunc').innerText = "âœï¸ Editando FuncionÃ¡rio";
+    document.getElementById('tituloFormFunc').innerText = "✏️ Editando Funcionário";
     document.getElementById('tituloFormFunc').style.color = "#2980b9";
-    document.getElementById('btnSalvarFunc').innerText = "ðŸ’¾ Salvar AlteraÃ§Ãµes";
+    document.getElementById('btnSalvarFunc').innerText = "💾 Salvar Alterações";
     document.getElementById('btnCancelarEdit').style.display = "block";
     document.getElementById('formFuncionarioCard').scrollIntoView({ behavior: 'smooth' });
 }
@@ -635,36 +635,36 @@ window.cancelarEdicao = function() {
     document.querySelectorAll('#funcionarios input').forEach(input => input.value = '');
     document.getElementById('fTipoPrincipal').value = 'Mensalista';
     toggleTipoPagamento();
-    document.getElementById('tituloFormFunc').innerText = "Cadastrar Novo FuncionÃ¡rio";
+    document.getElementById('tituloFormFunc').innerText = "Cadastrar Novo Funcionário";
     document.getElementById('tituloFormFunc').style.color = "var(--dark)";
-    document.getElementById('btnSalvarFunc').innerText = "+ Cadastrar FuncionÃ¡rio";
+    document.getElementById('btnSalvarFunc').innerText = "+ Cadastrar Funcionário";
     document.getElementById('btnCancelarEdit').style.display = "none";
 }
 window.removerFuncionario = async function(id) {
     if(!checkPerm('func')) return;
 
-    if(!confirm("ATENÃ‡ÃƒO: Deseja realmente excluir este funcionÃ¡rio?")) return;
+    if(!confirm("ATENÇÃO: Deseja realmente excluir este funcionário?")) return;
 
     const f = window.db.funcionarios.find(f => f.id === id);
     try {
         await deletarRegistro(FIREBASE_AREAS.funcionarios, id);
-        if(f) registrarLog('Funcionario', `Excluiu funcionÃ¡rio ${f.nome}`);
+        if(f) registrarLog('Funcionario', `Excluiu funcionário ${f.nome}`);
         window.db.funcionarios = window.db.funcionarios.filter(f => f.id !== id);
         if (editingId === id) window.cancelarEdicao();
     } catch (erro) {
-        console.error("Falha ao excluir funcionÃ¡rio:", erro);
-        alert("Erro: nÃ£o foi possÃ­vel excluir o lanÃ§amento na nuvem. Nenhuma alteraÃ§Ã£o local foi aplicada.");
+        console.error("Falha ao excluir funcionário:", erro);
+        alert("Erro: não foi possível excluir o lançamento na nuvem. Nenhuma alteração local foi aplicada.");
     }
 }
-// FunÃ§Ã£o para mudar a cor do cartÃ£o dinamicamente
+// Função para mudar a cor do cartão dinamicamente
 window.atualizarCorCard = function(selectElement) { 
     const card = selectElement.closest('.presenca-card'); 
     const valor = selectElement.value;
     
-    // Remove todas as classes de cor antigas para nÃ£o bugar
+    // Remove todas as classes de cor antigas para não bugar
     card.classList.remove('card-Presente', 'card-Atrasado', 'card-Falta', 'card-Atestado', 'card-Folga', 'card-Pendente');
     
-    // Adiciona a nova classe (se tiver valor, pÃµe a cor; se nÃ£o, pÃµe cinza)
+    // Adiciona a nova classe (se tiver valor, põe a cor; se não, põe cinza)
     if(valor) {
         card.classList.add(`card-${valor}`);
     } else {
@@ -672,8 +672,8 @@ window.atualizarCorCard = function(selectElement) {
     }
 }
 
-// FunÃ§Ã£o Principal de Carregar a Lista
-// --- FUNÃ‡ÃƒO CORRIGIDA E ÃšNICA: CARREGAR LISTA ---
+// Função Principal de Carregar a Lista
+// --- FUNÇÃO CORRIGIDA E ÚNICA: CARREGAR LISTA ---
 window.carregarListaPresenca = function() {
     const data = document.getElementById('dataPresenca').value;
     const filtroEmpresa = document.getElementById('filtroEmpresaPresenca').value;
@@ -683,16 +683,16 @@ window.carregarListaPresenca = function() {
     const grid = document.getElementById('gridCards');
     grid.innerHTML = '';
     
-    // 1. MOSTRA A ÃREA
+    // 1. MOSTRA A ÁREA
     document.getElementById('areaPresenca').style.display = 'block';
     
-    // 2. MOSTRA O BOTÃƒO NO TOPO (A linha mÃ¡gica que faltava na segunda versÃ£o)
+    // 2. MOSTRA O BOTÃO NO TOPO (A linha mágica que faltava na segunda versão)
     const btnTopo = document.getElementById('btnSalvarTopo');
     if(btnTopo) btnTopo.style.display = 'block';
     
     const registroDia = window.db.presencas[data] || [];
     
-    // Filtra e Ordena os funcionÃ¡rios
+    // Filtra e Ordena os funcionários
     const funcionariosFiltrados = window.db.funcionarios
         .filter(f => { if (!filtroEmpresa) return true; return f.empresa === filtroEmpresa; })
         .sort((a, b) => a.nome.localeCompare(b.nome)); 
@@ -700,7 +700,7 @@ window.carregarListaPresenca = function() {
     funcionariosFiltrados.forEach(f => {
         const saved = registroDia.find(r => r.id === f.id);
         
-        // --- LÃ“GICA DO STATUS ---
+        // --- LÓGICA DO STATUS ---
         const status = saved ? saved.status : ''; 
         const obs = saved ? saved.obs : '';
         
@@ -710,7 +710,7 @@ window.carregarListaPresenca = function() {
         let tagClass = 'tag-mensal'; let tagText = 'MENSAL';
         if(f.tipo === 'Quinzenal') { tagClass = 'tag-quinzenal'; tagText = 'QUINZENAL'; }
         else if(f.tipo === 'Semanal') { tagClass = 'tag-semanal'; tagText = 'SEMANAL'; }
-        else if(f.tipo === 'Diaria') { tagClass = 'tag-diaria'; tagText = `DIÃRIA: ${fmtMoeda(f.salario)}`; }
+        else if(f.tipo === 'Diaria') { tagClass = 'tag-diaria'; tagText = `DIÁRIA: ${fmtMoeda(f.salario)}`; }
         
         const tipoBadge = `<span class="tag-tipo ${tagClass}">${tagText}</span>`;
         const card = document.createElement('div');
@@ -723,17 +723,17 @@ window.carregarListaPresenca = function() {
         card.innerHTML = `
             <div>
                 <h4>${f.nome} ${tipoBadge}</h4>
-                <span style="font-size:0.8rem; color:var(--accent); font-weight:bold;">ðŸ¢ ${f.empresa || '-'}</span>
+                <span style="font-size:0.8rem; color:var(--accent); font-weight:bold;">🏢 ${f.empresa || '-'}</span>
             </div>
             <select class="status-presenca" onchange="atualizarCorCard(this)" style="margin-top:10px;">
-                <option value="" disabled ${status === '' ? 'selected' : ''}>â“ Selecione a opÃ§Ã£o...</option>
-                <option value="Presente" ${status === 'Presente' ? 'selected' : ''}>âœ… Presente</option>
-                <option value="Atrasado" ${status === 'Atrasado' ? 'selected' : ''}>âš ï¸ Atrasado</option>
-                <option value="Falta" ${status === 'Falta' ? 'selected' : ''}>âŒ Falta</option>
-                <option value="Atestado" ${status === 'Atestado' ? 'selected' : ''}>ðŸ”µ Atestado</option>
-                <option value="Folga" ${status === 'Folga' ? 'selected' : ''}>ðŸŸ¢ Folga</option>
+                <option value="" disabled ${status === '' ? 'selected' : ''}>❓ Selecione a opção...</option>
+                <option value="Presente" ${status === 'Presente' ? 'selected' : ''}>✅ Presente</option>
+                <option value="Atrasado" ${status === 'Atrasado' ? 'selected' : ''}>⚠️ Atrasado</option>
+                <option value="Falta" ${status === 'Falta' ? 'selected' : ''}>❌ Falta</option>
+                <option value="Atestado" ${status === 'Atestado' ? 'selected' : ''}>🔵 Atestado</option>
+                <option value="Folga" ${status === 'Folga' ? 'selected' : ''}>🟢 Folga</option>
             </select>
-            <input type="text" class="obs-presenca" value="${obs}" placeholder="ObservaÃ§Ã£o (opcional)">
+            <input type="text" class="obs-presenca" value="${obs}" placeholder="Observação (opcional)">
         `;
         grid.appendChild(card);
     });
@@ -771,30 +771,30 @@ window.lancarComissao = async function() {
     try {
         await salvarRegistro(FIREBASE_AREAS.extras, novoExtra.id, novoExtra);
         window.db.extras.push(novoExtra);
-        registrarLog('Financeiro', `LanÃ§ou comissÃ£o de ${fmtMoeda(valorComissao)} (${taxaTexto}) para ${func.nome}`);
+        registrarLog('Financeiro', `Lançou comissão de ${fmtMoeda(valorComissao)} (${taxaTexto}) para ${func.nome}`);
         document.getElementById('valorVendasInput').value = '';
         document.getElementById('previewComissaoValor').innerText = 'R$ 0,00';
         document.getElementById('previewComissaoValor').style.color = "";
         window.renderizarExtras();
         window.atualizarDashboard();
-        alert(`ComissÃ£o de ${fmtMoeda(valorComissao)} (${taxaTexto}) lanÃ§ada!`);
+        alert(`Comissão de ${fmtMoeda(valorComissao)} (${taxaTexto}) lançada!`);
     } catch (erro) {
-        console.error("Falha ao salvar comissÃ£o:", erro);
-        alert("Erro: nÃ£o foi possÃ­vel salvar a comissÃ£o na nuvem. OperaÃ§Ã£o cancelada.");
+        console.error("Falha ao salvar comissão:", erro);
+        alert("Erro: não foi possível salvar a comissão na nuvem. Operação cancelada.");
     }
 }
-// --- PREVIEW DA COMISSÃƒO (COM REGRA DE 10% ACIMA DE 10K) ---
+// --- PREVIEW DA COMISSÃO (COM REGRA DE 10% ACIMA DE 10K) ---
 window.atualizarPreviewComissao = function() {
-    // 1. Pega o valor que vocÃª digitou
+    // 1. Pega o valor que você digitou
     const valorVendas = parseFloat(document.getElementById('valorVendasInput').value) || 0;
     
     // 2. Define a taxa (Super Meta)
-    let taxa = 0.07; // PadrÃ£o 7%
+    let taxa = 0.07; // Padrão 7%
     let icone = '';
     
     if (valorVendas > 10000) {
         taxa = 0.10; // Sobe para 10% se vender mais de 10k
-        icone = 'ðŸ”¥';
+        icone = '🔥';
     }
     
     // 3. Calcula
@@ -824,7 +824,7 @@ window.lancarDespesa = async function() {
     const novoExtra = {
         id: Date.now(),
         tipo: 'Despesa',
-        categoria: 'SaÃ­da',
+        categoria: 'Saída',
         idFunc: 'LOJA',
         beneficiario: tipo,
         valor: valor,
@@ -835,7 +835,7 @@ window.lancarDespesa = async function() {
     try {
         await salvarRegistro(FIREBASE_AREAS.extras, novoExtra.id, novoExtra);
         window.db.extras.push(novoExtra);
-        registrarLog('Financeiro', `LanÃ§ou despesa: ${tipo} - ${fmtMoeda(valor)}`);
+        registrarLog('Financeiro', `Lançou despesa: ${tipo} - ${fmtMoeda(valor)}`);
         document.getElementById('valorDespesa').value = '';
         document.getElementById('obsDespesa').value = '';
         window.renderizarExtras();
@@ -843,13 +843,13 @@ window.lancarDespesa = async function() {
         alert("Despesa registrada com sucesso!");
     } catch (erro) {
         console.error("Falha ao salvar despesa:", erro);
-        alert("Erro: nÃ£o foi possÃ­vel salvar a despesa na nuvem. OperaÃ§Ã£o cancelada.");
+        alert("Erro: não foi possível salvar a despesa na nuvem. Operação cancelada.");
     }
 }
 window.removerExtra = async function(id) {
     if(!checkPerm('fin')) return;
 
-    if(!confirm("Deseja apagar este lanÃ§amento?")) return;
+    if(!confirm("Deseja apagar este lançamento?")) return;
 
     const item = window.db.extras.find(e => e.id === id);
     try {
@@ -860,7 +860,7 @@ window.removerExtra = async function(id) {
         window.atualizarDashboard();
     } catch (erro) {
         console.error("Falha ao excluir extra/despesa:", erro);
-        alert("Erro: nÃ£o foi possÃ­vel excluir o lanÃ§amento na nuvem. Nenhuma alteraÃ§Ã£o local foi aplicada.");
+        alert("Erro: não foi possível excluir o lançamento na nuvem. Nenhuma alteração local foi aplicada.");
     }
 }
 window.renderizarExtras = function() {
@@ -885,13 +885,13 @@ window.renderizarExtras = function() {
 
     if (lista.length === 0) { grid.innerHTML = '<p style="color:#aaa; width:100%; text-align:center;">Nenhum registro encontrado.</p>'; return; }
 
-    // OTIMIZAÃ‡ÃƒO: Limita a visualizaÃ§Ã£o a 50 itens
+    // OTIMIZAÇÃO: Limita a visualização a 50 itens
     const listaVisivel = lista.slice(0, 50);
 
     const html = listaVisivel.map(item => {
         const cor = item.tipo === 'Comissao' ? 'extra-comissao' : 'extra-despesa';
         const tituloCor = item.tipo === 'Comissao' ? 'txt-purple' : 'txt-orange';
-        return `<div class="extra-card ${cor}"><div class="extra-info"><h4 class="${tituloCor}">${item.categoria} - ${item.beneficiario}</h4><span>ðŸ“… ${fmtData(item.data)} | ${item.obs}</span></div><div class="extra-val ${tituloCor}">${fmtMoeda(item.valor)}</div><button class="btn-delete-pag" onclick="removerExtra(${item.id})">ðŸ—‘ï¸</button></div>`;
+        return `<div class="extra-card ${cor}"><div class="extra-info"><h4 class="${tituloCor}">${item.categoria} - ${item.beneficiario}</h4><span>📅 ${fmtData(item.data)} | ${item.obs}</span></div><div class="extra-val ${tituloCor}">${fmtMoeda(item.valor)}</div><button class="btn-delete-pag" onclick="removerExtra(${item.id})">🗑️</button></div>`;
     }).join('');
     grid.innerHTML = html;
 }
@@ -900,14 +900,14 @@ window.definirInicioSemana = function() {
     const hoje = new Date();
     const diaSemana = hoje.getDay(); // 0 (Dom) a 6 (Sab)
     
-    // Calcula quantos dias voltar para chegar Ã  Ãºltima segunda-feira
+    // Calcula quantos dias voltar para chegar à última segunda-feira
     // Se for Domingo (0), volta 6. Se for Segunda (1), volta 0.
     const diasParaVoltar = diaSemana === 0 ? 6 : (diaSemana - 1);
     
     const segunda = new Date(hoje);
     segunda.setDate(hoje.getDate() - diasParaVoltar);
     
-    // Formata manualmente para YYYY-MM-DD para nÃ£o ter erro de fuso
+    // Formata manualmente para YYYY-MM-DD para não ter erro de fuso
     const ano = segunda.getFullYear();
     const mes = String(segunda.getMonth() + 1).padStart(2, '0');
     const dia = String(segunda.getDate()).padStart(2, '0');
@@ -919,35 +919,35 @@ window.definirInicioSemana = function() {
     }
 }
 window.calcularSaldoGlobal = function(f, dataRefStr) {
-    // Se nÃ£o passar data, usa Hoje
+    // Se não passar data, usa Hoje
     if (!dataRefStr) dataRefStr = new Date().toISOString().split('T')[0];
 
     let totalGanhos = 0;
     let totalPagos = 0;
 
-    // 1. Soma HistÃ³rico de Pagamentos (Apenas o que foi pago ATÃ‰ a data selecionada)
+    // 1. Soma Histórico de Pagamentos (Apenas o que foi pago ATÉ a data selecionada)
     window.db.pagamentos.forEach(p => {
         if (p.idFunc == f.id && p.data <= dataRefStr) {
             totalPagos += p.valor;
         }
     });
 
-    // 2. Soma HistÃ³rico de Extras (Apenas ATÃ‰ a data selecionada)
+    // 2. Soma Histórico de Extras (Apenas ATÉ a data selecionada)
     window.db.extras.forEach(e => {
         if ((String(e.idFunc) === String(f.id) || e.beneficiario === f.nome) && e.data <= dataRefStr) {
             totalGanhos += e.valor;
         }
     });
 
-    // --- CÃLCULO INTELIGENTE (BASEADO NA DATA ESCOLHIDA) ---
-    // Define o "MÃªs Atual" baseado na data do formulÃ¡rio, nÃ£o no dia de hoje
+    // --- CÁLCULO INTELIGENTE (BASEADO NA DATA ESCOLHIDA) ---
+    // Define o "Mês Atual" baseado na data do formulário, não no dia de hoje
     const mesAtualStr = dataRefStr.slice(0, 7); // Ex: "2026-01"
     
     let semanasPassadasContadas = new Set();
     let mesesPassadosContados = new Set();
 
     Object.keys(window.db.presencas).forEach(diaStr => {
-        // SÃ³ olha presenÃ§as atÃ© a data selecionada
+        // Só olha presenças até a data selecionada
         if (diaStr <= dataRefStr) {
             const registro = window.db.presencas[diaStr].find(r => r.id == f.id);
             
@@ -964,7 +964,7 @@ window.calcularSaldoGlobal = function(f, dataRefStr) {
                     totalGanhos += f.salario;
                 }
 
-                // C. RASTREAR PASSADO (Se a presenÃ§a for de um mÃªs ANTERIOR ao selecionado)
+                // C. RASTREAR PASSADO (Se a presença for de um mês ANTERIOR ao selecionado)
                 if (mesRegistro < mesAtualStr) {
                     if (f.tipo === 'Semanal') {
                         const diaDoMes = parseInt(diaStr.split('-')[2]);
@@ -978,10 +978,10 @@ window.calcularSaldoGlobal = function(f, dataRefStr) {
         }
     });
 
-    // 3. APLICAR SALÃRIOS
+    // 3. APLICAR SALÁRIOS
     if (f.tipo !== 'Diaria') {
         
-        // A. Passado: Cobra semanas/meses fechados anteriores Ã  data escolhida
+        // A. Passado: Cobra semanas/meses fechados anteriores à data escolhida
         if (f.tipo === 'Semanal') {
             const qtdSemanas = semanasPassadasContadas.size;
             totalGanhos += qtdSemanas * (f.salario * 0.25);
@@ -991,20 +991,20 @@ window.calcularSaldoGlobal = function(f, dataRefStr) {
             });
         }
 
-        // B. MÃªs "Atual" (Da data selecionada): Usa a regra do calendÃ¡rio
-        // Aqui ele vai ver se Ã© dia 1, dia 8 ou dia 15 DA DATA QUE ESCOLHESTE
+        // B. Mês "Atual" (Da data selecionada): Usa a regra do calendário
+        // Aqui ele vai ver se é dia 1, dia 8 ou dia 15 DA DATA QUE ESCOLHESTE
         totalGanhos += window.calcularTetoLiberado(f, dataRefStr);
     }
 
     return totalGanhos - totalPagos;
 };
-// 2. Atualiza a Tela (Mostra a Semana + PendÃªncias Antigas)
+// 2. Atualiza a Tela (Mostra a Semana + Pendências Antigas)
 // ============================================================
-// === MÃ“DULO DE PAGAMENTOS (RESTAURADO - LÃ“GICA MENSAL) ===
+// === MÓDULO DE PAGAMENTOS (RESTAURADO - LÓGICA MENSAL) ===
 // ============================================================
 
-// 1. Regra de LiberaÃ§Ã£o (Semanal/Quinzenal/Mensal)
-// --- NOVA LÃ“GICA: ATUALIZAÃ‡ÃƒO Ã€S SEGUNDAS-FEIRAS ---
+// 1. Regra de Liberação (Semanal/Quinzenal/Mensal)
+// --- NOVA LÓGICA: ATUALIZAÇÃO ÀS SEGUNDAS-FEIRAS ---
 window.calcularTetoLiberado = function(func, dataStr) {
     if (func.tipo === 'Mensal') return func.salario; 
     if (func.tipo === 'Diaria') return 0; 
@@ -1016,43 +1016,43 @@ window.calcularTetoLiberado = function(func, dataStr) {
         return func.salario; 
     }
     
-    // --- CORREÃ‡ÃƒO SEMANAL (TRAVADO ATÃ‰ SEGUNDA) ---
+    // --- CORREÇÃO SEMANAL (TRAVADO ATÉ SEGUNDA) ---
     if (func.tipo === 'Semanal') { 
         const dataAtual = new Date(dataStr + 'T12:00:00');
         const ano = dataAtual.getFullYear();
         const mes = dataAtual.getMonth(); 
         const diaAtual = dataAtual.getDate();
 
-        // Encontrar todas as Segundas-feiras do mÃªs
+        // Encontrar todas as Segundas-feiras do mês
         let segundas = [];
         let d = new Date(ano, mes, 1);
-        while (d.getDay() !== 1) { d.setDate(d.getDate() + 1); } // Acha a 1Âª
+        while (d.getDay() !== 1) { d.setDate(d.getDate() + 1); } // Acha a 1ª
         while (d.getMonth() === mes) {
             segundas.push(d.getDate());
             d.setDate(d.getDate() + 7);
         }
 
         // REGRA DE OURO:
-        // 1. Antes da 1Âª Segunda-feira = ZERO (0%)
+        // 1. Antes da 1ª Segunda-feira = ZERO (0%)
         if (diaAtual < segundas[0]) return 0;
 
-        // 2. Da 1Âª Segunda atÃ© antes da 2Âª = 25%
+        // 2. Da 1ª Segunda até antes da 2ª = 25%
         if (diaAtual < segundas[1]) return func.salario * 0.25;
 
-        // 3. Da 2Âª Segunda atÃ© antes da 3Âª = 50%
+        // 3. Da 2ª Segunda até antes da 3ª = 50%
         if (diaAtual < segundas[2]) return func.salario * 0.50;
 
-        // 4. Da 3Âª Segunda atÃ© antes da 4Âª (se houver) = 75%
-        // Nota: Se nÃ£o houver 4Âª segunda (fevereiro as vezes), libera tudo no passo final
+        // 4. Da 3ª Segunda até antes da 4ª (se houver) = 75%
+        // Nota: Se não houver 4ª segunda (fevereiro as vezes), libera tudo no passo final
         if (segundas[3] && diaAtual < segundas[3]) return func.salario * 0.75;
 
-        // 5. Da 4Âª Segunda em diante = 100%
+        // 5. Da 4ª Segunda em diante = 100%
         return func.salario; 
     }
     return 0;
 }   
 
-// 2. Auxiliar de ComissÃµes
+// 2. Auxiliar de Comissões
 window.getTotalComissoesMes = function(idFunc, dataRefStr) {
     const parts = dataRefStr.split('-'); 
     const anoRef = parseInt(parts[0]); 
@@ -1073,7 +1073,7 @@ window.getTotalComissoesMes = function(idFunc, dataRefStr) {
         return acc;
     }, 0);
 }
-// --- FUNÃ‡ÃƒO DETETIVE 2.0: SOMA BLINDADA (Expeto Edition) ---
+// --- FUNÇÃO DETETIVE 2.0: SOMA BLINDADA (Expeto Edition) ---
 window.getTotalMotoboyMes = function(idFunc, dataRefStr) {
     // 1. Verifica se tem loot (entregas)
     if (!window.db.entregas) return 0;
@@ -1081,24 +1081,24 @@ window.getTotalMotoboyMes = function(idFunc, dataRefStr) {
     // 2. Prepara as datas do turno atual
     const parts = dataRefStr.split('-'); 
     const anoRef = parseInt(parts[0]); 
-    const mesRef = parseInt(parts[1]) - 1; // JS conta mÃªs de 0 a 11
+    const mesRef = parseInt(parts[1]) - 1; // JS conta mês de 0 a 11
     
-    // 3. Pega os dados do NPC (FuncionÃ¡rio)
+    // 3. Pega os dados do NPC (Funcionário)
     const funcObj = window.db.funcionarios.find(f => f.id == idFunc);
     
-    // FunÃ§Ã£o de limpeza (Remove acentos e espaÃ§os extras)
+    // Função de limpeza (Remove acentos e espaços extras)
     const limparTexto = (texto) => {
         if (!texto) return "";
         return String(texto).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
     };
 
-    // ForÃ§a o ID buscado ser String para nÃ£o dar erro de tipo
+    // Força o ID buscado ser String para não dar erro de tipo
     const idBusca = String(idFunc).trim();
     const nomeBusca = funcObj ? limparTexto(funcObj.nome) : "";
 
-    console.log(`ðŸ•µï¸â€â™‚ï¸ BUSCANDO LOOT DE: ${nomeBusca} (ID: ${idBusca}) no MÃªs ${mesRef+1}/${anoRef}`);
+    console.log(`🕵️‍♂️ BUSCANDO LOOT DE: ${nomeBusca} (ID: ${idBusca}) no Mês ${mesRef+1}/${anoRef}`);
 
-    // 4. Filtra e Soma (Onde a mÃ¡gica acontece)
+    // 4. Filtra e Soma (Onde a mágica acontece)
     return window.db.entregas.reduce((acc, entrega) => {
         if (!entrega.data) return acc;
 
@@ -1111,28 +1111,28 @@ window.getTotalMotoboyMes = function(idFunc, dataRefStr) {
         const idEntrega = String(entrega.idFunc || "").trim();
         const nomeEntrega = limparTexto(entrega.nomeFunc);
 
-        // --- CHECK DE PERCEPÃ‡ÃƒO (ComparaÃ§Ãµes) ---
-        // 1. Bate o MÃªs e Ano?
+        // --- CHECK DE PERCEPÇÃO (Comparações) ---
+        // 1. Bate o Mês e Ano?
         const matchData = (eAno === anoRef && eMes === mesRef);
 
-        // 2. Ã‰ o mesmo cara? (Compara ID OU Nome parecido)
+        // 2. É o mesmo cara? (Compara ID OU Nome parecido)
         const matchId = (idEntrega === idBusca);
-        const matchNome = (nomeBusca !== "" && nomeEntrega.includes(nomeBusca)); // Usar includes Ã© mais generoso
+        const matchNome = (nomeBusca !== "" && nomeEntrega.includes(nomeBusca)); // Usar includes é mais generoso
 
         if (matchData) {
             if (matchId || matchNome) {
                 const valor = parseFloat(entrega.valorTotal) || 0;
-                // console.log(`   âœ… SOMADO: R$ ${valor} | Entrega dia ${entrega.data}`);
+                // console.log(`   ✅ SOMADO: R$ ${valor} | Entrega dia ${entrega.data}`);
                 return acc + valor;
             } else {
-                // console.log(`   âŒ IGNORADO: "${entrega.nomeFunc}" (NÃ£o Ã© o alvo)`);
+                // console.log(`   ❌ IGNORADO: "${entrega.nomeFunc}" (Não é o alvo)`);
             }
         }
         
         return acc;
     }, 0);
 }
-// 3. Calcula Ganhos do MÃªs (Sem olhar passado)
+// 3. Calcula Ganhos do Mês (Sem olhar passado)
 window.calcularGanhosNoMes = function(idFunc, dataRefStr) {
     const func = window.db.funcionarios.find(f => f.id == idFunc); 
     if (!func) return 0;
@@ -1140,14 +1140,14 @@ window.calcularGanhosNoMes = function(idFunc, dataRefStr) {
     let totalGanhos = 0; 
     const [anoRef, mesRef] = dataRefStr.split('-'); 
     
-    // Garante que o salÃ¡rio Ã© um nÃºmero
+    // Garante que o salário é um número
     const valorDiaria = parseFloat(func.salario) || 0;
     const valorPassagem = parseFloat(func.passagem) || 0;
 
-    // 1. SalÃ¡rio Base (Se NÃƒO for Diarista, pega o fixo proporcional)
+    // 1. Salário Base (Se NÃO for Diarista, pega o fixo proporcional)
     if (func.tipo !== 'Diaria') totalGanhos = window.calcularTetoLiberado(func, dataRefStr);
     
-    // 2. PresenÃ§as (Loop dia a dia)
+    // 2. Presenças (Loop dia a dia)
     Object.keys(window.db.presencas).forEach(diaStr => {
         if(diaStr.startsWith(`${anoRef}-${mesRef}`)) { 
             const listaDia = window.db.presencas[diaStr]; 
@@ -1161,19 +1161,19 @@ window.calcularGanhosNoMes = function(idFunc, dataRefStr) {
                         totalGanhos += valorPassagem; 
                     }
                 } else { 
-                    // DIARISTA: Ganha DiÃ¡ria
+                    // DIARISTA: Ganha Diária
                     if(registro.status === 'Presente') {
-                        totalGanhos += valorDiaria; // DiÃ¡ria Cheia
+                        totalGanhos += valorDiaria; // Diária Cheia
                     }
                     else if(registro.status === 'Atrasado') {
-                        totalGanhos += (valorDiaria / 2); // Meia DiÃ¡ria
+                        totalGanhos += (valorDiaria / 2); // Meia Diária
                     }
                 }
             }
         }
     });
     
-    // 3. ComissÃµes e Entregas
+    // 3. Comissões e Entregas
     const totalComissoes = window.getTotalComissoesMes(idFunc, dataRefStr);
     const totalEntregas = window.getTotalMotoboyMes(idFunc, dataRefStr);
 
@@ -1181,7 +1181,7 @@ window.calcularGanhosNoMes = function(idFunc, dataRefStr) {
 }
 // --- COPIE DAQUI PARA BAIXO ---
 
-// 4. Calcula Pagamentos Feitos no MÃªs (RESTAURADA)
+// 4. Calcula Pagamentos Feitos no Mês (RESTAURADA)
 window.getTotalPagoNoMes = function(idFunc, dataReferencia) {
     const dataRef = new Date(dataReferencia); 
     const mesRef = dataRef.getUTCMonth(); 
@@ -1192,14 +1192,14 @@ window.getTotalPagoNoMes = function(idFunc, dataReferencia) {
         return p.idFunc == idFunc && d.getUTCMonth() == mesRef && d.getUTCFullYear() == anoRef; 
     }).reduce((acc, p) => acc + p.valor, 0);
 }
-// --- CORREÃ‡ÃƒO DO SALDO ANTERIOR (OLHANDO O MÃŠS CHEIO) ---
-// --- CORREÃ‡ÃƒO DO SALDO ANTERIOR SEPARADO (SALÃRIO E PASSAGEM) ---
+// --- CORREÇÃO DO SALDO ANTERIOR (OLHANDO O MÊS CHEIO) ---
+// --- CORREÇÃO DO SALDO ANTERIOR SEPARADO (SALÁRIO E PASSAGEM) ---
 window.getSaldoMesAnterior = function(idFunc, dataRefStr) {
     const parts = dataRefStr.split('-');
     const ano = parseInt(parts[0]);
     const mes = parseInt(parts[1]); 
 
-    // Ignora Janeiro (pois dezembro Ã© outro ano e nÃ£o temos o ref do ano passado configurado pra virada ainda)
+    // Ignora Janeiro (pois dezembro é outro ano e não temos o ref do ano passado configurado pra virada ainda)
     if (mes === 1) return { salario: 0, passagem: 0 }; 
 
     let mesAnt = mes - 1;
@@ -1209,7 +1209,7 @@ window.getSaldoMesAnterior = function(idFunc, dataRefStr) {
         anoAnt = ano - 1;
     }
     
-    // Pega o Ãºltimo dia do mÃªs anterior
+    // Pega o último dia do mês anterior
     const ultimoDia = new Date(anoAnt, mesAnt, 0).getDate(); 
     const refAnterior = `${anoAnt}-${String(mesAnt).padStart(2, '0')}-${ultimoDia}`;
 
@@ -1249,7 +1249,7 @@ window.getSaldoMesAnterior = function(idFunc, dataRefStr) {
     window.db.pagamentos.forEach(p => {
         if (p.idFunc == idFunc && p.data.startsWith(`${anoAnt}-${String(mesAnt).padStart(2, '0')}`)) {
             if (p.tipo === 'Passagem') pagoPassagem += p.valor;
-            else pagoSalario += p.valor; // SalÃ¡rio e Vale descontam do SalÃ¡rio
+            else pagoSalario += p.valor; // Salário e Vale descontam do Salário
         }
     });
 
@@ -1264,7 +1264,7 @@ window.getSaldoMesAnterior = function(idFunc, dataRefStr) {
 window.removerPagamento = async function(id) {
     if(!checkPerm('fin')) return; 
 
-    if(!confirm("Cancelar este lanÃ§amento?")) return;
+    if(!confirm("Cancelar este lançamento?")) return;
 
     const pag = window.db.pagamentos.find(p => p.id === id);
     try {
@@ -1275,7 +1275,7 @@ window.removerPagamento = async function(id) {
         window.atualizarDashboard();
     } catch (erro) {
         console.error("Falha ao excluir pagamento:", erro);
-        alert("Erro: nÃ£o foi possÃ­vel excluir o pagamento na nuvem. Nenhuma alteraÃ§Ã£o local foi aplicada.");
+        alert("Erro: não foi possível excluir o pagamento na nuvem. Nenhuma alteração local foi aplicada.");
     }
 }
 let chartPizza = null; let chartBarra = null;
@@ -1285,7 +1285,7 @@ window.renderizarGraficos = function(dados) {
     if(chartPizza) chartPizza.destroy(); if(chartBarra) chartBarra.destroy();
     chartPizza = new Chart(ctxPizza, {
         type: 'doughnut',
-        data: { labels: ['SalÃ¡rios Pagos', 'ComissÃµes', 'Motoboys', 'Despesas Loja'], datasets: [{ data: [dados.salarios, dados.comissoes, dados.moto, dados.despesas], backgroundColor: ['#27ae60', '#8e44ad', '#d35400', '#c0392b'], borderWidth: 0 }] },
+        data: { labels: ['Salários Pagos', 'Comissões', 'Motoboys', 'Despesas Loja'], datasets: [{ data: [dados.salarios, dados.comissoes, dados.moto, dados.despesas], backgroundColor: ['#27ae60', '#8e44ad', '#d35400', '#c0392b'], borderWidth: 0 }] },
         options: { responsive: true, plugins: { title: { display: true, text: 'Para onde foi o dinheiro?', color: '#7f8c8d' }, legend: {labels: {color: '#7f8c8d'}} } }
     });
     const nomes = Object.keys(dados.ranking).slice(0, 5);
@@ -1323,10 +1323,10 @@ window.atualizarDashboard = function() {
     window.renderizarGraficos(dadosGrafico);
     const sortedRank = Object.entries(rankingVendas).sort(([,a], [,b]) => b - a).slice(0, 5);
     const rankContainer = document.getElementById('rankingContainer'); rankContainer.innerHTML = '';
-    if (sortedRank.length === 0) rankContainer.innerHTML = '<p style="color:#aaa; text-align:center;">Nenhuma venda este mÃªs.</p>';
+    if (sortedRank.length === 0) rankContainer.innerHTML = '<p style="color:#aaa; text-align:center;">Nenhuma venda este mês.</p>';
     else rankContainer.innerHTML = sortedRank.map(([nome, vendas], index) => {
-        const comissao = vendas * 0.07; const medalha = index === 0 ? 'ðŸ¥‡' : index === 1 ? 'ðŸ¥ˆ' : index === 2 ? 'ðŸ¥‰' : `#${index+1}`; const rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : '';
-        return `<div class="ranking-item"><span class="rank-pos ${rankClass}">${medalha}</span><span class="rank-name">${nome}</span><div style="text-align:right;"><div class="rank-xp">Vendeu: ${fmtMoeda(vendas)}</div><small style="color:var(--text-sub);">ComissÃ£o: ${fmtMoeda(comissao)}</small></div></div>`;
+        const comissao = vendas * 0.07; const medalha = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index+1}`; const rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : '';
+        return `<div class="ranking-item"><span class="rank-pos ${rankClass}">${medalha}</span><span class="rank-name">${nome}</span><div style="text-align:right;"><div class="rank-xp">Vendeu: ${fmtMoeda(vendas)}</div><small style="color:var(--text-sub);">Comissão: ${fmtMoeda(comissao)}</small></div></div>`;
     }).join('');
 }
 window.exportarExcel = function() {
@@ -1339,15 +1339,15 @@ window.exportarExcel = function() {
     const encodedUri = encodeURI(csvContent); const link = document.createElement("a"); link.setAttribute("href", encodedUri); link.setAttribute("download", "relatorio_pagamentos.csv"); document.body.appendChild(link); link.click(); document.body.removeChild(link);
 }
 // ============================================================
-// === NOVA OTIMIZAÃ‡ÃƒO DE RENDERIZAÃ‡ÃƒO (Para evitar travar) ===
+// === NOVA OTIMIZAÇÃO DE RENDERIZAÇÃO (Para evitar travar) ===
 // ============================================================
 
-// VariÃ¡vel para saber qual seÃ§Ã£o estÃ¡ visÃ­vel
+// Variável para saber qual seção está visível
 let secaoAtual = 'dashboard';
 
 // Substitui a antiga window.showSection
 window.showSection = function(id, btnElement) {
-    secaoAtual = id; // Atualiza a seÃ§Ã£o atual
+    secaoAtual = id; // Atualiza a seção atual
     
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
@@ -1355,11 +1355,11 @@ window.showSection = function(id, btnElement) {
     
     if(btnElement) btnElement.classList.add('active');
 
-    // SÃ³ atualiza os dados da seÃ§Ã£o que foi aberta
+    // Só atualiza os dados da seção que foi aberta
     atualizarSecaoEspecifica(id);
 }
 
-// Nova funÃ§Ã£o auxiliar para atualizar apenas o necessÃ¡rio
+// Nova função auxiliar para atualizar apenas o necessário
 window.atualizarSecaoEspecifica = function(id) {
     if(id === 'previsao') window.atualizarPrevisao();
     if(id === 'extras') window.renderizarExtras();
@@ -1382,11 +1382,11 @@ window.atualizarSecaoEspecifica = function(id) {
     }
 }
 
-// VariÃ¡vel de controle (Fica fora da funÃ§Ã£o para lembrar se clicou no botÃ£o)
+// Variável de controle (Fica fora da função para lembrar se clicou no botão)
 let mostrarTodosFuncionarios = false;
 
 window.alternarVisualizacao = function() {
-    mostrarTodosFuncionarios = !mostrarTodosFuncionarios; // Inverte (Sim/NÃ£o)
+    mostrarTodosFuncionarios = !mostrarTodosFuncionarios; // Inverte (Sim/Não)
     window.atualizarInterface(); // Atualiza a tela
 }
 
@@ -1411,17 +1411,17 @@ window.atualizarInterface = function() {
     const listContainer = document.getElementById('customSelectOptionsList');
     if(listContainer) {
         listContainer.innerHTML = `
-            <div class="custom-option-item" onclick="selecionarFuncionarioCustom('', 'ðŸ” Selecione um funcionÃ¡rio...')">
-                <div class="custom-opt-avatar" style="background:#e74c3c">âŒ</div>
-                <div class="custom-opt-info"><span class="custom-opt-name">Limpar SeleÃ§Ã£o</span></div>
+            <div class="custom-option-item" onclick="selecionarFuncionarioCustom('', '🔍 Selecione um funcionário...')">
+                <div class="custom-opt-avatar" style="background:#e74c3c">❌</div>
+                <div class="custom-opt-info"><span class="custom-opt-name">Limpar Seleção</span></div>
             </div>
         `;
     }
     if(selVendedor) selVendedor.innerHTML = '<option value="">Selecione...</option>'; 
-    if(selFiltroExtras) selFiltroExtras.innerHTML = '<option value="">Todos (Geral)</option><option value="DESPESAS">ðŸ”¸ Despesas / Eventos</option>'; 
+    if(selFiltroExtras) selFiltroExtras.innerHTML = '<option value="">Todos (Geral)</option><option value="DESPESAS">🔸 Despesas / Eventos</option>'; 
     if(selPrevisao) selPrevisao.innerHTML = '<option value="">Todos da Equipe</option>';
 
-    // Pega todos os funcionÃ¡rios e ordena por nome
+    // Pega todos os funcionários e ordena por nome
     const funcsOrdenados = [...window.db.funcionarios].sort((a, b) => a.nome.localeCompare(b.nome));
     
     // --- PARTE 1: Preencher os Menus (Carrega TODOS) ---
@@ -1434,8 +1434,8 @@ window.atualizarInterface = function() {
                     <div class="custom-opt-info">
                         <span class="custom-opt-name">${f.nome}</span>
                         <span class="custom-opt-role">
-                            <span class="role-badge">ðŸ’¼ ${f.cargo || 'Sem Cargo'}</span>
-                            <span class="empresa-badge">ðŸ¢ ${f.empresa || 'Sem Loja'}</span>
+                            <span class="role-badge">💼 ${f.cargo || 'Sem Cargo'}</span>
+                            <span class="empresa-badge">🏢 ${f.empresa || 'Sem Loja'}</span>
                         </span>
                     </div>
                 </div>
@@ -1447,27 +1447,27 @@ window.atualizarInterface = function() {
         if(selPrevisao) selPrevisao.innerHTML += `<option value="${f.id}">${f.nome}</option>`;
     });
 
-    // --- PARTE 2: LÃ³gica Inteligente de ExibiÃ§Ã£o ---
+    // --- PARTE 2: Lógica Inteligente de Exibição ---
     let listaParaTabela = [];
     let mensagemRodape = '';
 
     if (termoBusca !== "") {
         // SE ESTIVER PESQUISANDO: Filtra pelo nome e mostra tudo que achar
         listaParaTabela = funcsOrdenados.filter(f => f.nome.toLowerCase().includes(termoBusca));
-        if (listaParaTabela.length === 0) mensagemRodape = `<span style="color:red">NinguÃ©m encontrado com "${termoBusca}"</span>`;
+        if (listaParaTabela.length === 0) mensagemRodape = `<span style="color:red">Ninguém encontrado com "${termoBusca}"</span>`;
     } 
     else {
-        // SE NÃƒO ESTIVER PESQUISANDO:
+        // SE NÃO ESTIVER PESQUISANDO:
         if (mostrarTodosFuncionarios) {
-            // Se o botÃ£o "Ver Todos" foi clicado, mostra TODO MUNDO
+            // Se o botão "Ver Todos" foi clicado, mostra TODO MUNDO
             listaParaTabela = funcsOrdenados;
-            mensagemRodape = `<button onclick="window.alternarVisualizacao()" style="cursor:pointer; background:none; border:none; color:#e67e22; font-weight:bold; padding:10px; width:100%;">â¬†ï¸ Ocultar Lista (Voltar ao modo rÃ¡pido)</button>`;
+            mensagemRodape = `<button onclick="window.alternarVisualizacao()" style="cursor:pointer; background:none; border:none; color:#e67e22; font-weight:bold; padding:10px; width:100%;">⬆️ Ocultar Lista (Voltar ao modo rápido)</button>`;
         } else {
-            // Modo PadrÃ£o: Mostra apenas os 5 primeiros
+            // Modo Padrão: Mostra apenas os 5 primeiros
             listaParaTabela = funcsOrdenados.slice(0, 5);
             const totalOcultos = funcsOrdenados.length - 5;
             if (totalOcultos > 0) {
-                mensagemRodape = `<button onclick="window.alternarVisualizacao()" style="cursor:pointer; background:var(--secondary); border:none; color:white; border-radius:4px; padding:10px 20px; font-size:0.9rem; margin-top:5px;">â¬‡ï¸ Ver Lista Completa (+${totalOcultos} funcionÃ¡rios)</button><br><small style="color:#7f8c8d;">(Pode demorar um pouquinho para carregar)</small>`;
+                mensagemRodape = `<button onclick="window.alternarVisualizacao()" style="cursor:pointer; background:var(--secondary); border:none; color:white; border-radius:4px; padding:10px 20px; font-size:0.9rem; margin-top:5px;">⬇️ Ver Lista Completa (+${totalOcultos} funcionários)</button><br><small style="color:#7f8c8d;">(Pode demorar um pouquinho para carregar)</small>`;
             }
         }
     }
@@ -1475,25 +1475,25 @@ window.atualizarInterface = function() {
     // --- PARTE 3: Desenhar a Tabela ---
     listaParaTabela.forEach(f => {
         let tagClass = 'tag-mensal'; let tagText = 'MENSAL';
-        if(f.tipo === 'Quinzenal') { tagClass = 'tag-quinzenal'; tagText = 'QUINZENAL'; } else if(f.tipo === 'Semanal') { tagClass = 'tag-semanal'; tagText = 'SEMANAL'; } else if(f.tipo === 'Diaria') { tagClass = 'tag-diaria'; tagText = 'DIÃRIA'; }
+        if(f.tipo === 'Quinzenal') { tagClass = 'tag-quinzenal'; tagText = 'QUINZENAL'; } else if(f.tipo === 'Semanal') { tagClass = 'tag-semanal'; tagText = 'SEMANAL'; } else if(f.tipo === 'Diaria') { tagClass = 'tag-diaria'; tagText = 'DIÁRIA'; }
         
         let infoPagamento = ''; 
         if(f.tipo === 'Diaria') infoPagamento = `<span style="font-weight:bold; color:var(--warning)">${fmtMoeda(f.salario)}/dia</span>`; 
         else infoPagamento = `<span style="font-weight:bold; color:var(--success)">${fmtMoeda(f.salario)}</span><br><span style="font-size:0.8em">+ Passagem: ${fmtMoeda(f.passagem || 0)}</span>`;
         
         const cpfDisplay = f.cpf ? `<br><span class="info-sub">CPF: ${f.cpf}</span>` : ''; 
-        const contatoDisplay = f.tel ? `ðŸ“ž ${f.tel}` : '<span style="color:#ccc">Sem tel</span>'; 
+        const contatoDisplay = f.tel ? `📞 ${f.tel}` : '<span style="color:#ccc">Sem tel</span>'; 
         const pixDisplay = f.pix ? `<br><div class="info-pix">Pix: ${f.pix}</div> <button class="btn-copy" onclick="copiarTexto('${f.pix}')">Copiar</button>` : '';
-        const enderecoDisplay = f.end ? `<div class="info-sub">ðŸ  ${f.end}</div>` : ''; 
-        const nascDisplay = f.nasc ? `<div class="info-sub">ðŸŽ‚ ${fmtDataSimples(f.nasc)}</div>` : ''; 
+        const enderecoDisplay = f.end ? `<div class="info-sub">🏠 ${f.end}</div>` : ''; 
+        const nascDisplay = f.nasc ? `<div class="info-sub">🎂 ${fmtDataSimples(f.nasc)}</div>` : ''; 
         const entradaDisplay = f.entrada ? `<div class="info-sub">Entrada: ${fmtDataSimples(f.entrada)}</div>` : '';
         
-        const btnPonto = `<button class="btn-copy" style="background:var(--secondary); color:white; border:none; margin-left:5px;" onclick="imprimirFolhaPonto(${f.id})" title="Imprimir Ponto">â°</button>`;
+        const btnPonto = `<button class="btn-copy" style="background:var(--secondary); color:white; border:none; margin-left:5px;" onclick="imprimirFolhaPonto(${f.id})" title="Imprimir Ponto">⏰</button>`;
 
-        tbFunc.innerHTML += `<tr><td><strong>${f.nome}</strong>${cpfDisplay}</td><td>${f.cargo}<span class="info-empresa">ðŸ¢ ${f.empresa || '-'}</span>${entradaDisplay}</td><td>${contatoDisplay}${pixDisplay}${enderecoDisplay}${nascDisplay}</td><td><span class="tag-tipo ${tagClass}">${tagText}</span><br>${infoPagamento}</td><td><div class="table-actions"><button class="btn-edit" onclick="prepararEdicao(${f.id})" title="Editar">âœï¸</button><button class="btn-del" onclick="removerFuncionario(${f.id})" title="Excluir">ðŸ—‘ï¸</button>${btnPonto}</div></td></tr>`;
+        tbFunc.innerHTML += `<tr><td><strong>${f.nome}</strong>${cpfDisplay}</td><td>${f.cargo}<span class="info-empresa">🏢 ${f.empresa || '-'}</span>${entradaDisplay}</td><td>${contatoDisplay}${pixDisplay}${enderecoDisplay}${nascDisplay}</td><td><span class="tag-tipo ${tagClass}">${tagText}</span><br>${infoPagamento}</td><td><div class="table-actions"><button class="btn-edit" onclick="prepararEdicao(${f.id})" title="Editar">✏️</button><button class="btn-del" onclick="removerFuncionario(${f.id})" title="Excluir">🗑️</button>${btnPonto}</div></td></tr>`;
     });
 
-    // Adiciona o BotÃ£o ou Mensagem no final da tabela
+    // Adiciona o Botão ou Mensagem no final da tabela
     if (mensagemRodape) {
         tbFunc.innerHTML += `<tr><td colspan="5" style="text-align:center; padding:15px;">${mensagemRodape}</td></tr>`;
     }
@@ -1504,7 +1504,7 @@ window.atualizarInterface = function() {
     if(typeof atualizarSecaoEspecifica === 'function') atualizarSecaoEspecifica(secaoAtual);
 }
 // ============================================================
-// === MÃ“DULO DE BOLETOS E CONTAS A PAGAR (NOVO) ===
+// === MÓDULO DE BOLETOS E CONTAS A PAGAR (NOVO) ===
 // ============================================================
 
 window.lancarBoleto = async function() {
@@ -1515,7 +1515,7 @@ window.lancarBoleto = async function() {
     const data = document.getElementById('bolData').value;
     const codigo = document.getElementById('bolCodigo').value;
 
-    if(!desc || !valor || !data) return alert("Preencha DescriÃ§Ã£o, Valor e Vencimento!");
+    if(!desc || !valor || !data) return alert("Preencha Descrição, Valor e Vencimento!");
 
     const novoBoleto = {
         id: Date.now(),
@@ -1534,7 +1534,7 @@ window.lancarBoleto = async function() {
         registrarLog('Boletos', `Cadastrou conta: ${desc} (${fmtMoeda(valor)})`);
     } catch (erro) {
         console.error("Falha ao salvar boleto:", erro);
-        alert("Erro: nÃ£o foi possÃ­vel salvar o boleto na nuvem. OperaÃ§Ã£o cancelada.");
+        alert("Erro: não foi possível salvar o boleto na nuvem. Operação cancelada.");
         return;
     }
 
@@ -1568,7 +1568,7 @@ window.renderizarBoletos = function() {
 }
 
     listaOrdenada.forEach(b => {
-        const dataVenc = new Date(b.vencimento + 'T12:00:00'); // Fuso horÃ¡rio corrigido
+        const dataVenc = new Date(b.vencimento + 'T12:00:00'); // Fuso horário corrigido
         const diffTempo = dataVenc - hoje;
         const diasRestantes = Math.ceil(diffTempo / (1000 * 60 * 60 * 24)); 
 
@@ -1590,22 +1590,22 @@ window.renderizarBoletos = function() {
         let textoData = '';
 
         if (b.status === 'PAGO') {
-            classeBorda = 'b-pago'; badgeData = 'badge-green'; textoData = 'âœ… PAGO';
+            classeBorda = 'b-pago'; badgeData = 'badge-green'; textoData = '✅ PAGO';
         } else {
             if (diasRestantes < 0) {
-                classeBorda = 'b-vencido'; badgeData = 'badge-red'; textoData = `ðŸš¨ Venceu hÃ¡ ${Math.abs(diasRestantes)} dias`;
+                classeBorda = 'b-vencido'; badgeData = 'badge-red'; textoData = `🚨 Venceu há ${Math.abs(diasRestantes)} dias`;
             } else if (diasRestantes === 0) {
-                classeBorda = 'b-vencido'; badgeData = 'badge-red'; textoData = `âš ï¸ VENCE HOJE!`;
+                classeBorda = 'b-vencido'; badgeData = 'badge-red'; textoData = `⚠️ VENCE HOJE!`;
             } else if (diasRestantes <= 3) {
-                classeBorda = 'b-atencao'; badgeData = 'badge-yellow'; textoData = `â³ Vence em ${diasRestantes} dias`;
+                classeBorda = 'b-atencao'; badgeData = 'badge-yellow'; textoData = `⏳ Vence em ${diasRestantes} dias`;
             } else {
-                classeBorda = 'b-dia'; badgeData = 'badge-blue'; textoData = `ðŸ“… Vence em ${diasRestantes} dias`;
+                classeBorda = 'b-dia'; badgeData = 'badge-blue'; textoData = `📅 Vence em ${diasRestantes} dias`;
             }
         }
 
         const btnAcao = b.status === 'PENDENTE' 
-            ? `<button class="btn-pagar pendente" onclick="toggleStatusBoleto(${b.id})">ðŸ’¸ Confirmar Pagamento</button>`
-            : `<button class="btn-pagar desfazer" onclick="toggleStatusBoleto(${b.id})">â†©ï¸ Desfazer (Tornar Pendente)</button>`;
+            ? `<button class="btn-pagar pendente" onclick="toggleStatusBoleto(${b.id})">💸 Confirmar Pagamento</button>`
+            : `<button class="btn-pagar desfazer" onclick="toggleStatusBoleto(${b.id})">↩️ Desfazer (Tornar Pendente)</button>`;
 
         // Formata a data bonitinha (ex: 29/01/2026)
         const dataFormatada = fmtDataSimples(b.vencimento);
@@ -1623,7 +1623,7 @@ window.renderizarBoletos = function() {
 
                     </div>
                     <div style="font-weight:bold; font-size:1.1rem; margin-bottom:5px;">${b.desc}</div>
-                    ${b.codigo ? `<div style="font-size:0.75rem; color:#aaa; overflow:hidden; text-overflow:ellipsis; margin-bottom:5px;">ðŸ“  ${b.codigo}</div>` : ''}
+                    ${b.codigo ? `<div style="font-size:0.75rem; color:#aaa; overflow:hidden; text-overflow:ellipsis; margin-bottom:5px;">📠 ${b.codigo}</div>` : ''}
                 </div>
                 <div>
                     <div class="bol-valor">${fmtMoeda(b.valor)}</div>
@@ -1671,7 +1671,7 @@ window.toggleStatusBoleto = async function(id) {
             }
         } catch (erro) {
             console.error("Falha ao atualizar boleto:", erro);
-            alert("Erro: nÃ£o foi possÃ­vel atualizar o status do boleto na nuvem. Nada foi alterado.");
+            alert("Erro: não foi possível atualizar o status do boleto na nuvem. Nada foi alterado.");
         }
     }
 }
@@ -1689,10 +1689,10 @@ window.removerBoleto = async function(id) {
         if(window.atualizarPrevisao) window.atualizarPrevisao();
     } catch (erro) {
         console.error("Falha ao excluir boleto:", erro);
-        alert("Erro: nÃ£o foi possÃ­vel excluir o boleto na nuvem. Nenhuma alteraÃ§Ã£o local foi aplicada.");
+        alert("Erro: não foi possível excluir o boleto na nuvem. Nenhuma alteração local foi aplicada.");
     }
 }
-// --- PREVISÃƒO FINAL 8.0 (SINCRONIZADA COM PAGAMENTO) ---
+// --- PREVISÃO FINAL 8.0 (SINCRONIZADA COM PAGAMENTO) ---
 window.atualizarPrevisao = function() {
     const listUrgent = document.getElementById('listUrgent');
     const listWeekly = document.getElementById('listWeekly');
@@ -1751,12 +1751,12 @@ window.atualizarPrevisao = function() {
             checkDate.setDate(checkDate.getDate() + 1);
         }
     } else {
-        // Se for MÃªs, considera tudo pago
+        // Se for Mês, considera tudo pago
         ehSemanaPagtoQuinzenal = true;
         ehSemanaPagtoMensal = true;
     }
 
-    // --- 3. PROCESSAR FUNCIONÃRIOS ---
+    // --- 3. PROCESSAR FUNCIONÁRIOS ---
     window.db.funcionarios.forEach(f => {
         // FILTRO DE LOJA
         const empresaFunc = (f.empresa || '').trim().toLowerCase();
@@ -1766,7 +1766,7 @@ window.atualizarPrevisao = function() {
         let totalPago = 0;
         let dividaAnt = 0;
 
-        // --- CÃLCULOS ---
+        // --- CÁLCULOS ---
         if (periodoSelecionado === 'MES') {
             totalGanhos = window.calcularGanhosNoMes(f.id, dataRefStr);
             totalPago = window.getTotalPagoNoMes(f.id, dataRefStr);
@@ -1776,15 +1776,15 @@ window.atualizarPrevisao = function() {
             const valorDiaria = parseFloat(f.salario) || 0;
             const valorPassagem = parseFloat(f.passagem) || 0;
 
-            // A. SALÃRIO BASE (LÃ“GICA DO PAGAMENTO APLICADA)
+            // A. SALÁRIO BASE (LÓGICA DO PAGAMENTO APLICADA)
             if (f.tipo === 'Quinzenal') {
-                // Se Ã© semana de pagamento, soma 50%. Se nÃ£o, soma ZERO.
+                // Se é semana de pagamento, soma 50%. Se não, soma ZERO.
                 if (ehSemanaPagtoQuinzenal) {
                     totalGanhos += (valorDiaria / 2); 
                 }
             } 
             else if (f.tipo === 'Mensal') {
-                // Se Ã© semana de pagamento, soma 100%. Se nÃ£o, ZERO.
+                // Se é semana de pagamento, soma 100%. Se não, ZERO.
                 if (ehSemanaPagtoMensal) {
                     totalGanhos += valorDiaria;
                 }
@@ -1793,9 +1793,9 @@ window.atualizarPrevisao = function() {
                 // Semanal recebe sempre proporcional
                 totalGanhos += (valorDiaria / 30) * 7; 
             }
-            // Diarista calcula via presenÃ§a abaixo
+            // Diarista calcula via presença abaixo
 
-            // B. PRESENÃ‡AS / PASSAGEM (Isso corre sempre)
+            // B. PRESENÇAS / PASSAGEM (Isso corre sempre)
             Object.keys(window.db.presencas).forEach(dia => {
                 const registro = window.db.presencas[dia].find(r => r.id == f.id);
                 if (!registro) return;
@@ -1825,7 +1825,7 @@ window.atualizarPrevisao = function() {
                 });
             }
 
-            // D. DESCONTA O QUE JÃ FOI PAGO
+            // D. DESCONTA O QUE JÁ FOI PAGO
             totalPago = window.getPagamentosRange(f.id, rangeSalario.start, rangeSalario.end);
         }
         
@@ -1838,12 +1838,12 @@ window.atualizarPrevisao = function() {
                 <div class="k-card ${f.tipo === 'Diaria' ? 'urgent' : 'normal'}">
                     <div class="k-info">
                         <h4>${f.nome}</h4>
-                        <p>${f.empresa || 'Sem Loja'} â€¢ <small>${f.tipo}</small></p>
-                        ${dividaAnt < 0 ? `<small style="color:red">(DÃ­vida Ant: ${fmtMoeda(dividaAnt)})</small>` : ''}
+                        <p>${f.empresa || 'Sem Loja'} • <small>${f.tipo}</small></p>
+                        ${dividaAnt < 0 ? `<small style="color:red">(Dívida Ant: ${fmtMoeda(dividaAnt)})</small>` : ''}
                     </div>
                     <div class="k-actions">
                         <span class="k-value">${fmtMoeda(saldo)}</span>
-                        <button class="btn-pay-card" onclick="irParaPagamento(${f.id})">PAGAR âžœ</button>
+                        <button class="btn-pay-card" onclick="irParaPagamento(${f.id})">PAGAR ➜</button>
                     </div>
                 </div>
             `;
@@ -1873,13 +1873,13 @@ window.atualizarPrevisao = function() {
                     const isVencido = dt < hojeStr;
                     const isHoje = dt === hojeStr;
                     let statusClass = isVencido || isHoje ? 'urgent' : 'normal';
-                    let textoStatus = isVencido ? 'ðŸš¨ VENCIDO' : (isHoje ? 'âš ï¸ VENCE HOJE' : `Vence: ${fmtDataSimples(dt)}`);
+                    let textoStatus = isVencido ? '🚨 VENCIDO' : (isHoje ? '⚠️ VENCE HOJE' : `Vence: ${fmtDataSimples(dt)}`);
                     let corTexto = isVencido ? 'red' : (isHoje ? 'orange' : '#d35400');
 
                     const htmlBoleto = `
                         <div class="k-card ${statusClass}">
                             <div class="k-info">
-                                <h4>ðŸ§¾ ${b.desc}</h4>
+                                <h4>🧾 ${b.desc}</h4>
                                 <p>${textoStatus}</p>
                             </div>
                             <div class="k-actions">
@@ -1903,19 +1903,19 @@ window.atualizarPrevisao = function() {
     if(listUrgent.innerHTML === '') listUrgent.innerHTML = vazio;
     if(listWeekly.innerHTML === '') listWeekly.innerHTML = vazio;
 }
-// --- FUNÃ‡ÃƒO DE EXTRATO DETALHADO (CORRIGIDA PARA DIARISTA) ---
+// --- FUNÇÃO DE EXTRATO DETALHADO (CORRIGIDA PARA DIARISTA) ---
 window.mostrarDetalhesCalculo = function(idFunc, dataStr) {
     const func = window.db.funcionarios.find(f => f.id == idFunc);
     if(!func) return;
 
-    // 1. Refaz os cÃ¡lculos
+    // 1. Refaz os cálculos
     const [anoRef, mesRef] = dataStr.split('-');
     
-    // A. SalÃ¡rio Base (Zero para diarista)
+    // A. Salário Base (Zero para diarista)
     const salarioBase = window.calcularTetoLiberado(func, dataStr);
 
-    // B. PresenÃ§a / Passagem / DiÃ¡rias
-    let totalPresencaValor = 0; // Nome genÃ©rico para (Passagem OU DiÃ¡ria)
+    // B. Presença / Passagem / Diárias
+    let totalPresencaValor = 0; // Nome genérico para (Passagem OU Diária)
     let diasPresenca = 0;
     
     const valorDiaria = parseFloat(func.salario) || 0;
@@ -1926,14 +1926,14 @@ window.mostrarDetalhesCalculo = function(idFunc, dataStr) {
             const registro = window.db.presencas[diaStr].find(r => r.id == idFunc);
             
             if(registro) {
-                // LÃ“GICA MENSALISTA
+                // LÓGICA MENSALISTA
                 if (func.tipo !== 'Diaria') {
                     if(['Presente', 'Atrasado'].includes(registro.status)) {
                         totalPresencaValor += valorPassagem; 
                         diasPresenca++;
                     }
                 } 
-                // LÃ“GICA DIARISTA (AQUI ESTAVA O ERRO ANTES)
+                // LÓGICA DIARISTA (AQUI ESTAVA O ERRO ANTES)
                 else {
                     if(registro.status === 'Presente') {
                         totalPresencaValor += valorDiaria;
@@ -1952,7 +1952,7 @@ window.mostrarDetalhesCalculo = function(idFunc, dataStr) {
     const totalComissoes = window.getTotalComissoesMes(idFunc, dataStr); 
     const totalEntregas = window.getTotalMotoboyMes(idFunc, dataStr); 
 
-    // D. O que jÃ¡ foi pago
+    // D. O que já foi pago
     const totalPago = window.getTotalPagoNoMes(idFunc, dataStr);
 
     // E. Totais
@@ -1964,37 +1964,37 @@ window.mostrarDetalhesCalculo = function(idFunc, dataStr) {
     const el = document.getElementById('corpoDetalhes');
     
     let html = `<div style="text-align:center; font-weight:bold; color:#7f8c8d; margin-bottom:15px; font-size:1.1rem; border-bottom:1px solid #eee; padding-bottom:10px;">
-        ${func.nome}<br><small style="font-weight:normal; font-size:0.8rem">ReferÃªncia: ${mesRef}/${anoRef}</small>
+        ${func.nome}<br><small style="font-weight:normal; font-size:0.8rem">Referência: ${mesRef}/${anoRef}</small>
     </div>`;
 
-    if(totalEntregas > 0) html += `<div class="detalhes-linha"><span>ðŸï¸ Entregas (Motoboy)</span><span class="detalhes-destaque" style="color:#d35400;">+ ${fmtMoeda(totalEntregas)}</span></div>`;
+    if(totalEntregas > 0) html += `<div class="detalhes-linha"><span>🏍️ Entregas (Motoboy)</span><span class="detalhes-destaque" style="color:#d35400;">+ ${fmtMoeda(totalEntregas)}</span></div>`;
     
-    if(totalComissoes > 0) html += `<div class="detalhes-linha"><span>â­ ComissÃµes</span><span class="detalhes-destaque" style="color:#8e44ad;">+ ${fmtMoeda(totalComissoes)}</span></div>`;
+    if(totalComissoes > 0) html += `<div class="detalhes-linha"><span>⭐ Comissões</span><span class="detalhes-destaque" style="color:#8e44ad;">+ ${fmtMoeda(totalComissoes)}</span></div>`;
     
-    // LINHA INTELIGENTE: Muda o texto dependendo se Ã© Diarista ou Mensalista
+    // LINHA INTELIGENTE: Muda o texto dependendo se é Diarista ou Mensalista
     if(totalPresencaValor > 0) {
-        const textoLabel = func.tipo === 'Diaria' ? 'â˜€ï¸ DiÃ¡rias Realizadas' : 'ðŸšŒ Vale Transporte';
+        const textoLabel = func.tipo === 'Diaria' ? '☀️ Diárias Realizadas' : '🚌 Vale Transporte';
         html += `<div class="detalhes-linha"><span>${textoLabel} (${diasPresenca} dias)</span><span class="detalhes-destaque">+ ${fmtMoeda(totalPresencaValor)}</span></div>`;
     }
 
-    if(salarioBase > 0) html += `<div class="detalhes-linha"><span>ðŸ“… SalÃ¡rio Base Fixo</span><span class="detalhes-destaque">+ ${fmtMoeda(salarioBase)}</span></div>`;
+    if(salarioBase > 0) html += `<div class="detalhes-linha"><span>📅 Salário Base Fixo</span><span class="detalhes-destaque">+ ${fmtMoeda(salarioBase)}</span></div>`;
 
     // Linha de Soma Total Ganho
-    html += `<div class="detalhes-linha" style="background:#f9f9f9; font-weight:bold; margin-top:5px;"><span>âˆ‘ Total Ganho</span><span>${fmtMoeda(totalGanho)}</span></div>`;
+    html += `<div class="detalhes-linha" style="background:#f9f9f9; font-weight:bold; margin-top:5px;"><span>∑ Total Ganho</span><span>${fmtMoeda(totalGanho)}</span></div>`;
 
-    // Linha do que jÃ¡ foi pago
+    // Linha do que já foi pago
     if(totalPago > 0) {
-        html += `<div class="detalhes-linha" style="color:#c0392b;"><span>ðŸ’¸ JÃ¡ Recebeu (Vales/SalÃ¡rio)</span><strong>- ${fmtMoeda(totalPago)}</strong></div>`;
+        html += `<div class="detalhes-linha" style="color:#c0392b;"><span>💸 Já Recebeu (Vales/Salário)</span><strong>- ${fmtMoeda(totalPago)}</strong></div>`;
     }
 
     // Saldo Final Grande
     html += `
         <div class="detalhes-total" style="display: flex; justify-content: space-between; padding: 15px 0 0 0; margin-top: 10px; border-top: 2px solid #333; font-weight: 800; font-size: 1.3rem; color:${corSaldo}">
-            <span>DISPONÃVEL</span>
+            <span>DISPONÍVEL</span>
             <span>${fmtMoeda(saldoDisponivel)}</span>
         </div>
         <p style="font-size:0.75rem; color:#aaa; text-align:center; margin-top:10px;">
-            * Para Diaristas: Presente = 100% | Atrasado = 50% da diÃ¡ria.
+            * Para Diaristas: Presente = 100% | Atrasado = 50% da diária.
         </p>
     `;
 
@@ -2009,7 +2009,7 @@ window.salvarPresencaDia = async function() {
     if(!data) return alert("Selecione uma data!");
 
     const cards = document.querySelectorAll('.presenca-card');
-    if(cards.length === 0) return alert("Nenhum funcionÃ¡rio listado para salvar.");
+    if(cards.length === 0) return alert("Nenhum funcionário listado para salvar.");
 
     const listaExistente = window.db.presencas[data] || [];
     const mapaPresenca = new Map();
@@ -2051,15 +2051,15 @@ window.salvarPresencaDia = async function() {
         window.db.presencas[data] = listaFinal;
         registrarLog('Presenca', `Salvou chamada de ${fmtData(data)} (${contador} registros)`);
     } catch (erro) {
-        console.error("Falha ao salvar presenÃ§a:", erro);
-        alert("Erro: nÃ£o foi possÃ­vel salvar a lista na nuvem. Nada foi confirmado.");
+        console.error("Falha ao salvar presença:", erro);
+        alert("Erro: não foi possível salvar a lista na nuvem. Nada foi confirmado.");
         return;
     }
 
     const btnSalvar = document.getElementById('btnSalvarTopo');
     if(btnSalvar) {
         const textoOriginal = btnSalvar.innerText;
-        btnSalvar.innerText = "âœ… Salvo!";
+        btnSalvar.innerText = "✅ Salvo!";
         btnSalvar.style.backgroundColor = "#27ae60";
 
         setTimeout(() => {
@@ -2067,25 +2067,25 @@ window.salvarPresencaDia = async function() {
             btnSalvar.style.backgroundColor = "";
         }, 2000);
     } else {
-        alert("âœ… Lista Salva com Sucesso!");
+        alert("✅ Lista Salva com Sucesso!");
     }
 
     window.carregarListaPresenca();
 }
 
 // ============================================================
-// === NOVA LÃ“GICA DE FILTRO SEMANAL (COLE NO FINAL DO ARQUIVO) ===
+// === NOVA LÓGICA DE FILTRO SEMANAL (COLE NO FINAL DO ARQUIVO) ===
 // ============================================================
 
 // 1. Descobre a Segunda e o Domingo da semana baseada na data escolhida
 window.getRangeDatas = function(tipo, dataBaseStr) {
-    // Se for MÃŠS, retorna nulo pra usar a lÃ³gica antiga
+    // Se for MÊS, retorna nulo pra usar a lógica antiga
     if (tipo === 'MES') return null;
 
     const dataBase = new Date(dataBaseStr + 'T12:00:00'); 
     const diaSemana = dataBase.getDay(); // 0=Dom, 1=Seg...
     
-    // Volta atÃ© a Segunda-Feira
+    // Volta até a Segunda-Feira
     const diffSegunda = dataBase.getDate() - (diaSemana === 0 ? 6 : diaSemana - 1);
     
     const start = new Date(dataBase);
@@ -2104,7 +2104,7 @@ window.getRangeDatas = function(tipo, dataBaseStr) {
     return { start: fmt(start), end: fmt(end) };
 }
 
-// 2. Soma Ganhos (DiÃ¡rias + ComissÃµes) SÃ“ dentro das datas
+// 2. Soma Ganhos (Diárias + Comissões) SÓ dentro das datas
 window.calcularGanhosRange = function(idFunc, startStr, endStr) {
     const func = window.db.funcionarios.find(f => f.id == idFunc);
     if (!func) return 0;
@@ -2113,7 +2113,7 @@ window.calcularGanhosRange = function(idFunc, startStr, endStr) {
     const valorDiaria = parseFloat(func.salario) || 0;
     const valorPassagem = parseFloat(func.passagem) || 0;
 
-    // A. Varre dias de presenÃ§a
+    // A. Varre dias de presença
     Object.keys(window.db.presencas).forEach(dia => {
         if (dia >= startStr && dia <= endStr) {
             const registro = window.db.presencas[dia].find(r => r.id == idFunc);
@@ -2122,7 +2122,7 @@ window.calcularGanhosRange = function(idFunc, startStr, endStr) {
                     if (registro.status === 'Presente') ganhos += valorDiaria;
                     if (registro.status === 'Atrasado') ganhos += (valorDiaria / 2);
                 } else {
-                    // Mensalista na visÃ£o semanal: conta sÃ³ passagem/presenÃ§a
+                    // Mensalista na visão semanal: conta só passagem/presença
                     if (['Presente', 'Atrasado'].includes(registro.status)) {
                         ganhos += valorPassagem;
                     }
@@ -2131,7 +2131,7 @@ window.calcularGanhosRange = function(idFunc, startStr, endStr) {
         }
     });
 
-    // B. ComissÃµes / Extras
+    // B. Comissões / Extras
     window.db.extras.forEach(e => {
         if (e.data >= startStr && e.data <= endStr) {
             if (String(e.idFunc) === String(idFunc) && e.tipo === 'Comissao') {
@@ -2152,7 +2152,7 @@ window.calcularGanhosRange = function(idFunc, startStr, endStr) {
     return ganhos;
 }
 
-// 3. Soma Pagamentos (Vales) SÃ“ dentro das datas
+// 3. Soma Pagamentos (Vales) SÓ dentro das datas
 window.getPagamentosRange = function(idFunc, startStr, endStr) {
     return window.db.pagamentos.reduce((acc, p) => {
         if (String(p.idFunc) === String(idFunc) && p.data >= startStr && p.data <= endStr) {
@@ -2163,46 +2163,46 @@ window.getPagamentosRange = function(idFunc, startStr, endStr) {
 }
 
 
-// --- FUNÃ‡ÃƒO DE TELETRANSPORTE (DO CARD PARA O PAGAMENTO) ---
+// --- FUNÇÃO DE TELETRANSPORTE (DO CARD PARA O PAGAMENTO) ---
 window.irParaPagamento = function(idFunc) {
-    // 1. Acha o botÃ£o do menu de pagamentos pra deixar ele "aceso" na barra lateral
+    // 1. Acha o botão do menu de pagamentos pra deixar ele "aceso" na barra lateral
     const btnMenu = document.querySelector("button[onclick*='pagamentos']");
     
-    // 2. Muda a tela visualmente para a seÃ§Ã£o de Pagamentos
+    // 2. Muda a tela visualmente para a seção de Pagamentos
     window.showSection('pagamentos', btnMenu);
 
-    // 3. Seleciona o funcionÃ¡rio no Dropdown lÃ¡ da tela de pagamentos
+    // 3. Seleciona o funcionário no Dropdown lá da tela de pagamentos
     const select = document.getElementById('selectFuncionarioPagamento');
     
     if(select) {
         // Define o valor do select
         select.value = idFunc;
         
-        // 4. ForÃ§a o sistema a carregar os dados desse funcionÃ¡rio (Totais, Vales, etc)
-        // Isso faz aparecer o card verde/vermelho com os cÃ¡lculos
+        // 4. Força o sistema a carregar os dados desse funcionário (Totais, Vales, etc)
+        // Isso faz aparecer o card verde/vermelho com os cálculos
         if(window.atualizarPainelPagamentos) {
             window.atualizarPainelPagamentos();
         }
         
-        // 5. Rola a tela pra cima pra facilitar a visÃ£o
+        // 5. Rola a tela pra cima pra facilitar a visão
         window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-        console.error("Erro: NÃ£o achei o campo de seleÃ§Ã£o de funcionÃ¡rio.");
+        console.error("Erro: Não achei o campo de seleção de funcionário.");
     }
 }
 
-// --- FUNÃ‡ÃƒO CÃ‰REBRO: O CÃLCULO MESTRE DO SISTEMA (CORRIGIDO) ---
+// --- FUNÇÃO CÉREBRO: O CÁLCULO MESTRE DO SISTEMA (CORRIGIDO) ---
 window.calcularSaldoExato = function(f, dataRefStr, tipoPeriodo) {
     let totalGanhos = 0;
     let totalPago = 0;
     let dividaAnt = 0;
 
-    // --- MODO 1: MÃŠS COMPLETO (Acumulado) ---
+    // --- MODO 1: MÊS COMPLETO (Acumulado) ---
     if (tipoPeriodo === 'MES') {
         totalGanhos = window.calcularGanhosNoMes(f.id, dataRefStr);
         totalPago = window.getTotalPagoNoMes(f.id, dataRefStr);
         
-        // CORREÃ‡ÃƒO AQUI: Agora chama a funÃ§Ã£o certa "getSaldoMesAnterior"
+        // CORREÇÃO AQUI: Agora chama a função certa "getSaldoMesAnterior"
         if(window.getSaldoMesAnterior) {
             dividaAnt = window.getSaldoMesAnterior(f.id, dataRefStr);
         }
@@ -2214,7 +2214,7 @@ window.calcularSaldoExato = function(f, dataRefStr, tipoPeriodo) {
         const diaSemana = dataBase.getDay(); 
         const diffSegunda = dataBase.getDate() - (diaSemana === 0 ? 6 : diaSemana - 1);
         
-        // Define a SEMANA DO SALÃRIO (Segunda a Domingo)
+        // Define a SEMANA DO SALÁRIO (Segunda a Domingo)
         const start = new Date(dataBase); start.setDate(diffSegunda);
         const end = new Date(start); end.setDate(start.getDate() + 6);
 
@@ -2233,12 +2233,12 @@ window.calcularSaldoExato = function(f, dataRefStr, tipoPeriodo) {
         const valorDiaria = parseFloat(f.salario) || 0;
         const valorPassagem = parseFloat(f.passagem) || 0;
 
-        // A. SALÃRIO PROPORCIONAL
+        // A. SALÁRIO PROPORCIONAL
         if (f.tipo !== 'Diaria') {
             totalGanhos += (valorDiaria / 30) * 7; 
         }
 
-        // B. PRESENÃ‡AS / PASSAGEM
+        // B. PRESENÇAS / PASSAGEM
         Object.keys(window.db.presencas).forEach(dia => {
             const registro = window.db.presencas[dia].find(r => r.id == f.id);
             if (!registro) return;
@@ -2279,7 +2279,7 @@ window.calcularSaldoExato = function(f, dataRefStr, tipoPeriodo) {
     return (totalGanhos + dividaAnt) - totalPago;
 }
 // ============================================================
-// === MÃ“DULO BI (VISÃƒO DE ÃGUIA 2.0) ===
+// === MÓDULO BI (VISÃO DE ÁGUIA 2.0) ===
 // ============================================================
 
 let chartExpandido = null;
@@ -2291,18 +2291,18 @@ window.abrirGraficoBI = function(tipo) {
     const titulo = document.getElementById('tituloGraficoExpandido');
     const selectTipo = document.getElementById('biTipoGrafico');
     
-    // Datas PadrÃ£o
+    // Datas Padrão
     if(!document.getElementById('biDataInicio').value) {
         const hoje = new Date();
         document.getElementById('biDataInicio').value = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
         document.getElementById('biDataFim').value = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).toISOString().split('T')[0];
     }
 
-    // Recupera preferÃªncia
+    // Recupera preferência
     const pref = localStorage.getItem(`pref_grafico_${tipo}`);
     selectTipo.value = pref || ((tipo === 'financeiro') ? 'doughnut' : 'bar');
 
-    titulo.innerText = (tipo === 'financeiro') ? "ðŸ’° AnÃ¡lise Financeira" : "ðŸ† Performance de Vendas";
+    titulo.innerText = (tipo === 'financeiro') ? "💰 Análise Financeira" : "🏆 Performance de Vendas";
     modal.style.display = 'flex';
     
     setTimeout(() => window.filtrarGraficoExpandido(), 100);
@@ -2329,7 +2329,7 @@ window.filtrarGraficoExpandido = function() {
         });
         if(window.db.entregas) window.db.entregas.forEach(e => { if (e.data >= inicio && e.data <= fim) moto += e.valorTotal; });
 
-        labels = ['SalÃ¡rios', 'ComissÃµes', 'Motoboys', 'Despesas'];
+        labels = ['Salários', 'Comissões', 'Motoboys', 'Despesas'];
         valores = [sal, com, moto, loja];
         cores = ['#27ae60', '#8e44ad', '#d35400', '#c0392b'];
         total = sal + com + moto + loja;
@@ -2362,9 +2362,9 @@ window.filtrarGraficoExpandido = function() {
 }
 
 
-// --- FUNÃ‡ÃƒO DO CLIQUE NO DROPDOWN BONITO (AGORA 100% BLINDADA) ---
+// --- FUNÇÃO DO CLIQUE NO DROPDOWN BONITO (AGORA 100% BLINDADA) ---
 window.selecionarFuncionarioCustom = function(id, nome) {
-    document.getElementById('customSelectLabel').innerHTML = id ? `âœ… ${nome}` : `ðŸ” Selecione um funcionÃ¡rio...`;
+    document.getElementById('customSelectLabel').innerHTML = id ? `✅ ${nome}` : `🔍 Selecione um funcionário...`;
     document.getElementById('customSelectDropdown').classList.remove('show');
     const busca = document.getElementById('customSelectSearch');
     if(busca) busca.value = ''; 
@@ -2372,18 +2372,18 @@ window.selecionarFuncionarioCustom = function(id, nome) {
 
     const selectOriginal = document.getElementById('selectFuncionarioPagamento');
     if(selectOriginal) {
-        // ðŸš¨ A MÃGICA SALVADORA: Se o <option> nÃ£o existir no select escondido, a gente cria ele na marra!
+        // 🚨 A MÁGICA SALVADORA: Se o <option> não existir no select escondido, a gente cria ele na marra!
         let optionExists = Array.from(selectOriginal.options).some(opt => opt.value === String(id));
         if (!optionExists) {
             selectOriginal.innerHTML += `<option value="${id}">${nome}</option>`;
         }
         
-        selectOriginal.value = id; // Agora a seleÃ§Ã£o funciona 100%
+        selectOriginal.value = id; // Agora a seleção funciona 100%
         if(window.atualizarPainelPagamentos) window.atualizarPainelPagamentos(); 
     }
 }
 
-// --- VARIÃVEL GLOBAL PRA SABER QUAL ABA TÃ ABERTA ---
+// --- VARIÁVEL GLOBAL PRA SABER QUAL ABA TÁ ABERTA ---
 let modoPagamentoAtual = 'Salario'; 
 
 window.mudarModoPagamento = function(modo) {
@@ -2400,7 +2400,7 @@ window.mudarModoPagamento = function(modo) {
     if (window.atualizarPainelPagamentos) window.atualizarPainelPagamentos(); 
 }
 
-// --- ATUALIZA A TELA DE PAGAMENTOS (CÃ“DIGO ORIGINAL + CORREÃ‡ÃƒO ABSOLUTA) ---
+// --- ATUALIZA A TELA DE PAGAMENTOS (CÓDIGO ORIGINAL + CORREÇÃO ABSOLUTA) ---
 window.atualizarPainelPagamentos = function() {
     const selectNativo = document.getElementById('selectFuncionarioPagamento');
     const dataInput = document.getElementById('dataPagamento')?.value; 
@@ -2411,13 +2411,13 @@ window.atualizarPainelPagamentos = function() {
     const gridPag = document.getElementById('gridPagamentos');
     const divLista = document.getElementById('customSelectOptionsList');
 
-    // 1. MÃGICA DA BUSCA BONITA: ForÃ§a a atualizaÃ§Ã£o do SELECT escondido sempre!
+    // 1. MÁGICA DA BUSCA BONITA: Força a atualização do SELECT escondido sempre!
     if (divLista) {
         let htmlLista = '';
         let htmlNativo = '<option value="">Selecione...</option>';
         
         (window.db.funcionarios || []).sort((a,b) => (a.nome||'').localeCompare(b.nome||'')).forEach(f => {
-            const inicial = f.nome ? f.nome.charAt(0).toUpperCase() : 'ðŸ‘¤';
+            const inicial = f.nome ? f.nome.charAt(0).toUpperCase() : '👤';
             const nomeLower = (f.nome || '').toLowerCase();
             
             htmlLista += `
@@ -2438,7 +2438,7 @@ window.atualizarPainelPagamentos = function() {
         if (divLista.children.length !== (window.db.funcionarios || []).length) {
             divLista.innerHTML = htmlLista;
         }
-        // ðŸ”¥ AQUI MATA O BUG: Atualiza os IDs escondidos se eles estiverem vazios!
+        // 🔥 AQUI MATA O BUG: Atualiza os IDs escondidos se eles estiverem vazios!
         if (selectNativo && selectNativo.options.length !== (window.db.funcionarios || []).length + 1) {
             selectNativo.innerHTML = htmlNativo;
         }
@@ -2446,14 +2446,14 @@ window.atualizarPainelPagamentos = function() {
 
     const idFunc = selectNativo ? selectNativo.value : '';
 
-    // 2. SE NINGUÃ‰M ESTIVER SELECIONADO, ESCONDE TUDO
+    // 2. SE NINGUÉM ESTIVER SELECIONADO, ESCONDE TUDO
     if(!idFunc) { 
         if(divAviso) divAviso.style.display = 'none'; 
-        if(gridPag) gridPag.innerHTML = '<p style="text-align:center; width:100%; color:#999; margin-top: 20px;">ðŸ” Selecione um guerreiro acima para ver o histÃ³rico e o saldo.</p>';
+        if(gridPag) gridPag.innerHTML = '<p style="text-align:center; width:100%; color:#999; margin-top: 20px;">🔍 Selecione um guerreiro acima para ver o histórico e o saldo.</p>';
         return; 
     }
 
-    // 3. SEU CÃ“DIGO ORIGINAL COMEÃ‡A AQUI EMBAIXO
+    // 3. SEU CÓDIGO ORIGINAL COMEÇA AQUI EMBAIXO
     const dataRefStr = dataInput ? dataInput : new Date().toISOString().split('T')[0];
     const tipoPeriodo = filtroPeriodo ? filtroPeriodo.value : 'MES';
     const func = window.db.funcionarios.find(f => String(f.id) === String(idFunc));
@@ -2575,22 +2575,22 @@ window.atualizarPainelPagamentos = function() {
             divAviso.style.color = textoCor;
             divAviso.style.border = `1px solid ${cor}`;
 
-            if(saldoAnteriorSalario !== 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; font-weight:bold;"><span>${saldoAnteriorSalario > 0 ? 'ðŸ’š CrÃ©dito Anterior' : 'ðŸ”» DÃ­vida Anterior'}:</span> <span>${fmtMoeda(saldoAnteriorSalario)}</span></div>`;            
-            if(salarioBase > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between;"><span>ðŸ“… SalÃ¡rio Base:</span> <span>${fmtMoeda(salarioBase)}</span></div>`;
-            if(valorTotalDiarias > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between;"><span>â˜€ï¸ DiÃ¡rias (${diasContados}):</span> <span>${fmtMoeda(valorTotalDiarias)}</span></div>`;
-            if(totalComissoes > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#8e44ad;"><span>â­ ComissÃµes:</span> <span>${fmtMoeda(totalComissoes)}</span></div>`;
-            if(totalEntregas > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#d35400;"><span>ðŸï¸ Entregas:</span> <span>${fmtMoeda(totalEntregas)}</span></div>`;
+            if(saldoAnteriorSalario !== 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; font-weight:bold;"><span>${saldoAnteriorSalario > 0 ? '💚 Crédito Anterior' : '🔻 Dívida Anterior'}:</span> <span>${fmtMoeda(saldoAnteriorSalario)}</span></div>`;            
+            if(salarioBase > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between;"><span>📅 Salário Base:</span> <span>${fmtMoeda(salarioBase)}</span></div>`;
+            if(valorTotalDiarias > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between;"><span>☀️ Diárias (${diasContados}):</span> <span>${fmtMoeda(valorTotalDiarias)}</span></div>`;
+            if(totalComissoes > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#8e44ad;"><span>⭐ Comissões:</span> <span>${fmtMoeda(totalComissoes)}</span></div>`;
+            if(totalEntregas > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#d35400;"><span>🏍️ Entregas:</span> <span>${fmtMoeda(totalEntregas)}</span></div>`;
             
-            if(totalValesAbertos > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#e67e22; font-weight:bold; margin-top:5px; border-top:1px dashed #ccc; padding-top:5px;"><span>âš ï¸ Vales Pendentes (NÃƒO descontado ainda):</span> <span>${fmtMoeda(totalValesAbertos)}</span></div>`;
-            if(totalValesDescontados > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#c0392b; font-weight:bold; margin-top:5px; border-top:1px dashed #ccc; padding-top:5px;"><span>ðŸŽ« Vales JÃ¡ Descontados:</span> <span>- ${fmtMoeda(totalValesDescontados)}</span></div>`;
-            if(pagoSalario > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#c0392b; margin-top:5px; border-top:1px dashed #ccc; padding-top:5px;"><span>ðŸ’¸ JÃ¡ Recebido:</span> <span>- ${fmtMoeda(pagoSalario)}</span></div>`;
+            if(totalValesAbertos > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#e67e22; font-weight:bold; margin-top:5px; border-top:1px dashed #ccc; padding-top:5px;"><span>⚠️ Vales Pendentes (NÃO descontado ainda):</span> <span>${fmtMoeda(totalValesAbertos)}</span></div>`;
+            if(totalValesDescontados > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#c0392b; font-weight:bold; margin-top:5px; border-top:1px dashed #ccc; padding-top:5px;"><span>🎫 Vales Já Descontados:</span> <span>- ${fmtMoeda(totalValesDescontados)}</span></div>`;
+            if(pagoSalario > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#c0392b; margin-top:5px; border-top:1px dashed #ccc; padding-top:5px;"><span>💸 Já Recebido:</span> <span>- ${fmtMoeda(pagoSalario)}</span></div>`;
             
             htmlDetalhes += `</div>`;
 
             divAviso.innerHTML = `
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-                    <span style="font-size:1.4rem;">ðŸ’° LÃ­quido SalÃ¡rio: <strong>${fmtMoeda(saldoLiquidoSalario)}</strong></span>
-                    ${func.pix ? `<div style="font-size:0.9rem; background:rgba(255,255,255,0.4); padding:4px 8px; border-radius:4px; border:1px solid rgba(0,0,0,0.1);"><strong>ðŸ”‘ Pix:</strong> ${func.pix} <button class="btn-copy" onclick="window.copiarTexto('${func.pix}')">ðŸ“‹</button></div>` : ``}
+                    <span style="font-size:1.4rem;">💰 Líquido Salário: <strong>${fmtMoeda(saldoLiquidoSalario)}</strong></span>
+                    ${func.pix ? `<div style="font-size:0.9rem; background:rgba(255,255,255,0.4); padding:4px 8px; border-radius:4px; border:1px solid rgba(0,0,0,0.1);"><strong>🔑 Pix:</strong> ${func.pix} <button class="btn-copy" onclick="window.copiarTexto('${func.pix}')">📋</button></div>` : ``}
                 </div>
                 ${htmlDetalhes}
                 <div style="font-size:0.8rem; margin-top:5px; text-align:center; opacity:0.8;">(Passagem e Vales na outra aba)</div>
@@ -2605,20 +2605,20 @@ window.atualizarPainelPagamentos = function() {
             divAviso.style.color = textoCor;
             divAviso.style.border = `1px solid #f1c40f`;
 
-            htmlDetalhes += `<div style="display:flex; justify-content:space-between;"><span>ðŸ’° Saldo Total do MÃªs (Bruto):</span> <span>${fmtMoeda(ganhosSalarioTotal)}</span></div>`;
-            if(pagoSalario > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#c0392b;"><span>ðŸ’¸ SalÃ¡rio JÃ¡ Pago:</span> <span>- ${fmtMoeda(pagoSalario)}</span></div>`;
+            htmlDetalhes += `<div style="display:flex; justify-content:space-between;"><span>💰 Saldo Total do Mês (Bruto):</span> <span>${fmtMoeda(ganhosSalarioTotal)}</span></div>`;
+            if(pagoSalario > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#c0392b;"><span>💸 Salário Já Pago:</span> <span>- ${fmtMoeda(pagoSalario)}</span></div>`;
             
-            htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#e67e22; font-weight:bold; margin-top:5px; border-top:1px dashed #e67e22; padding-top:5px;"><span>âš ï¸ Vales Pendentes:</span> <span>${fmtMoeda(totalValesAbertos)}</span></div>`;
-            if(totalValesDescontados > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#c0392b; font-weight:bold; margin-top:5px; border-top:1px dashed #e67e22; padding-top:5px;"><span>ðŸŽ« Vales JÃ¡ Descontados:</span> <span>- ${fmtMoeda(totalValesDescontados)}</span></div>`;
+            htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#e67e22; font-weight:bold; margin-top:5px; border-top:1px dashed #e67e22; padding-top:5px;"><span>⚠️ Vales Pendentes:</span> <span>${fmtMoeda(totalValesAbertos)}</span></div>`;
+            if(totalValesDescontados > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#c0392b; font-weight:bold; margin-top:5px; border-top:1px dashed #e67e22; padding-top:5px;"><span>🎫 Vales Já Descontados:</span> <span>- ${fmtMoeda(totalValesDescontados)}</span></div>`;
 
             htmlDetalhes += `</div>`;
 
             divAviso.innerHTML = `
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-                    <span style="font-size:1.4rem;">ðŸŽ« Total Pendente p/ Descontar: <strong>${fmtMoeda(totalValesAbertos)}</strong></span>
+                    <span style="font-size:1.4rem;">🎫 Total Pendente p/ Descontar: <strong>${fmtMoeda(totalValesAbertos)}</strong></span>
                 </div>
                 ${htmlDetalhes}
-                <div style="font-size:0.8rem; margin-top:5px; text-align:center; opacity:0.8; font-weight:bold; color:#e67e22;">(O vale listado NÃƒO desconta do salÃ¡rio atÃ© vocÃª clicar em "Descontar do SalÃ¡rio" lÃ¡ embaixo)</div>
+                <div style="font-size:0.8rem; margin-top:5px; text-align:center; opacity:0.8; font-weight:bold; color:#e67e22;">(O vale listado NÃO desconta do salário até você clicar em "Descontar do Salário" lá embaixo)</div>
             `;
             const inputVal = document.getElementById('valorPagamento');
             if(inputVal && document.activeElement !== inputVal) inputVal.value = ''; 
@@ -2630,18 +2630,18 @@ window.atualizarPainelPagamentos = function() {
             divAviso.style.color = textoCor;
             divAviso.style.border = `1px solid ${cor}`;
 
-            if(saldoAnteriorPassagem !== 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; font-weight:bold;"><span>${saldoAnteriorPassagem > 0 ? 'ðŸ’š CrÃ©dito Anterior' : 'ðŸ”» DÃ­vida Anterior'}:</span> <span>${fmtMoeda(saldoAnteriorPassagem)}</span></div>`;
+            if(saldoAnteriorPassagem !== 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; font-weight:bold;"><span>${saldoAnteriorPassagem > 0 ? '💚 Crédito Anterior' : '🔻 Dívida Anterior'}:</span> <span>${fmtMoeda(saldoAnteriorPassagem)}</span></div>`;
 
             if(valorTotalPassagem > 0) {
-                htmlDetalhes += `<div style="display:flex; justify-content:space-between;"><span>ðŸšŒ Passagem Acumulada (${diasContados}d):</span> <span>${fmtMoeda(valorTotalPassagem)}</span></div>`;
+                htmlDetalhes += `<div style="display:flex; justify-content:space-between;"><span>🚌 Passagem Acumulada (${diasContados}d):</span> <span>${fmtMoeda(valorTotalPassagem)}</span></div>`;
                 if (diasPassagemList.length > 0) htmlDetalhes += `<div style="font-size:0.75rem; color:#8e44ad; opacity:0.8; margin-top:2px; margin-bottom:5px; font-style:italic;">Dias computados: ${diasPassagemList.join(', ')}</div>`;
             }
-            if(pagoPassagem > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#c0392b;"><span>ðŸ’¸ JÃ¡ Pago:</span> <span>- ${fmtMoeda(pagoPassagem)}</span></div>`;
+            if(pagoPassagem > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#c0392b;"><span>💸 Já Pago:</span> <span>- ${fmtMoeda(pagoPassagem)}</span></div>`;
             htmlDetalhes += `</div>`;
 
             divAviso.innerHTML = `
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-                    <span style="font-size:1.4rem;">ðŸšŒ LÃ­quido Passagem: <strong>${fmtMoeda(saldoLiquidoPassagem)}</strong></span>
+                    <span style="font-size:1.4rem;">🚌 Líquido Passagem: <strong>${fmtMoeda(saldoLiquidoPassagem)}</strong></span>
                 </div>
                 ${htmlDetalhes}
             `;
@@ -2657,28 +2657,28 @@ window.atualizarPainelPagamentos = function() {
         const sVale = document.getElementById('resumoVale'); if(sVale) sVale.innerText = fmtMoeda(totalValesDescontados); 
     }
 
-    // 4. RENDERIZA OS PAGAMENTOS ANTIGOS DESSE FUNCIONÃRIO LÃ EMBAIXO
+    // 4. RENDERIZA OS PAGAMENTOS ANTIGOS DESSE FUNCIONÁRIO LÁ EMBAIXO
     if (window.filtrarGridPagamentos) {
         window.filtrarGridPagamentos(idFunc, tipoPeriodo, dataRefStr, range);
     } else {
         if (gridPag) {
             gridPag.innerHTML = '';
             if(pagamentosDesteCara.length === 0) {
-                 gridPag.innerHTML = '<p style="text-align:center; width:100%; color:#999; margin-top: 20px;">Nenhum pagamento registrado neste perÃ­odo.</p>';
+                 gridPag.innerHTML = '<p style="text-align:center; width:100%; color:#999; margin-top: 20px;">Nenhum pagamento registrado neste período.</p>';
             } else {
                 pagamentosDesteCara.sort((a,b) => new Date(b.data) - new Date(a.data));
                 pagamentosDesteCara.forEach(pag => {
-                    let icone = 'ðŸ’°'; let corBorda = 'var(--success)'; let corValor = 'var(--success)';
-                    if(pag.tipo === 'Vale') { icone = 'ðŸŽ«'; corBorda = 'var(--warning)'; corValor = 'var(--warning)'; }
-                    if(pag.tipo === 'Passagem') { icone = 'ðŸšŒ'; corBorda = 'var(--purple)'; corValor = 'var(--purple)'; }
+                    let icone = '💰'; let corBorda = 'var(--success)'; let corValor = 'var(--success)';
+                    if(pag.tipo === 'Vale') { icone = '🎫'; corBorda = 'var(--warning)'; corValor = 'var(--warning)'; }
+                    if(pag.tipo === 'Passagem') { icone = '🚌'; corBorda = 'var(--purple)'; corValor = 'var(--purple)'; }
                     const d = pag.data ? pag.data.split('-').reverse().join('/') : '--/--/----';
                     gridPag.innerHTML += `
                         <div class="pagamento-card" style="border-top-color: ${corBorda}; margin-bottom: 10px;">
                             <div class="pag-header">
-                                <span class="pag-date">ðŸ“… ${d}</span>
+                                <span class="pag-date">📅 ${d}</span>
                                 <div style="display:flex; gap:5px;">
-                                    <button class="btn-print-pag" onclick="window.gerarRecibo(${pag.id})" title="Imprimir Recibo">ðŸ–¨ï¸</button>
-                                    <button class="btn-delete-pag" onclick="window.removerPagamento(${pag.id})" title="Apagar LanÃ§amento">ðŸ—‘ï¸</button>
+                                    <button class="btn-print-pag" onclick="window.gerarRecibo(${pag.id})" title="Imprimir Recibo">🖨️</button>
+                                    <button class="btn-delete-pag" onclick="window.removerPagamento(${pag.id})" title="Apagar Lançamento">🗑️</button>
                                 </div>
                             </div>
                             <div class="pag-nome">${icone} ${pag.tipo}</div>
@@ -2705,7 +2705,7 @@ window.filtrarGridPagamentos = function(idFunc, tipoPeriodo, dataRefStr, range) 
             if(p.data < range.start || p.data > range.end) return false;
         }
 
-        // ðŸ”® MAGIA DO FILTRO DAS ABAS: SÃ³ mostra os cards da aba que estÃ¡ aberta
+        // 🔮 MAGIA DO FILTRO DAS ABAS: Só mostra os cards da aba que está aberta
         if (modoPagamentoAtual === 'Salario' && p.tipo !== 'Pagamento') return false;
         if (modoPagamentoAtual === 'Vale' && p.tipo !== 'Vale') return false;
         if (modoPagamentoAtual === 'Passagem' && p.tipo !== 'Passagem') return false;
@@ -2718,8 +2718,8 @@ window.filtrarGridPagamentos = function(idFunc, tipoPeriodo, dataRefStr, range) 
 }
 
 
-// 4. LanÃ§ar (Agora sabe qual aba estÃ¡ aberta)
-// 4. LanÃ§ar (Agora sabe qual aba estÃ¡ aberta automaticamente)
+// 4. Lançar (Agora sabe qual aba está aberta)
+// 4. Lançar (Agora sabe qual aba está aberta automaticamente)
 window.lancarPagamento = async function() {
     if(!checkPerm('fin')) return; 
 
@@ -2739,10 +2739,10 @@ window.lancarPagamento = async function() {
         tipo = 'Pagamento';
     }
 
-    if(!idFunc || !valor || !data) return alert("Preencha todos os campos obrigatÃ³rios!");
+    if(!idFunc || !valor || !data) return alert("Preencha todos os campos obrigatórios!");
 
     const func = window.db.funcionarios.find(f => f.id == idFunc);
-    if(!func) return alert("FuncionÃ¡rio nÃ£o encontrado!");
+    if(!func) return alert("Funcionário não encontrado!");
 
     const novoPag = {
         id: Date.now(),
@@ -2759,10 +2759,10 @@ window.lancarPagamento = async function() {
     try {
         await salvarRegistro(FIREBASE_AREAS.pagamentos, novoPag.id, novoPag);
         window.db.pagamentos.push(novoPag);
-        registrarLog('Financeiro', `LanÃ§ou ${tipo} de ${fmtMoeda(valor)} para ${func.nome}`);
+        registrarLog('Financeiro', `Lançou ${tipo} de ${fmtMoeda(valor)} para ${func.nome}`);
     } catch (erro) {
         console.error("Falha ao salvar pagamento:", erro);
-        alert("Erro: nÃ£o foi possÃ­vel salvar o pagamento na nuvem. OperaÃ§Ã£o cancelada.");
+        alert("Erro: não foi possível salvar o pagamento na nuvem. Operação cancelada.");
         return;
     }
 
@@ -2771,7 +2771,7 @@ window.lancarPagamento = async function() {
 
     window.atualizarPainelPagamentos();
     window.atualizarDashboard();
-    alert("OperaÃ§Ã£o registrada!");
+    alert("Operação registrada!");
 }
 
 window.renderizarCardsPagamento = function(lista) {
@@ -2780,55 +2780,55 @@ window.renderizarCardsPagamento = function(lista) {
     
     lista.forEach(p => {
         let cardClass = '', valorClass = '', icone = '';
-        let botoesExtras = ''; // O BotÃ£o de Descontar do Vale
+        let botoesExtras = ''; // O Botão de Descontar do Vale
         
         if(p.tipo === 'Vale') {
             if (p.status === 'PENDENTE') {
                 cardClass = 'pagamento-card pag-vale'; 
                 valorClass = 'pag-valor valor-vale'; 
-                icone = 'â³ VALE (AGUARDANDO DESCONTO)';
-                botoesExtras = `<button style="background:var(--success); color:white; border:none; padding:8px 10px; border-radius:4px; cursor:pointer; font-weight:bold; width:100%; margin-bottom:10px;" onclick="toggleStatusValePagamento(${p.id})">ðŸ’¸ Descontar do SalÃ¡rio Agora</button>`;
+                icone = '⏳ VALE (AGUARDANDO DESCONTO)';
+                botoesExtras = `<button style="background:var(--success); color:white; border:none; padding:8px 10px; border-radius:4px; cursor:pointer; font-weight:bold; width:100%; margin-bottom:10px;" onclick="toggleStatusValePagamento(${p.id})">💸 Descontar do Salário Agora</button>`;
             } else {
                 cardClass = 'pagamento-card'; 
                 cardClass += ' pag-salario'; 
                 valorClass = 'pag-valor'; 
-                icone = 'âœ… VALE (JÃ DESCONTADO)';
-                botoesExtras = `<button style="background:#bdc3c7; color:white; border:none; padding:8px 10px; border-radius:4px; cursor:pointer; font-weight:bold; width:100%; margin-bottom:10px;" onclick="toggleStatusValePagamento(${p.id})">â†©ï¸ Desfazer Desconto</button>`;
+                icone = '✅ VALE (JÁ DESCONTADO)';
+                botoesExtras = `<button style="background:#bdc3c7; color:white; border:none; padding:8px 10px; border-radius:4px; cursor:pointer; font-weight:bold; width:100%; margin-bottom:10px;" onclick="toggleStatusValePagamento(${p.id})">↩️ Desfazer Desconto</button>`;
             }
         } else if (p.tipo === 'Passagem') {
-            cardClass = 'pagamento-card pag-passagem'; valorClass = 'pag-valor valor-passagem'; icone = 'ðŸšŒ PASSAGEM';
+            cardClass = 'pagamento-card pag-passagem'; valorClass = 'pag-valor valor-passagem'; icone = '🚌 PASSAGEM';
         } else {
-            cardClass = 'pagamento-card pag-salario'; valorClass = 'pag-valor valor-salario'; icone = 'ðŸ’° SALÃRIO';
+            cardClass = 'pagamento-card pag-salario'; valorClass = 'pag-valor valor-salario'; icone = '💰 SALÁRIO';
         }
 
         const card = document.createElement('div'); card.className = cardClass;
         
-        // Deixa o card cinza/transparente se o vale jÃ¡ foi descontado
+        // Deixa o card cinza/transparente se o vale já foi descontado
         if(p.tipo === 'Vale' && p.status !== 'PENDENTE') {
             card.style.opacity = '0.7';
             card.style.borderTopColor = '#7f8c8d';
         }
 
         card.innerHTML = `
-            <div class="pag-header"><span class="pag-date">ðŸ“… ${fmtData(p.data)}</span><div class="pag-nome">${p.nomeFunc}</div></div>
+            <div class="pag-header"><span class="pag-date">📅 ${fmtData(p.data)}</span><div class="pag-nome">${p.nomeFunc}</div></div>
             <div class="pag-desc" style="font-weight:bold; font-size:0.8em; color:var(--text-sub);">${icone}</div>
-            <div class="pag-desc">"${p.desc || 'Sem descriÃ§Ã£o'}"</div>
+            <div class="pag-desc">"${p.desc || 'Sem descrição'}"</div>
             ${botoesExtras}
             <div class="pag-footer">
                 <div class="${valorClass}">${fmtMoeda(p.valor)}</div>
                 <div>
-                    <button class="btn-print-pag" onclick="gerarRecibo(${p.id})">ðŸ–¨ï¸</button>
-                    <button class="btn-delete-pag" onclick="removerPagamento(${p.id})">ðŸ—‘ï¸</button>
+                    <button class="btn-print-pag" onclick="gerarRecibo(${p.id})">🖨️</button>
+                    <button class="btn-delete-pag" onclick="removerPagamento(${p.id})">🗑️</button>
                 </div>
             </div>`;
         grid.appendChild(card);
     });
 }
 // ============================================================
-// === SISTEMA DE BACKUP LOCAL (SEGURANÃ‡A TOTAL) ===
+// === SISTEMA DE BACKUP LOCAL (SEGURANÇA TOTAL) ===
 // ============================================================
 
-// 1. FUNÃ‡ÃƒO PARA BAIXAR O ARQUIVO (EXPORTAR)
+// 1. FUNÇÃO PARA BAIXAR O ARQUIVO (EXPORTAR)
 window.baixarBackupLocal = function() {
     // Verifica se tem algo pra salvar
     if(!window.db || !window.db.funcionarios) {
@@ -2844,7 +2844,7 @@ window.baixarBackupLocal = function() {
     // Transforma os dados do sistema em texto
     const dadosTexto = JSON.stringify(window.db, null, 2);
 
-    // Cria um link invisÃ­vel para baixar
+    // Cria um link invisível para baixar
     const blob = new Blob([dadosTexto], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -2855,10 +2855,10 @@ window.baixarBackupLocal = function() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    alert(`âœ… Backup baixado: ${nomeArquivo}\nGuarde este arquivo em um local seguro (ex: Pen Drive ou Google Drive)!`);
+    alert(`✅ Backup baixado: ${nomeArquivo}\nGuarde este arquivo em um local seguro (ex: Pen Drive ou Google Drive)!`);
 }
 
-// 2. FUNÃ‡ÃƒO PARA LER O ARQUIVO E RESTAURAR (IMPORTAR)
+// 2. FUNÇÃO PARA LER O ARQUIVO E RESTAURAR (IMPORTAR)
 window.restaurarBackupLocal = function() {
     if(!checkPerm('fin')) return alert("Apenas Administradores podem restaurar backups.");
 
@@ -2962,7 +2962,7 @@ window.restaurarBackupLocal = function() {
     input.click();
 }
 // ============================================================
-// === CONTROLE DO MENU CUSTOMIZADO DE FUNCIONÃRIOS ===
+// === CONTROLE DO MENU CUSTOMIZADO DE FUNCIONÁRIOS ===
 // ============================================================
 window.toggleCustomSelect = function() {
     document.getElementById('customSelectDropdown').classList.toggle('show');
@@ -3031,6 +3031,6 @@ window.toggleStatusValePagamento = async function(id) {
         }
     } catch (erro) {
         console.error("Falha ao atualizar status do vale:", erro);
-        alert("Erro: nÃ£o foi possÃ­vel atualizar o vale na nuvem. Nada foi alterado.");
+        alert("Erro: não foi possível atualizar o vale na nuvem. Nada foi alterado.");
     }
 }

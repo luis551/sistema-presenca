@@ -120,7 +120,7 @@
         
 <button class="menu-btn" id="btnMenuBoletos" onclick="showSection('boletos', this)">🧾 Contas & Boletos</button>
 
-        <button class="menu-btn" onclick="showSection('previsao', this)">🔮 Previsão</button>
+        <button class="menu-btn" onclick="showSection('previsao', this)">Previsão</button>
 
         <div class="menu-category">Sistema</div>
         <button class="menu-btn" id="btnSeguranca" onclick="showSection('seguranca', this)">🛡️ Segurança (Audit)</button>
@@ -482,17 +482,23 @@
 
 <div id="previsao" class="section">
     <div class="glass-header">
-        <div style="display:flex; align-items:center; gap:15px;">
-            <h1 style="border:none; margin:0; font-size:1.8rem;">🔮 Cronograma Financeiro</h1>
-            <span class="badge-count" id="totalGeralPrev">R$ 0,00</span>
+        <div class="previsao-heading">
+            <div>
+                <h1 class="previsao-title">Previsão de Pagamentos</h1>
+                <p class="previsao-subtitle">Organize o que precisa sair agora, na semana e no fechamento do mês.</p>
+            </div>
+            <div class="previsao-total-box">
+                <span class="previsao-total-label">Total previsto</span>
+                <span class="badge-count" id="totalGeralPrev">R$ 0,00</span>
+            </div>
         </div>
         
        <div class="filter-group">
     
     <div class="input-wrapper">
-        <label>Filtrar Loja:</label>
+        <label>Loja</label>
         <select id="filtroEmpresaPrevisao" onchange="window.atualizarPrevisao()">
-            <option value="">🏢 Todas as Lojas</option>
+            <option value="">Todas as lojas</option>
             <option value="Bar Araújo">Bar Araújo</option>
             <option value="Ventura">Ventura</option>
             <option value="Armazem do Bras">Armazem do Bras</option>
@@ -503,15 +509,15 @@
     </div>
 
     <div class="input-wrapper">
-        <label>Período de Análise:</label>
+        <label>Período</label>
         <select id="filtroPeriodoPrevisao" onchange="window.atualizarPrevisao()" style="border: 2px solid var(--purple); color: var(--purple); font-weight: bold;">
-            <option value="MES">📅 Mês Completo (Acumulado)</option>
-            <option value="SEMANA_ATUAL">🔻 Semana Atual (Seg-Dom)</option>
-            <option value="SEMANA_PASSADA">⏪ Semana Passada</option>
+            <option value="MES">Mês completo</option>
+            <option value="SEMANA_ATUAL">Semana atual</option>
+            <option value="SEMANA_PASSADA">Semana passada</option>
         </select>
     </div>
     <div class="input-wrapper">
-        <label>Data Base:</label>
+        <label>Data base</label>
         <input type="date" id="dataPrevisaoBase" onchange="window.atualizarPrevisao()">
     </div>
 
@@ -522,7 +528,10 @@
         
         <div class="kanban-col col-urgent">
             <div class="kanban-header header-red">
-                <div class="k-title">🔥 Giro Diário / Atrasados</div>
+                <div class="k-head-text">
+                    <div class="k-title">Pagamento imediato</div>
+                    <div class="k-subtitle">Diárias, atrasos e contas vencidas.</div>
+                </div>
                 <div class="k-total" id="sumUrgent">R$ 0,00</div>
             </div>
             <div id="listUrgent" class="kanban-list"></div>
@@ -530,7 +539,10 @@
 
         <div class="kanban-col col-weekly">
             <div class="kanban-header header-blue">
-                <div class="k-title">📅 Semanal / Quinzenal</div>
+                <div class="k-head-text">
+                    <div class="k-title">Próximos pagamentos</div>
+                    <div class="k-subtitle">Semanais e quinzenais do período.</div>
+                </div>
                 <div class="k-total" id="sumWeekly">R$ 0,00</div>
             </div>
             <div id="listWeekly" class="kanban-list"></div>
@@ -538,7 +550,10 @@
 
         <div class="kanban-col col-monthly">
             <div class="kanban-header header-green">
-                <div class="k-title">📆 Fechamento Mês</div>
+                <div class="k-head-text">
+                    <div class="k-title">Fechamento do mês</div>
+                    <div class="k-subtitle">Mensalistas e compromissos futuros.</div>
+                </div>
                 <div class="k-total" id="sumMonthly">R$ 0,00</div>
             </div>
             <div id="listMonthly" class="kanban-list"></div>

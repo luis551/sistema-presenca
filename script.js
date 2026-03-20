@@ -1893,13 +1893,16 @@ window.atualizarPrevisao = function() {
             const htmlCard = `
                 <div class="k-card ${f.tipo === 'Diaria' ? 'urgent' : 'normal'}">
                     <div class="k-info">
-                        <h4>${f.nome}</h4>
-                        <p>${f.empresa || 'Sem Loja'} • <small>${f.tipo}</small></p>
-                        ${dividaAnt < 0 ? `<small style="color:red">(Dívida Ant: ${fmtMoeda(dividaAnt)})</small>` : ''}
+                        <div class="k-info-top">
+                            <h4>${f.nome}</h4>
+                            <span class="k-pill">${f.tipo}</span>
+                        </div>
+                        <p>${f.empresa || 'Sem loja'}</p>
+                        ${dividaAnt < 0 ? `<small class="k-note k-note-danger">Saldo anterior: ${fmtMoeda(dividaAnt)}</small>` : ''}
                     </div>
                     <div class="k-actions">
                         <span class="k-value">${fmtMoeda(saldo)}</span>
-                        <button class="btn-pay-card" onclick="irParaPagamento(${f.id})">PAGAR ➜</button>
+                        <button class="btn-pay-card" onclick="irParaPagamento(${f.id})">Abrir pagamentos</button>
                     </div>
                 </div>
             `;
@@ -1932,18 +1935,21 @@ window.atualizarPrevisao = function() {
                     const isVencido = dt < hojeStr;
                     const isHoje = dt === hojeStr;
                     let statusClass = isVencido || isHoje ? 'urgent' : 'normal';
-                    let textoStatus = isVencido ? '🚨 VENCIDO' : (isHoje ? '⚠️ VENCE HOJE' : `Vence: ${fmtDataSimples(dt)}`);
+                    let textoStatus = isVencido ? 'Vencido' : (isHoje ? 'Vence hoje' : `Vence em ${fmtDataSimples(dt)}`);
                     let corTexto = isVencido ? 'red' : (isHoje ? 'orange' : '#d35400');
 
                     const htmlBoleto = `
                         <div class="k-card ${statusClass}">
                             <div class="k-info">
-                                <h4>🧾 ${b.desc}</h4>
+                                <div class="k-info-top">
+                                    <h4>${b.desc}</h4>
+                                    <span class="k-pill k-pill-muted">Boleto</span>
+                                </div>
                                 <p>${textoStatus}</p>
                             </div>
                             <div class="k-actions">
                                 <span class="k-value" style="color:${corTexto}">${fmtMoeda(b.valor)}</span>
-                                <button class="btn-pay-card" style="background:#e67e22" onclick="window.showSection('boletos', null)">VER</button>
+                                <button class="btn-pay-card btn-pay-card-secondary" onclick="window.showSection('boletos', null)">Ver boletos</button>
                             </div>
                         </div>
                     `;
@@ -1969,9 +1975,9 @@ window.atualizarPrevisao = function() {
     document.getElementById('sumUrgent').innerText = fmtMoeda(totalUrgent);
     document.getElementById('sumWeekly').innerText = fmtMoeda(totalWeekly);
     if (sumMonthly) sumMonthly.innerText = fmtMoeda(totalMonthly);
-    document.getElementById('totalGeralPrev').innerText = "Total Previsto: " + fmtMoeda(totalUrgent + totalWeekly + totalMonthly);
+    document.getElementById('totalGeralPrev').innerText = fmtMoeda(totalUrgent + totalWeekly + totalMonthly);
     
-    const vazio = '<div style="text-align:center;color:#ccc;padding:20px;font-style:italic">Nada pendente nesta lista</div>';
+    const vazio = '<div class="k-empty">Nenhum lançamento neste grupo.</div>';
     if(listUrgent.innerHTML === '') listUrgent.innerHTML = vazio;
     if(listWeekly.innerHTML === '') listWeekly.innerHTML = vazio;
     if(listMonthly.innerHTML === '') listMonthly.innerHTML = vazio;

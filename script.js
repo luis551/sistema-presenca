@@ -1548,24 +1548,123 @@ window.lancarBoleto = async function() {
 }
 window.renderizarBoletos = function() {
     const grid = document.getElementById('gridBoletos');
-    const filtro = document.getElementById('filtroBoletos').value;
+    const filtroEl = document.getElementById('filtroBoletos');
+
+    if (!grid) return;
+
+    const filtro = filtroEl ? filtroEl.value : 'TODOS';
     grid.innerHTML = '';
 
-    if(!window.db.boletos) window.db.boletos = [];
+    if (!window.db.boletos) window.db.boletos = [];
 
     let totalVencido = 0;
     let totalAberto = 0;
     let totalPago = 0;
 
     const hoje = new Date();
-    hoje.setHours(0,0,0,0);
+    hoje.setHours(0, 0, 0, 0);
 
-    const listaOrdenada = [...window.db.boletos].sort((a,b) => new Date(a.vencimento) - new Date(b.vencimento));
+    const listaOrdenada = [...window.db.boletos].sort(
+        (a, b) => new Date(a.vencimento) - new Date(b.vencimento)
+    );
+
+    const cards = [];
 
     listaOrdenada.forEach(b => {
-        // resto da função
+        const dataVenc = new Date(b.vencimento + 'T12:00:00');
+        const diffTempo = dataVenc - hoje;
+        const diasRestantes = Math.ceil(diffTempo / (1000 * 60 * 60 * 24));
+
+        if (b.status === 'PAGO') {
+            totalPago += parseFloat(b.valor || 0);
+        } else {
+            totalAberto += parseFloat(b.valor || 0);
+            if (diasRestantes < 0) totalVencido += parseFloat(b.valor || 0);
+        }
+
+        if (filtro === 'PENDENTE' && b.status === 'PAGO') return;
+        if (filtro === 'PAGO' && b.status !== 'PAGO') return;
+
+        let classeBorda = '';
+        let badgeData = '';
+        let textoData = '';
+
+        if (b.status === 'PAGO') {
+            classeBorda = 'b-pago';
+            badgeData = 'badge-green';
+            textoData = '✅ PAGO';
+        } else {
+            if (diasRestantes < 0) {
+                classeBorda = 'b-vencido';
+                badgeData = 'badge-red';
+                textoData = `🚨 Venceu há ${Math.abs(diasRestantes)} dias`;
+            } else if (diasRestantes === 0) {
+                classeBorda = 'b-vencido';
+                badgeData = 'badge-red';
+                textoData = '⚠️ VENCE HOJE!';
+            } else if (diasRestantes <= 3) {
+                classeBorda = 'b-atencao';
+                badgeData = 'badge-yellow';
+                textoData = `⏳ Vence em ${diasRestantes} dias`;
+            } else {
+                classeBorda = 'b-dia';
+                badgeData = 'badge-blue';
+                textoData = `📅 Vence em ${diasRestantes} dias`;
+            }
+        }
+
+        const btnAcao = b.status === 'PENDENTE'
+            ? `<button class="btn-pagar pendente" onclick="toggleStatusBoleto(${b.id})">💸 Confirmar Pagamento</button>`
+            : `<button class="btn-pagar desfazer" onclick="toggleStatusBoleto(${b.id})">↩️ Desfazer (Tornar Pendente)</button>`;
+
+        const dataFormatada = typeof fmtDataSimples === 'function'
+            ? fmtDataSimples(b.vencimento)
+            : b.vencimento;
+
+        const html = `
+            <div class="boleto-card ${classeBorda}">
+                <div>
+                    <div class="bol-header">
+                        <span style="font-weight:bold; color:var(--text-sub); font-size:0.8rem;">#${String(b.id).slice(-4)}</span>
+
+                        <div style="text-align:right; display:flex; flex-direction:column; align-items:flex-end;">
+                            <span class="bol-data ${badgeData}">${textoData}</span>
+                            <span style="font-size:0.7rem; color:#888; margin-top:3px; font-weight:bold;">Dia: ${dataFormatada}</span>
+                        </div>
+                    </div>
+
+                    <div style="font-weight:bold; font-size:1.1rem; margin-bottom:5px;">${b.desc}</div>
+
+                    ${b.codigo ? `
+                        <div style="font-size:0.75rem; color:#aaa; overflow:hidden; text-overflow:ellipsis; margin-bottom:5px;">
+                            📠 ${b.codigo}
+                        </div>
+                    ` : ''}
+                </div>
+
+                <div>
+                    <div class="bol-valor">${fmtMoeda(b.valor)}</div>
+                    ${btnAcao}
+                    <button onclick="removerBoleto(${b.id})" style="background:none; border:none; color:#e74c3c; width:100%; margin-top:5px; cursor:pointer; font-size:0.8rem;">
+                        Excluir
+                    </button>
+                </div>
+            </div>
+        `;
+
+        cards.push(html);
     });
-}
+
+    grid.innerHTML = cards.join('');
+
+    const totalVencidoEl = document.getElementById('bolTotalVencido');
+    const totalAbertoEl = document.getElementById('bolTotalAberto');
+    const totalPagoEl = document.getElementById('bolTotalPago');
+
+    if (totalVencidoEl) totalVencidoEl.innerText = fmtMoeda(totalVencido);
+    if (totalAbertoEl) totalAbertoEl.innerText = fmtMoeda(totalAberto);
+    if (totalPagoEl) totalPagoEl.innerText = fmtMoeda(totalPago);
+};
 
     listaOrdenada.forEach(b => {
         const dataVenc = new Date(b.vencimento + 'T12:00:00'); // Fuso horário corrigido

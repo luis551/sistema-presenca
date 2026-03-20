@@ -23,6 +23,11 @@ async function deletarRegistro(area, id) {
         await window.deletarItemNuvem(area, String(id));
     }
 }
+
+function getListaPresencaDia(dataKey) {
+    const lista = window.db && window.db.presencas ? window.db.presencas[dataKey] : null;
+    return Array.isArray(lista) ? lista : [];
+}
 // --- SISTEMA DE LOG (AUDITORIA) ---
 function registrarLog(acao, detalhes) {
     const log = {
@@ -296,7 +301,7 @@ window.imprimirFolhaPonto = function(idFunc) {
         const diaSemana = dataObj.toLocaleDateString('pt-BR', {weekday: 'short'}).toUpperCase();
         
         let status = '';
-        const listaDia = window.db.presencas[dataIso];
+        const listaDia = getListaPresencaDia(dataIso);
         if(listaDia) {
             const registro = listaDia.find(r => r.id === idFunc);
             if(registro) status = registro.status;
@@ -690,7 +695,7 @@ window.carregarListaPresenca = function() {
     const btnTopo = document.getElementById('btnSalvarTopo');
     if(btnTopo) btnTopo.style.display = 'block';
     
-    const registroDia = window.db.presencas[data] || [];
+    const registroDia = getListaPresencaDia(data);
     
     // Filtra e Ordena os funcionários
     const funcionariosFiltrados = window.db.funcionarios
@@ -912,7 +917,7 @@ window.definirInicioSemana = function() {
     const mes = String(segunda.getMonth() + 1).padStart(2, '0');
     const dia = String(segunda.getDate()).padStart(2, '0');
     
-    const inputData = document.getElementById('dataInicioCiclo');
+    const inputData = document.getElementById('dataPrevisaoBase');
     if (inputData) {
         inputData.value = `${ano}-${mes}-${dia}`;
         window.atualizarPrevisao(); // Recalcula a tela
@@ -949,7 +954,7 @@ window.calcularSaldoGlobal = function(f, dataRefStr) {
     Object.keys(window.db.presencas).forEach(diaStr => {
         // Só olha presenças até a data selecionada
         if (diaStr <= dataRefStr) {
-            const registro = window.db.presencas[diaStr].find(r => r.id == f.id);
+            const registro = getListaPresencaDia(diaStr).find(r => r.id == f.id);
             
             if (registro && ['Presente', 'Atrasado'].includes(registro.status)) {
                 const mesRegistro = diaStr.slice(0, 7);
@@ -1150,7 +1155,7 @@ window.calcularGanhosNoMes = function(idFunc, dataRefStr) {
     // 2. Presenças (Loop dia a dia)
     Object.keys(window.db.presencas).forEach(diaStr => {
         if(diaStr.startsWith(`${anoRef}-${mesRef}`)) { 
-            const listaDia = window.db.presencas[diaStr]; 
+            const listaDia = getListaPresencaDia(diaStr); 
             // Usa '==' para garantir que pega mesmo se um for string e outro numero
             const registro = listaDia.find(r => r.id == idFunc);
             
@@ -1227,7 +1232,7 @@ window.getSaldoMesAnterior = function(idFunc, dataRefStr) {
 
     Object.keys(window.db.presencas).forEach(diaStr => {
         if(diaStr.startsWith(`${anoAnt}-${String(mesAnt).padStart(2, '0')}`)) { 
-            const reg = window.db.presencas[diaStr].find(r => r.id == idFunc);
+            const reg = getListaPresencaDia(diaStr).find(r => r.id == idFunc);
             if(reg) {
                 if (func.tipo !== 'Diaria') { 
                     if(['Presente', 'Atrasado'].includes(reg.status)) ganhoPassagem += valorPassagem; 
@@ -1402,7 +1407,6 @@ window.atualizarInterface = function() {
     const selectPag = document.getElementById('selectFuncionarioPagamento'); 
     const selVendedor = document.getElementById('selVendedorExtra'); 
     const selFiltroExtras = document.getElementById('filtroExtras'); 
-    const selPrevisao = document.getElementById('filtroPrevisao');
     
     const selectionAtualPag = selectPag ? selectPag.value : ''; 
     const selectionAtualExtra = selVendedor ? selVendedor.value : '';
@@ -1419,16 +1423,20 @@ window.atualizarInterface = function() {
     }
     if(selVendedor) selVendedor.innerHTML = '<option value="">Selecione...</option>'; 
     if(selFiltroExtras) selFiltroExtras.innerHTML = '<option value="">Todos (Geral)</option><option value="DESPESAS">🔸 Despesas / Eventos</option>'; 
-    if(selPrevisao) selPrevisao.innerHTML = '<option value="">Todos da Equipe</option>';
 
     // Pega todos os funcionários e ordena por nome
     const funcsOrdenados = [...window.db.funcionarios].sort((a, b) => a.nome.localeCompare(b.nome));
     
     // --- PARTE 1: Preencher os Menus (Carrega TODOS) ---
+    const customOptions = [];
+    const selectPagOptions = [];
+    const vendedorOptions = [];
+    const extrasOptions = [];
+
     funcsOrdenados.forEach(f => {
         if(listContainer) {
             const inicial = f.nome.charAt(0);
-            listContainer.innerHTML += `
+            customOptions.push(`
                 <div class="custom-option-item" data-nome="${f.nome.toLowerCase()}" onclick="selecionarFuncionarioCustom('${f.id}', '${f.nome}')">
                     <div class="custom-opt-avatar">${inicial}</div>
                     <div class="custom-opt-info">
@@ -1439,13 +1447,17 @@ window.atualizarInterface = function() {
                         </span>
                     </div>
                 </div>
-            `;
+            `);
         }
-        if(selectPag) selectPag.innerHTML += `<option value="${f.id}">${f.nome}</option>`; 
-        if(selVendedor) selVendedor.innerHTML += `<option value="${f.id}">${f.nome}</option>`; 
-        if(selFiltroExtras) selFiltroExtras.innerHTML += `<option value="${f.id}">${f.nome}</option>`; 
-        if(selPrevisao) selPrevisao.innerHTML += `<option value="${f.id}">${f.nome}</option>`;
+        if(selectPag) selectPagOptions.push(`<option value="${f.id}">${f.nome}</option>`); 
+        if(selVendedor) vendedorOptions.push(`<option value="${f.id}">${f.nome}</option>`); 
+        if(selFiltroExtras) extrasOptions.push(`<option value="${f.id}">${f.nome}</option>`); 
     });
+
+    if(listContainer) listContainer.innerHTML += customOptions.join('');
+    if(selectPag) selectPag.innerHTML += selectPagOptions.join('');
+    if(selVendedor) selVendedor.innerHTML += vendedorOptions.join('');
+    if(selFiltroExtras) selFiltroExtras.innerHTML += extrasOptions.join('');
 
     // --- PARTE 2: Lógica Inteligente de Exibição ---
     let listaParaTabela = [];
@@ -1473,6 +1485,7 @@ window.atualizarInterface = function() {
     }
 
     // --- PARTE 3: Desenhar a Tabela ---
+    const tableRows = [];
     listaParaTabela.forEach(f => {
         let tagClass = 'tag-mensal'; let tagText = 'MENSAL';
         if(f.tipo === 'Quinzenal') { tagClass = 'tag-quinzenal'; tagText = 'QUINZENAL'; } else if(f.tipo === 'Semanal') { tagClass = 'tag-semanal'; tagText = 'SEMANAL'; } else if(f.tipo === 'Diaria') { tagClass = 'tag-diaria'; tagText = 'DIÁRIA'; }
@@ -1490,13 +1503,15 @@ window.atualizarInterface = function() {
         
         const btnPonto = `<button class="btn-copy" style="background:var(--secondary); color:white; border:none; margin-left:5px;" onclick="imprimirFolhaPonto(${f.id})" title="Imprimir Ponto">⏰</button>`;
 
-        tbFunc.innerHTML += `<tr><td><strong>${f.nome}</strong>${cpfDisplay}</td><td>${f.cargo}<span class="info-empresa">🏢 ${f.empresa || '-'}</span>${entradaDisplay}</td><td>${contatoDisplay}${pixDisplay}${enderecoDisplay}${nascDisplay}</td><td><span class="tag-tipo ${tagClass}">${tagText}</span><br>${infoPagamento}</td><td><div class="table-actions"><button class="btn-edit" onclick="prepararEdicao(${f.id})" title="Editar">✏️</button><button class="btn-del" onclick="removerFuncionario(${f.id})" title="Excluir">🗑️</button>${btnPonto}</div></td></tr>`;
+        tableRows.push(`<tr><td><strong>${f.nome}</strong>${cpfDisplay}</td><td>${f.cargo}<span class="info-empresa">🏢 ${f.empresa || '-'}</span>${entradaDisplay}</td><td>${contatoDisplay}${pixDisplay}${enderecoDisplay}${nascDisplay}</td><td><span class="tag-tipo ${tagClass}">${tagText}</span><br>${infoPagamento}</td><td><div class="table-actions"><button class="btn-edit" onclick="prepararEdicao(${f.id})" title="Editar">✏️</button><button class="btn-del" onclick="removerFuncionario(${f.id})" title="Excluir">🗑️</button>${btnPonto}</div></td></tr>`);
     });
 
     // Adiciona o Botão ou Mensagem no final da tabela
     if (mensagemRodape) {
-        tbFunc.innerHTML += `<tr><td colspan="5" style="text-align:center; padding:15px;">${mensagemRodape}</td></tr>`;
+        tableRows.push(`<tr><td colspan="5" style="text-align:center; padding:15px;">${mensagemRodape}</td></tr>`);
     }
+
+    tbFunc.innerHTML = tableRows.join('');
 
     if(selectPag) selectPag.value = selectionAtualPag; 
     if(selVendedor) selVendedor.value = selectionAtualExtra;
@@ -1666,78 +1681,6 @@ window.renderizarBoletos = function() {
     if (totalPagoEl) totalPagoEl.innerText = fmtMoeda(totalPago);
 };
 
-    listaOrdenada.forEach(b => {
-        const dataVenc = new Date(b.vencimento + 'T12:00:00'); // Fuso horário corrigido
-        const diffTempo = dataVenc - hoje;
-        const diasRestantes = Math.ceil(diffTempo / (1000 * 60 * 60 * 24)); 
-
-        // Somas
-        if(b.status === 'PAGO') {
-            totalPago += b.valor;
-        } else {
-            totalAberto += b.valor;
-            if(diasRestantes < 0) totalVencido += b.valor;
-        }
-
-        // Filtros Visuais
-        if(filtro === 'PENDENTE' && b.status === 'PAGO') return;
-        if(filtro === 'PAGO' && b.status !== 'PAGO') return;
-
-        // Cores e Etiquetas
-        let classeBorda = '';
-        let badgeData = '';
-        let textoData = '';
-
-        if (b.status === 'PAGO') {
-            classeBorda = 'b-pago'; badgeData = 'badge-green'; textoData = '✅ PAGO';
-        } else {
-            if (diasRestantes < 0) {
-                classeBorda = 'b-vencido'; badgeData = 'badge-red'; textoData = `🚨 Venceu há ${Math.abs(diasRestantes)} dias`;
-            } else if (diasRestantes === 0) {
-                classeBorda = 'b-vencido'; badgeData = 'badge-red'; textoData = `⚠️ VENCE HOJE!`;
-            } else if (diasRestantes <= 3) {
-                classeBorda = 'b-atencao'; badgeData = 'badge-yellow'; textoData = `⏳ Vence em ${diasRestantes} dias`;
-            } else {
-                classeBorda = 'b-dia'; badgeData = 'badge-blue'; textoData = `📅 Vence em ${diasRestantes} dias`;
-            }
-        }
-
-        const btnAcao = b.status === 'PENDENTE' 
-            ? `<button class="btn-pagar pendente" onclick="toggleStatusBoleto(${b.id})">💸 Confirmar Pagamento</button>`
-            : `<button class="btn-pagar desfazer" onclick="toggleStatusBoleto(${b.id})">↩️ Desfazer (Tornar Pendente)</button>`;
-
-        // Formata a data bonitinha (ex: 29/01/2026)
-        const dataFormatada = fmtDataSimples(b.vencimento);
-
-        const html = `
-            <div class="boleto-card ${classeBorda}">
-                <div>
-                    <div class="bol-header">
-                        <span style="font-weight:bold; color:var(--text-sub); font-size:0.8rem;">#${b.id.toString().slice(-4)}</span>
-                        
-                        <div style="text-align:right; display:flex; flex-direction:column; align-items:flex-end;">
-                            <span class="bol-data ${badgeData}">${textoData}</span>
-                            <span style="font-size:0.7rem; color:#888; margin-top:3px; font-weight:bold;">Dia: ${dataFormatada}</span>
-                        </div>
-
-                    </div>
-                    <div style="font-weight:bold; font-size:1.1rem; margin-bottom:5px;">${b.desc}</div>
-                    ${b.codigo ? `<div style="font-size:0.75rem; color:#aaa; overflow:hidden; text-overflow:ellipsis; margin-bottom:5px;">📠 ${b.codigo}</div>` : ''}
-                </div>
-                <div>
-                    <div class="bol-valor">${fmtMoeda(b.valor)}</div>
-                    ${btnAcao}
-                    <button onclick="removerBoleto(${b.id})" style="background:none; border:none; color:#e74c3c; width:100%; margin-top:5px; cursor:pointer; font-size:0.8rem;">Excluir</button>
-                </div>
-            </div>`;
-        cards.push(html);
-    });
-
-    grid.innerHTML = cards.join('');
-
-    document.getElementById('bolTotalVencido').innerText = fmtMoeda(totalVencido);
-    document.getElementById('bolTotalAberto').innerText = fmtMoeda(totalAberto);
-    document.getElementById('bolTotalPago').innerText = fmtMoeda(totalPago);
 window.toggleStatusBoleto = async function(id) {
     if(!checkPerm('boletos')) return;
 
@@ -1795,6 +1738,8 @@ window.removerBoleto = async function(id) {
 window.atualizarPrevisao = function() {
     const listUrgent = document.getElementById('listUrgent');
     const listWeekly = document.getElementById('listWeekly');
+    const listMonthly = document.getElementById('listMonthly');
+    const sumMonthly = document.getElementById('sumMonthly');
     
     // 1. PEGAR OS DADOS
     const inputData = document.getElementById('dataPrevisaoBase');
@@ -1804,14 +1749,21 @@ window.atualizarPrevisao = function() {
     if (!inputData.value) inputData.value = new Date().toISOString().split('T')[0];
     const dataRefStr = inputData.value;
     
+    if (!listUrgent || !listWeekly || !listMonthly || !filtroLoja) return;
+
     const periodoSelecionado = filtroPeriodo ? filtroPeriodo.value : 'MES';
     const lojaSelecionada = filtroLoja.value.trim().toLowerCase();
 
     listUrgent.innerHTML = ''; 
     listWeekly.innerHTML = '';
+    listMonthly.innerHTML = '';
     
     let totalUrgent = 0;
     let totalWeekly = 0;
+    let totalMonthly = 0;
+    const urgentCards = [];
+    const weeklyCards = [];
+    const monthlyCards = [];
 
     // 2. CONFIGURAR DATAS E DETECTAR "SEMANA DE PAGAMENTO"
     let rangeSalario = null;
@@ -1869,7 +1821,12 @@ window.atualizarPrevisao = function() {
         if (periodoSelecionado === 'MES') {
             totalGanhos = window.calcularGanhosNoMes(f.id, dataRefStr);
             totalPago = window.getTotalPagoNoMes(f.id, dataRefStr);
-            if(window.getDividaMesAnterior) dividaAnt = window.getDividaMesAnterior(f.id, dataRefStr);
+            if(window.getSaldoMesAnterior) {
+                const saldosAnteriores = window.getSaldoMesAnterior(f.id, dataRefStr);
+                if (saldosAnteriores && typeof saldosAnteriores === 'object') {
+                    dividaAnt = (parseFloat(saldosAnteriores.salario) || 0) + (parseFloat(saldosAnteriores.passagem) || 0);
+                }
+            }
         } 
         else if (rangeSalario) {
             const valorDiaria = parseFloat(f.salario) || 0;
@@ -1896,7 +1853,7 @@ window.atualizarPrevisao = function() {
 
             // B. PRESENÇAS / PASSAGEM (Isso corre sempre)
             Object.keys(window.db.presencas).forEach(dia => {
-                const registro = window.db.presencas[dia].find(r => r.id == f.id);
+                const registro = getListaPresencaDia(dia).find(r => r.id == f.id);
                 if (!registro) return;
 
                 if (f.tipo === 'Diaria') {
@@ -1949,10 +1906,13 @@ window.atualizarPrevisao = function() {
             
             if (f.tipo === 'Diaria') {
                 totalUrgent += saldo;
-                listUrgent.innerHTML += htmlCard;
+                urgentCards.push(htmlCard);
+            } else if (f.tipo === 'Mensal') {
+                totalMonthly += saldo;
+                monthlyCards.push(htmlCard);
             } else {
                 totalWeekly += saldo;
-                listWeekly.innerHTML += htmlCard;
+                weeklyCards.push(htmlCard);
             }
         }
     });
@@ -1987,20 +1947,34 @@ window.atualizarPrevisao = function() {
                             </div>
                         </div>
                     `;
-                    if (isVencido || isHoje) { totalUrgent += b.valor; listUrgent.innerHTML += htmlBoleto; } 
-                    else { totalWeekly += b.valor; listWeekly.innerHTML += htmlBoleto; }
+                    if (isVencido || isHoje) {
+                        totalUrgent += b.valor;
+                        urgentCards.push(htmlBoleto);
+                    } else if (periodoSelecionado === 'MES') {
+                        totalMonthly += b.valor;
+                        monthlyCards.push(htmlBoleto);
+                    } else {
+                        totalWeekly += b.valor;
+                        weeklyCards.push(htmlBoleto);
+                    }
                 }
             }
         });
     }
 
+    listUrgent.innerHTML = urgentCards.join('');
+    listWeekly.innerHTML = weeklyCards.join('');
+    listMonthly.innerHTML = monthlyCards.join('');
+
     document.getElementById('sumUrgent').innerText = fmtMoeda(totalUrgent);
     document.getElementById('sumWeekly').innerText = fmtMoeda(totalWeekly);
-    document.getElementById('totalGeralPrev').innerText = "Total Previsto: " + fmtMoeda(totalUrgent + totalWeekly);
+    if (sumMonthly) sumMonthly.innerText = fmtMoeda(totalMonthly);
+    document.getElementById('totalGeralPrev').innerText = "Total Previsto: " + fmtMoeda(totalUrgent + totalWeekly + totalMonthly);
     
     const vazio = '<div style="text-align:center;color:#ccc;padding:20px;font-style:italic">Nada pendente nesta lista</div>';
     if(listUrgent.innerHTML === '') listUrgent.innerHTML = vazio;
     if(listWeekly.innerHTML === '') listWeekly.innerHTML = vazio;
+    if(listMonthly.innerHTML === '') listMonthly.innerHTML = vazio;
 }
 // --- FUNÇÃO DE EXTRATO DETALHADO (CORRIGIDA PARA DIARISTA) ---
 window.mostrarDetalhesCalculo = function(idFunc, dataStr) {
@@ -2022,7 +1996,7 @@ window.mostrarDetalhesCalculo = function(idFunc, dataStr) {
 
     Object.keys(window.db.presencas).forEach(diaStr => {
         if(diaStr.startsWith(`${anoRef}-${mesRef}`)) { 
-            const registro = window.db.presencas[diaStr].find(r => r.id == idFunc);
+                    const registro = getListaPresencaDia(diaStr).find(r => r.id == idFunc);
             
             if(registro) {
                 // LÓGICA MENSALISTA
@@ -2110,7 +2084,7 @@ window.salvarPresencaDia = async function() {
     const cards = document.querySelectorAll('.presenca-card');
     if(cards.length === 0) return alert("Nenhum funcionário listado para salvar.");
 
-    const listaExistente = window.db.presencas[data] || [];
+    const listaExistente = getListaPresencaDia(data);
     const mapaPresenca = new Map();
 
     listaExistente.forEach(p => {
@@ -2215,7 +2189,7 @@ window.calcularGanhosRange = function(idFunc, startStr, endStr) {
     // A. Varre dias de presença
     Object.keys(window.db.presencas).forEach(dia => {
         if (dia >= startStr && dia <= endStr) {
-            const registro = window.db.presencas[dia].find(r => r.id == idFunc);
+            const registro = getListaPresencaDia(dia).find(r => r.id == idFunc);
             if (registro) {
                 if (func.tipo === 'Diaria') {
                     if (registro.status === 'Presente') ganhos += valorDiaria;
@@ -2303,7 +2277,10 @@ window.calcularSaldoExato = function(f, dataRefStr, tipoPeriodo) {
         
         // CORREÇÃO AQUI: Agora chama a função certa "getSaldoMesAnterior"
         if(window.getSaldoMesAnterior) {
-            dividaAnt = window.getSaldoMesAnterior(f.id, dataRefStr);
+            const saldosAnteriores = window.getSaldoMesAnterior(f.id, dataRefStr);
+            if (saldosAnteriores && typeof saldosAnteriores === 'object') {
+                dividaAnt = (parseFloat(saldosAnteriores.salario) || 0) + (parseFloat(saldosAnteriores.passagem) || 0);
+            }
         }
     } 
     
@@ -2339,7 +2316,7 @@ window.calcularSaldoExato = function(f, dataRefStr, tipoPeriodo) {
 
         // B. PRESENÇAS / PASSAGEM
         Object.keys(window.db.presencas).forEach(dia => {
-            const registro = window.db.presencas[dia].find(r => r.id == f.id);
+            const registro = getListaPresencaDia(dia).find(r => r.id == f.id);
             if (!registro) return;
 
             if (f.tipo === 'Diaria') {
@@ -2597,7 +2574,7 @@ window.atualizarPainelPagamentos = function() {
         else if (range) { if(diaStr >= range.start && diaStr <= range.end) deveContar = true; }
 
         if(deveContar) {
-            const reg = window.db.presencas[diaStr].find(r => String(r.id) === String(idFunc));
+            const reg = getListaPresencaDia(diaStr).find(r => String(r.id) === String(idFunc));
             if(reg) {
                 if(func.tipo !== 'Diaria' && ['Presente', 'Atrasado'].includes(reg.status)) {
                     valorTotalPassagem += valorPassagem;

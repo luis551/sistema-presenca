@@ -2840,7 +2840,12 @@ window.lancarPagamento = async function() {
     if(!Array.isArray(window.db.pagamentos)) window.db.pagamentos = [];
     try {
         await salvarRegistro(FIREBASE_AREAS.pagamentos, novoPag.id, novoPag);
-        window.db.pagamentos.push(novoPag);
+        const idxExistente = window.db.pagamentos.findIndex(p => String(p.id) === String(novoPag.id));
+        if (idxExistente >= 0) {
+            window.db.pagamentos[idxExistente] = { ...window.db.pagamentos[idxExistente], ...novoPag };
+        } else {
+            window.db.pagamentos.push(novoPag);
+        }
         registrarLog('Financeiro', `Lançou ${tipo} de ${fmtMoeda(valor)} para ${func.nome}`);
     } catch (erro) {
         console.error("Falha ao salvar pagamento:", erro);
@@ -2858,41 +2863,55 @@ window.lancarPagamento = async function() {
 
 window.renderizarCardsPagamento = function(lista) {
     const grid = document.getElementById('gridPagamentos');
-    if (lista.length === 0) { grid.innerHTML = '<p style="color:#aaa; width:100%; text-align:center;">Nenhum registro.</p>'; return; }
+    if (!grid) return;
+
+    // limpa o grid antes de renderizar de novo
+    grid.innerHTML = '';
+
+    if (!lista || lista.length === 0) {
+        grid.innerHTML = '<p style="color:#aaa; width:100%; text-align:center;">Nenhum registro.</p>';
+        return;
+    }
     
     lista.forEach(p => {
         let cardClass = '', valorClass = '', icone = '';
-        let botoesExtras = ''; // O Botão de Descontar do Vale
-        
-        if(p.tipo === 'Vale') {
+        let botoesExtras = '';
+
+        if (p.tipo === 'Vale') {
             if (p.status === 'PENDENTE') {
-                cardClass = 'pagamento-card pag-vale'; 
-                valorClass = 'pag-valor valor-vale'; 
+                cardClass = 'pagamento-card pag-vale';
+                valorClass = 'pag-valor valor-vale';
                 icone = '⏳ VALE (AGUARDANDO DESCONTO)';
                 botoesExtras = `<button style="background:var(--success); color:white; border:none; padding:8px 10px; border-radius:4px; cursor:pointer; font-weight:bold; width:100%; margin-bottom:10px;" onclick="toggleStatusValePagamento(${p.id})">💸 Descontar do Salário Agora</button>`;
             } else {
-                cardClass = 'pagamento-card'; 
-                cardClass += ' pag-salario'; 
-                valorClass = 'pag-valor'; 
+                cardClass = 'pagamento-card pag-salario';
+                valorClass = 'pag-valor valor-salario';
                 icone = '✅ VALE (JÁ DESCONTADO)';
                 botoesExtras = `<button style="background:#bdc3c7; color:white; border:none; padding:8px 10px; border-radius:4px; cursor:pointer; font-weight:bold; width:100%; margin-bottom:10px;" onclick="toggleStatusValePagamento(${p.id})">↩️ Desfazer Desconto</button>`;
             }
         } else if (p.tipo === 'Passagem') {
-            cardClass = 'pagamento-card pag-passagem'; valorClass = 'pag-valor valor-passagem'; icone = '🚌 PASSAGEM';
+            cardClass = 'pagamento-card pag-passagem';
+            valorClass = 'pag-valor valor-passagem';
+            icone = '🚌 PASSAGEM';
         } else {
-            cardClass = 'pagamento-card pag-salario'; valorClass = 'pag-valor valor-salario'; icone = '💰 SALÁRIO';
+            cardClass = 'pagamento-card pag-salario';
+            valorClass = 'pag-valor valor-salario';
+            icone = '💰 SALÁRIO';
         }
 
-        const card = document.createElement('div'); card.className = cardClass;
-        
-        // Deixa o card cinza/transparente se o vale já foi descontado
-        if(p.tipo === 'Vale' && p.status !== 'PENDENTE') {
+        const card = document.createElement('div');
+        card.className = cardClass;
+
+        if (p.tipo === 'Vale' && p.status !== 'PENDENTE') {
             card.style.opacity = '0.7';
             card.style.borderTopColor = '#7f8c8d';
         }
 
         card.innerHTML = `
-            <div class="pag-header"><span class="pag-date">📅 ${fmtData(p.data)}</span><div class="pag-nome">${p.nomeFunc}</div></div>
+            <div class="pag-header">
+                <span class="pag-date">📅 ${fmtData(p.data)}</span>
+                <div class="pag-nome">${p.nomeFunc}</div>
+            </div>
             <div class="pag-desc" style="font-weight:bold; font-size:0.8em; color:var(--text-sub);">${icone}</div>
             <div class="pag-desc">"${p.desc || 'Sem descrição'}"</div>
             ${botoesExtras}
@@ -2902,7 +2921,9 @@ window.renderizarCardsPagamento = function(lista) {
                     <button class="btn-print-pag" onclick="gerarRecibo(${p.id})">🖨️</button>
                     <button class="btn-delete-pag" onclick="removerPagamento(${p.id})">🗑️</button>
                 </div>
-            </div>`;
+            </div>
+        `;
+
         grid.appendChild(card);
     });
 }

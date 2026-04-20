@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -120,7 +120,7 @@
         
 <button class="menu-btn" id="btnMenuBoletos" onclick="showSection('boletos', this)">🧾 Contas & Boletos</button>
 
-        <button class="menu-btn" onclick="showSection('previsao', this)">Previsão</button>
+        <button class="menu-btn" onclick="showSection('previsao', this)">🔮 Previsão</button>
 
         <div class="menu-category">Sistema</div>
         <button class="menu-btn" id="btnSeguranca" onclick="showSection('seguranca', this)">🛡️ Segurança (Audit)</button>
@@ -152,7 +152,7 @@
                 <div class="dash-card"><div class="dash-title">Entregas Motoboys</div><div class="dash-number dash-moto" id="dashMotoboys">R$ 0,00</div></div>
                 <div class="dash-card"><div class="dash-title">Gastos Extras Loja</div><div class="dash-number dash-red" id="dashDespesas">R$ 0,00</div></div>
             </div>
-            <div class="ranking-list"><h3 style="margin-top:0; color:var(--text-main);">🏆 Ranking de Vendas (Comissão 7%)</h3><div id="rankingContainer"></div></div>
+            <div class="ranking-list"><h3 style="margin-top:0; color:var(--text-main);">🏆 Ranking de Vendas (Comissão Variável)</h3><div id="rankingContainer"></div></div>
         </div>
 
         <div id="motoboys" class="section">
@@ -231,6 +231,7 @@
                     <div class="form-group"><label>CPF</label><input type="text" id="fCpf"></div>
                     <div class="form-group"><label>Data Nascimento</label><input type="date" id="fNasc"></div>
                     <div class="form-group"><label>Data Entrada</label><input type="date" id="fEntrada"></div>
+                    <div class="form-group"><label>Status do Funcionário</label><select id="fStatusFuncionario"><option value="Ativo" selected>Ativo</option><option value="Inativo / Demitido">Inativo / Demitido</option></select></div>
                     <div class="form-group"><label>Endereço</label><input type="text" id="fEnd"></div>
                 </div>
                 <div class="form-buttons"><button class="action-btn btn-add-func" id="btnSalvarFunc" onclick="processarFormularioFuncionario()">+ Cadastrar Funcionário</button><button class="action-btn btn-cancel-edit" id="btnCancelarEdit" onclick="cancelarEdicao()">Cancelar</button></div>
@@ -246,7 +247,7 @@
                         <th width="20%">Cargo / Empresa</th>
                         <th width="25%">Contato / Endereço</th>
                         <th width="15%">Pagamento</th>
-                        <th width="10%">Ação</th>
+                        <th width="15%">Ação</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -302,7 +303,7 @@
 
     <div class="extra-split">
         <div class="card" style="border-top: 4px solid var(--purple);">
-            <h3 style="margin-top:0; color:var(--purple);">🟣 Lançar Vendas (Gera 7%)</h3>
+            <h3 style="margin-top:0; color:var(--purple);">🟣 Lançar Vendas / Comissão</h3>
             <div class="form-group">
                 <label>Vendedor</label>
                 <select id="selVendedorExtra"><option value="">Selecione...</option></select>
@@ -315,9 +316,17 @@
                 <label>Valor Total das Vendas (R$)</label>
                 <input type="number" id="valorVendasInput" placeholder="Ex: 1000.00" oninput="atualizarPreviewComissao()">
             </div>
+            <div class="form-group" style="margin-top:10px;">
+                <label>Percentual da Comissão</label>
+                <select id="percentualComissao" onchange="atualizarPreviewComissao()">
+                    <option value="0.05">5%</option>
+                    <option value="0.07" selected>7%</option>
+                    <option value="0.10">10%</option>
+                </select>
+            </div>
             <div style="margin-top: 10px; background: #f3e5f5; padding: 10px; border-radius: 5px; color: var(--purple); font-weight: bold; display: flex; justify-content: space-between;">
-                <span>Comissão (7%):</span>
-                <span id="previewComissaoValor">R$ 0,00</span>
+                <span id="previewComissaoTexto">Comissão (7%):</span>
+                <span id="previewComissaoValor">R$ 0,00 (7%)</span>
             </div>
             <button class="action-btn" style="width:100%; margin-top:15px; background:var(--purple);" onclick="lancarComissao()">Lançar Comissão</button>
         </div>
@@ -482,23 +491,17 @@
 
 <div id="previsao" class="section">
     <div class="glass-header">
-        <div class="previsao-heading">
-            <div>
-                <h1 class="previsao-title">Previsão de Pagamentos</h1>
-                <p class="previsao-subtitle">Organize o que precisa sair agora, na semana e no fechamento do mês.</p>
-            </div>
-            <div class="previsao-total-box">
-                <span class="previsao-total-label">Total previsto</span>
-                <span class="badge-count" id="totalGeralPrev">R$ 0,00</span>
-            </div>
+        <div style="display:flex; align-items:center; gap:15px;">
+            <h1 style="border:none; margin:0; font-size:1.8rem;">🔮 Cronograma Financeiro</h1>
+            <span class="badge-count" id="totalGeralPrev">R$ 0,00</span>
         </div>
         
        <div class="filter-group">
     
     <div class="input-wrapper">
-        <label>Loja</label>
+        <label>Filtrar Loja:</label>
         <select id="filtroEmpresaPrevisao" onchange="window.atualizarPrevisao()">
-            <option value="">Todas as lojas</option>
+            <option value="">🏢 Todas as Lojas</option>
             <option value="Bar Araújo">Bar Araújo</option>
             <option value="Ventura">Ventura</option>
             <option value="Armazem do Bras">Armazem do Bras</option>
@@ -509,15 +512,15 @@
     </div>
 
     <div class="input-wrapper">
-        <label>Período</label>
+        <label>Período de Análise:</label>
         <select id="filtroPeriodoPrevisao" onchange="window.atualizarPrevisao()" style="border: 2px solid var(--purple); color: var(--purple); font-weight: bold;">
-            <option value="MES">Mês completo</option>
-            <option value="SEMANA_ATUAL">Semana atual</option>
-            <option value="SEMANA_PASSADA">Semana passada</option>
+            <option value="MES">📅 Mês Completo (Acumulado)</option>
+            <option value="SEMANA_ATUAL">🔻 Semana Atual (Seg-Dom)</option>
+            <option value="SEMANA_PASSADA">⏪ Semana Passada</option>
         </select>
     </div>
     <div class="input-wrapper">
-        <label>Data base</label>
+        <label>Data Base:</label>
         <input type="date" id="dataPrevisaoBase" onchange="window.atualizarPrevisao()">
     </div>
 
@@ -528,10 +531,7 @@
         
         <div class="kanban-col col-urgent">
             <div class="kanban-header header-red">
-                <div class="k-head-text">
-                    <div class="k-title">Pagamento imediato</div>
-                    <div class="k-subtitle">Diárias, atrasos e contas vencidas.</div>
-                </div>
+                <div class="k-title">🔥 Giro Diário / Atrasados</div>
                 <div class="k-total" id="sumUrgent">R$ 0,00</div>
             </div>
             <div id="listUrgent" class="kanban-list"></div>
@@ -539,10 +539,7 @@
 
         <div class="kanban-col col-weekly">
             <div class="kanban-header header-blue">
-                <div class="k-head-text">
-                    <div class="k-title">Próximos pagamentos</div>
-                    <div class="k-subtitle">Semanais e quinzenais do período.</div>
-                </div>
+                <div class="k-title">📅 Semanal / Quinzenal</div>
                 <div class="k-total" id="sumWeekly">R$ 0,00</div>
             </div>
             <div id="listWeekly" class="kanban-list"></div>
@@ -550,10 +547,7 @@
 
         <div class="kanban-col col-monthly">
             <div class="kanban-header header-green">
-                <div class="k-head-text">
-                    <div class="k-title">Fechamento do mês</div>
-                    <div class="k-subtitle">Mensalistas e compromissos futuros.</div>
-                </div>
+                <div class="k-title">📆 Fechamento Mês</div>
                 <div class="k-total" id="sumMonthly">R$ 0,00</div>
             </div>
             <div id="listMonthly" class="kanban-list"></div>
@@ -604,7 +598,7 @@
         };
 
         const app = initializeApp(firebaseConfig); 
-        const dbFirestore = getFirestore(app, "sera"); 
+        const dbFirestore = getFirestore(app, "sera");
 
         const statusEl = document.getElementById('status-connection');
         if(statusEl) statusEl.innerHTML = "🔄 Conectando aos novos reinos...";
@@ -612,51 +606,41 @@
         // 👁️ 1. VIGÍLIA CONSTANTE NAS 7 COLEÇÕES
         const colecoes = ['rh_funcionarios', 'rh_pagamentos', 'rh_presencas', 'rh_extras', 'rh_entregas', 'rh_boletos', 'rh_users'];
         let refreshTimer = null;
-        const colecoesPendentes = new Set();
 
         function agendarAtualizacaoVisual() {
-            clearTimeout(refreshTimer);
-            refreshTimer = setTimeout(() => {
-                const pendentes = Array.from(colecoesPendentes);
-                colecoesPendentes.clear();
+         clearTimeout(refreshTimer);
+         refreshTimer = setTimeout(() => {
+               if (window.atualizarInterface) window.atualizarInterface();
+              if (window.atualizarDashboard) window.atualizarDashboard();
 
-                const secaoAtiva = document.querySelector('.section.active')?.id;
-                const alterouFuncionarios = pendentes.includes('rh_funcionarios') || pendentes.includes('rh_users');
-                const alterouFinanceiro = pendentes.some(nome =>
-                    ['rh_funcionarios', 'rh_pagamentos', 'rh_presencas', 'rh_extras', 'rh_entregas', 'rh_boletos'].includes(nome)
-                );
+             const secaoAtiva = document.querySelector('.section.active')?.id;
 
-                if (alterouFuncionarios && window.atualizarInterface) window.atualizarInterface();
-                if (alterouFinanceiro && window.atualizarDashboard) window.atualizarDashboard();
-
-                if (secaoAtiva === 'pagamentos' && (alterouFuncionarios || pendentes.includes('rh_pagamentos')) && window.atualizarPainelPagamentos) {
-                    window.atualizarPainelPagamentos();
-                }
-                if (secaoAtiva === 'motoboys' && (alterouFuncionarios || pendentes.includes('rh_entregas')) && window.renderizarMotoboys) {
-                    window.renderizarMotoboys();
-                }
-                if (secaoAtiva === 'extras' && (alterouFuncionarios || pendentes.includes('rh_extras')) && window.renderizarExtras) {
-                    window.renderizarExtras();
-                }
-                if (secaoAtiva === 'boletos' && pendentes.includes('rh_boletos') && window.renderizarBoletos) {
-                    window.renderizarBoletos();
-                }
-                if (secaoAtiva === 'previsao' && alterouFinanceiro && window.atualizarPrevisao) {
-                    window.atualizarPrevisao();
-                }
+               if (secaoAtiva === 'pagamentos' && window.atualizarPainelPagamentos) {
+               window.atualizarPainelPagamentos();
+            }
+              if (secaoAtiva === 'motoboys' && window.renderizarMotoboys) {
+             window.renderizarMotoboys();
+            }
+                 if (secaoAtiva === 'extras' && window.renderizarExtras) {
+                 window.renderizarExtras();
+            }
+                  if (secaoAtiva === 'boletos' && window.renderizarBoletos) {
+               window.renderizarBoletos();
+            }
                 if (secaoAtiva === 'seguranca' && window.renderizarAudit) {
-                    window.renderizarAudit();
-                }
+                 window.renderizarAudit();
+            }
 
-                const statusEl = document.getElementById('status-connection');
+                 const statusEl = document.getElementById('status-connection');
                 if (statusEl) statusEl.innerHTML = "🟢 Online (Nível 99)";
-            }, 80);
-        }
+              }, 80);
+         }   
         colecoes.forEach(nomeCol => {
             onSnapshot(collection(dbFirestore, nomeCol), (snapshot) => {
                 const tempArray = [];
                 snapshot.forEach(docSnap => tempArray.push(docSnap.data()));
 
+                // Atualiza o banco local dependendo de qual coleção mudou
                 if (nomeCol === 'rh_funcionarios') window.db.funcionarios = tempArray;
                 if (nomeCol === 'rh_pagamentos') window.db.pagamentos = tempArray;
                 if (nomeCol === 'rh_extras') window.db.extras = tempArray;
@@ -664,13 +648,13 @@
                 if (nomeCol === 'rh_boletos') window.db.boletos = tempArray;
                 if (nomeCol === 'rh_users') window.db.users = tempArray;
 
+                // A Presença tem aquela mecânica de objeto especial separada por dia
                 if (nomeCol === 'rh_presencas') {
                     const presObj = {};
                     tempArray.forEach(item => { presObj[item.data] = item.registros; });
                     window.db.presencas = presObj;
                 }
 
-                colecoesPendentes.add(nomeCol);
                 agendarAtualizacaoVisual();
             });
         });
@@ -688,15 +672,99 @@
         window.deletarItemNuvem = async function(colecao, idDocumento) {
             try {
                 await deleteDoc(doc(dbFirestore, colecao, String(idDocumento)));
-            } catch(e) {
-                console.error("Erro na exclusão:", e);
-                throw e;
-            }
+            } catch(e) { console.error("Erro na exclusão:", e); }
         };
 
         // 🛡️ 3. DESATIVA O FEITIÇO ANTIGO PRA NÃO DAR RUIM
         window.salvarNuvem = function() {
             console.warn("🛡️ A magia antiga salvarNuvem() foi aposentada! Agora o sistema salva direto nas coleções.");
+        };
+    </script>
+    <script type="module">
+        import { getApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const appAtual = getApps().length ? getApp() : null;
+        const dbFirestore = appAtual ? getFirestore(appAtual, "sera") : null;
+        const statusEl = document.getElementById('status-connection');
+
+        function criarDebounce(fn, wait = 120) {
+            if (typeof fn !== 'function') return fn;
+            let timer = null;
+            let ultimoThis = null;
+            let ultimoArgs = null;
+
+            const debounced = function(...args) {
+                ultimoThis = this;
+                ultimoArgs = args;
+                clearTimeout(timer);
+                timer = setTimeout(() => {
+                    timer = null;
+                    fn.apply(ultimoThis, ultimoArgs);
+                }, wait);
+            };
+
+            debounced.__rhWrapped = true;
+            return debounced;
+        }
+
+        function protegerRender(nome, wait = 120) {
+            const atual = window[nome];
+            if (typeof atual !== 'function' || atual.__rhWrapped) return;
+            window[nome] = criarDebounce(atual, wait);
+        }
+
+        ['atualizarInterface', 'atualizarDashboard', 'atualizarPainelPagamentos', 'renderizarMotoboys', 'renderizarExtras', 'renderizarBoletos', 'renderizarAudit', 'atualizarPrevisao'].forEach(nome => protegerRender(nome));
+
+        if (dbFirestore) {
+            onSnapshot(
+                collection(dbFirestore, 'rh_audit'),
+                (snapshot) => {
+                    const audit = [];
+                    snapshot.forEach(docSnap => audit.push(docSnap.data()));
+                    window.db.audit = audit;
+
+                    if (document.querySelector('.section.active')?.id === 'seguranca' && typeof window.renderizarAudit === 'function') {
+                        window.renderizarAudit();
+                    }
+
+                    if (statusEl) statusEl.innerHTML = 'Online';
+                },
+                (erro) => {
+                    console.error('Erro no snapshot de auditoria:', erro);
+                    if (statusEl) statusEl.innerHTML = 'Falha na auditoria';
+                }
+            );
+
+            window.salvarItemNuvem = async function(colecao, idDocumento, dados) {
+                try {
+                    await setDoc(doc(dbFirestore, colecao, String(idDocumento)), dados);
+                    if (statusEl) statusEl.innerHTML = 'Online';
+                    return true;
+                } catch (erro) {
+                    console.error(`Erro ao salvar em ${colecao}/${idDocumento}:`, erro);
+                    if (statusEl) statusEl.innerHTML = 'Erro ao salvar';
+                    throw erro;
+                }
+            };
+
+            window.deletarItemNuvem = async function(colecao, idDocumento) {
+                try {
+                    await deleteDoc(doc(dbFirestore, colecao, String(idDocumento)));
+                    if (statusEl) statusEl.innerHTML = 'Online';
+                    return true;
+                } catch (erro) {
+                    console.error(`Erro ao excluir em ${colecao}/${idDocumento}:`, erro);
+                    if (statusEl) statusEl.innerHTML = 'Erro ao excluir';
+                    throw erro;
+                }
+            };
+        }
+
+        window.salvarNuvem = function() {
+            const erro = new Error('Fluxo legado salvarNuvem() foi desativado. Use salvamento por colecao.');
+            console.error(erro);
+            throw erro;
         };
     </script>
     

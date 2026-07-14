@@ -1,0 +1,93 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function profilePath() {
+      return /databases/$(database)/documents/rh_users/$(request.auth.uid);
+    }
+
+    function hasActiveProfile() {
+      return signedIn()
+        && exists(profilePath())
+        && get(profilePath()).data.active == true;
+    }
+
+    function isAdmin() {
+      return hasActiveProfile()
+        && get(profilePath()).data.isAdmin == true;
+    }
+
+    function canEdit(permission) {
+      return isAdmin()
+        || (hasActiveProfile()
+          && get(profilePath()).data.perms[permission] == true);
+    }
+
+    function validAuditEntry() {
+      return request.resource.data.keys().hasAll([
+          'uid', 'acao', 'detalhes', 'createdAt'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'uid', 'acao', 'detalhes', 'createdAt'
+        ])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.acao is string
+        && request.resource.data.acao.size() > 0
+        && request.resource.data.acao.size() <= 80
+        && request.resource.data.detalhes is string
+        && request.resource.data.detalhes.size() <= 1000
+        && request.resource.data.createdAt == request.time;
+    }
+
+    match /rh_users/{uid} {
+      allow get: if hasActiveProfile()
+        && (request.auth.uid == uid || isAdmin());
+      allow list: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /rh_funcionarios/{documentId} {
+      allow read: if hasActiveProfile();
+      allow create, update, delete: if canEdit('func');
+    }
+
+    match /rh_presencas/{documentId} {
+      allow read: if hasActiveProfile();
+      allow create, update, delete: if canEdit('pres');
+    }
+
+    match /rh_pagamentos/{documentId} {
+      allow read: if hasActiveProfile();
+      allow create, update, delete: if canEdit('fin');
+    }
+
+    match /rh_extras/{documentId} {
+      allow read: if hasActiveProfile();
+      allow create, update, delete: if canEdit('fin');
+    }
+
+    match /rh_entregas/{documentId} {
+      allow read: if hasActiveProfile();
+      allow create, update, delete: if canEdit('moto');
+    }
+
+    match /rh_boletos/{documentId} {
+      allow read: if hasActiveProfile();
+      allow create, update, delete: if canEdit('boletos');
+    }
+
+    match /rh_audit/{documentId} {
+      allow read: if isAdmin();
+      allow create: if hasActiveProfile() && validAuditEntry();
+      allow update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

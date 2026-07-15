@@ -43,6 +43,55 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time;
     }
 
+    function currentValeStatusVersion() {
+      return resource.data.keys().hasAll(['statusVersion'])
+          && resource.data.statusVersion is int
+          && resource.data.statusVersion >= 0
+        ? resource.data.statusVersion
+        : 0;
+    }
+
+    function currentValeStatus() {
+      return resource.data.keys().hasAll(['status'])
+          && resource.data.status == 'PENDENTE'
+        ? 'PENDENTE'
+        : 'PAGO';
+    }
+
+    function validNewPayment() {
+      return request.resource.data.tipo != 'Vale'
+        || (request.resource.data.status in ['PENDENTE', 'PAGO']
+          && !request.resource.data.keys().hasAny([
+            'statusVersion', 'statusUpdatedAt', 'statusUpdatedBy'
+          ]));
+    }
+
+    function preservesValeStatusControl() {
+      return resource.data.tipo != 'Vale'
+        || (request.resource.data.tipo == 'Vale'
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+            'status', 'statusVersion', 'statusUpdatedAt', 'statusUpdatedBy'
+          ]));
+    }
+
+    function validVersionedValeStatusUpdate() {
+      return resource.data.tipo == 'Vale'
+        && request.resource.data.tipo == 'Vale'
+        && request.resource.data.status in ['PENDENTE', 'PAGO']
+        && request.resource.data.status != currentValeStatus()
+        && request.resource.data.statusVersion == currentValeStatusVersion() + 1
+        && request.resource.data.statusUpdatedAt == request.time
+        && request.resource.data.statusUpdatedBy == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'statusVersion', 'statusUpdatedAt', 'statusUpdatedBy'
+        ]);
+    }
+
+    function validPaymentUpdate() {
+      return request.resource.data.tipo == resource.data.tipo
+        && (preservesValeStatusControl() || validVersionedValeStatusUpdate());
+    }
+
     match /rh_users/{uid} {
       allow get: if hasActiveProfile()
         && (request.auth.uid == uid || isAdmin());
@@ -62,7 +111,9 @@ service cloud.firestore {
 
     match /rh_pagamentos/{documentId} {
       allow read: if hasActiveProfile();
-      allow create, update, delete: if canEdit('fin');
+      allow create: if canEdit('fin') && validNewPayment();
+      allow update: if canEdit('fin') && validPaymentUpdate();
+      allow delete: if canEdit('fin');
     }
 
     match /rh_extras/{documentId} {

@@ -2,21 +2,42 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
-const {applicationDefault, initializeApp} = require("firebase-admin/app");
-const {getAuth} = require("firebase-admin/auth");
-const {FieldValue, getFirestore} = require("firebase-admin/firestore");
+const {initializeApp} = require("firebase/app");
+const {
+  createUserWithEmailAndPassword,
+  deleteUser,
+  getAuth,
+  signInWithEmailAndPassword,
+  signOut,
+  updateProfile,
+} = require("firebase/auth");
+const {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  serverTimestamp,
+  setDoc,
+} = require("firebase/firestore");
 
 const PROJECT_ID = "sistema-presenca-99791";
 const DATABASE_ID = "sera";
 const INPUT_PATH = path.resolve(__dirname, "..", "migration-input.local.json");
 const REPORT_PATH = path.resolve(__dirname, "..", "migration-report.local.json");
+const LEGACY_PLUS_12 = "@legacy+12";
 const mode = process.argv.includes("--stage")
   ? "stage"
   : process.argv.includes("--finalize") ? "finalize" : "preflight";
 
-initializeApp({credential: applicationDefault(), projectId: PROJECT_ID});
-const auth = getAuth();
-const db = getFirestore(DATABASE_ID);
+const app = initializeApp({
+  apiKey: "AIzaSyBQFsxlyyyLVTpIAdbjdoIOyFA6zIj9Ka4",
+  authDomain: `${PROJECT_ID}.firebaseapp.com`,
+  projectId: PROJECT_ID,
+});
+const auth = getAuth(app);
+const db = getFirestore(app, DATABASE_ID);
 
 function readInput() {
   if (!fs.existsSync(INPUT_PATH)) return {replacementPasswords: {}, duplicateResolution: {}};
@@ -78,7 +99,7 @@ function selectLegacyUsers(docs, input) {
 }
 
 async function loadLegacyUsers() {
-  const snapshot = await db.collection("rh_users").get();
+  const snapshot = await getDocs(collection(db, "rh_users"));
   return snapshot.docs
       .map((document) => ({id: document.id, data: document.data()}))
       .filter((entry) => typeof entry.data.pass === "string");
@@ -97,9 +118,11 @@ async function buildPlan() {
     const username = normalizeUsername(entry.data.user);
     const replacement = input.replacementPasswords[entry.id];
     const originalPassword = entry.data.pass;
-    const password = typeof replacement === "string" && replacement.length > 0
-      ? replacement
-      : originalPassword;
+    const password = replacement === LEGACY_PLUS_12
+      ? `${originalPassword}12`
+      : typeof replacement === "string" && replacement.length > 0
+        ? replacement
+        : originalPassword;
     if (password.length < 6 || password.length > 128) {
       shortPasswords.push({documentId: entry.id, username, currentLength: originalPassword.length});
     }
@@ -118,24 +141,22 @@ async function buildPlan() {
 }
 
 async function stageUser(user) {
-  let authUser;
+  let credential;
   let created = false;
   try {
-    authUser = await auth.getUserByEmail(user.email);
-  } catch (error) {
-    if (!error || error.code !== "auth/user-not-found") throw error;
-    authUser = await auth.createUser({
-      email: user.email,
-      password: user.password,
-      displayName: user.username,
-      disabled: false,
-    });
+    credential = await createUserWithEmailAndPassword(auth, user.email, user.password);
     created = true;
+  } catch (error) {
+    if (!error || error.code !== "auth/email-already-in-use") throw error;
+    credential = await signInWithEmailAndPassword(auth, user.email, user.password);
   }
 
-  const profileRef = db.collection("rh_users").doc(authUser.uid);
+  const authUser = credential.user;
   try {
-    await profileRef.set({
+    if (authUser.displayName !== user.username) {
+      await updateProfile(authUser, {displayName: user.username});
+    }
+    await setDoc(doc(db, "rh_users", authUser.uid), {
       uid: authUser.uid,
       user: user.username,
       email: user.email,
@@ -143,28 +164,31 @@ async function stageUser(user) {
       active: true,
       perms: user.perms,
       legacyDocumentIds: user.duplicateDocumentIds,
-      migrationStagedAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
+      migrationStagedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
     }, {merge: true});
   } catch (error) {
-    if (created) await auth.deleteUser(authUser.uid).catch(() => {});
+    if (created) await deleteUser(authUser).catch(() => {});
     throw error;
   }
+  await signOut(auth);
   return {uid: authUser.uid, username: user.username, created};
 }
 
 async function verifyStage(users) {
   const verified = [];
   for (const user of users) {
-    const authUser = await auth.getUserByEmail(user.email);
-    const profile = await db.collection("rh_users").doc(authUser.uid).get();
-    if (!profile.exists || profile.data().uid !== authUser.uid || profile.data().active !== true) {
+    const credential = await signInWithEmailAndPassword(auth, user.email, user.password);
+    const authUser = credential.user;
+    const profile = await getDoc(doc(db, "rh_users", authUser.uid));
+    if (!profile.exists() || profile.data().uid !== authUser.uid || profile.data().active !== true) {
       throw new Error(`Perfil autenticado inválido para ${user.username}.`);
     }
     if (Object.prototype.hasOwnProperty.call(profile.data(), "pass")) {
       throw new Error(`O perfil autenticado de ${user.username} ainda contém senha.`);
     }
     verified.push({uid: authUser.uid, username: user.username});
+    await signOut(auth);
   }
   return verified;
 }
@@ -207,9 +231,9 @@ async function main() {
   }
 
   const verified = await verifyStage(plan.users);
-  const batch = db.batch();
-  plan.legacyUsers.forEach((entry) => batch.delete(db.collection("rh_users").doc(entry.id)));
-  await batch.commit();
+  for (const entry of plan.legacyUsers) {
+    await deleteDoc(doc(db, "rh_users", entry.id));
+  }
   writeReport({...publicReport, verified, finalizedAt: new Date().toISOString()});
   console.log(`Finalização concluída: ${plan.legacyUsers.length} documentos com senha foram removidos.`);
 }

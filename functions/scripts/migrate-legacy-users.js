@@ -27,9 +27,13 @@ const DATABASE_ID = "sera";
 const INPUT_PATH = path.resolve(__dirname, "..", "migration-input.local.json");
 const REPORT_PATH = path.resolve(__dirname, "..", "migration-report.local.json");
 const LEGACY_PLUS_12 = "@legacy+12";
+const ADMIN_ACCESS_TOKEN = process.env.FIREBASE_CLI_ACCESS_TOKEN || "";
+const FIRESTORE_REST_ROOT = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/${DATABASE_ID}/documents`;
 const mode = process.argv.includes("--stage")
   ? "stage"
-  : process.argv.includes("--finalize") ? "finalize" : "preflight";
+  : process.argv.includes("--verify")
+    ? "verify"
+    : process.argv.includes("--finalize") ? "finalize" : "preflight";
 
 const app = initializeApp({
   apiKey: "AIzaSyBQFsxlyyyLVTpIAdbjdoIOyFA6zIj9Ka4",
@@ -61,6 +65,27 @@ function permissions(value) {
 
 function writeReport(report) {
   fs.writeFileSync(REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`, {mode: 0o600});
+}
+
+function decodeFirestoreValue(value) {
+  if (Object.prototype.hasOwnProperty.call(value, "stringValue")) return value.stringValue;
+  if (Object.prototype.hasOwnProperty.call(value, "booleanValue")) return value.booleanValue;
+  if (value.mapValue) {
+    return Object.fromEntries(
+        Object.entries(value.mapValue.fields || {}).map(([key, nested]) => [key, decodeFirestoreValue(nested)]),
+    );
+  }
+  return null;
+}
+
+async function adminFirestoreRequest(url, options = {}) {
+  if (!ADMIN_ACCESS_TOKEN) throw new Error("Credencial administrativa temporária ausente.");
+  const response = await fetch(url, {
+    ...options,
+    headers: {Authorization: `Bearer ${ADMIN_ACCESS_TOKEN}`, ...(options.headers || {})},
+  });
+  if (!response.ok) throw new Error(`Firestore REST ${response.status}: ${await response.text()}`);
+  return response.status === 204 ? null : response.json();
 }
 
 function selectLegacyUsers(docs, input) {
@@ -99,6 +124,17 @@ function selectLegacyUsers(docs, input) {
 }
 
 async function loadLegacyUsers() {
+  if (ADMIN_ACCESS_TOKEN) {
+    const result = await adminFirestoreRequest(`${FIRESTORE_REST_ROOT}/rh_users?pageSize=100`);
+    return (result.documents || [])
+        .map((document) => ({
+          id: document.name.split("/").pop(),
+          data: Object.fromEntries(
+              Object.entries(document.fields || {}).map(([key, value]) => [key, decodeFirestoreValue(value)]),
+          ),
+        }))
+        .filter((entry) => typeof entry.data.pass === "string");
+  }
   const snapshot = await getDocs(collection(db, "rh_users"));
   return snapshot.docs
       .map((document) => ({id: document.id, data: document.data()}))
@@ -226,13 +262,24 @@ async function main() {
     return;
   }
 
+  if (mode === "verify") {
+    const verified = await verifyStage(plan.users);
+    writeReport({...publicReport, verified, verifiedAt: new Date().toISOString()});
+    console.log(`Verificação concluída: ${verified.length} logins e perfis válidos.`);
+    return;
+  }
+
   if (!process.argv.includes("--confirm-remove-passwords")) {
     throw new Error("Use --confirm-remove-passwords somente depois de validar todos os logins.");
   }
 
   const verified = await verifyStage(plan.users);
   for (const entry of plan.legacyUsers) {
-    await deleteDoc(doc(db, "rh_users", entry.id));
+    if (ADMIN_ACCESS_TOKEN) {
+      await adminFirestoreRequest(`${FIRESTORE_REST_ROOT}/rh_users/${encodeURIComponent(entry.id)}`, {method: "DELETE"});
+    } else {
+      await deleteDoc(doc(db, "rh_users", entry.id));
+    }
   }
   writeReport({...publicReport, verified, finalizedAt: new Date().toISOString()});
   console.log(`Finalização concluída: ${plan.legacyUsers.length} documentos com senha foram removidos.`);

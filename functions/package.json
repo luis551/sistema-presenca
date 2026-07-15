@@ -1,0 +1,26 @@
+{
+  "name": "painel-rh-functions",
+  "private": true,
+  "main": "index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "check": "node --check index.js && node --check scripts/migrate-legacy-users.js",
+    "test:rules": "npx -y firebase-tools --config ../firebase.json emulators:exec --project demo-painelrh --only auth,firestore \"node tests/firestore-rules.integration.js\"",
+    "test:functions": "npx -y firebase-tools --config ../firebase.json emulators:exec --project demo-painelrh --only auth,firestore,functions \"node tests/admin-functions.integration.js\"",
+    "migrate:preflight": "node scripts/migrate-legacy-users.js --preflight",
+    "migrate:stage": "node scripts/migrate-legacy-users.js --stage",
+    "migrate:finalize": "node scripts/migrate-legacy-users.js --finalize --confirm-remove-passwords"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.4.0",
+    "firebase-functions": "^7.2.5"
+  },
+  "devDependencies": {
+    "firebase": "^12.7.0"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
+  }
+}

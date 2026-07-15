@@ -1,0 +1,9 @@
+{
+  "replacementPasswords": {
+    "admin": "COLOQUE_LOCALMENTE_UMA_NOVA_SENHA",
+    "expeto": "COLOQUE_LOCALMENTE_UMA_NOVA_SENHA"
+  },
+  "duplicateResolution": {
+    "bruna": "ID_DO_CADASTRO_QUE_DEVE_SER_MANTIDO"
+  }
+}

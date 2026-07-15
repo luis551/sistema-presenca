@@ -21,6 +21,55 @@ const FIREBASE_AREAS = {
     audit: 'rh_audit',
     boletos: 'rh_boletos'
 };
+const DATA_VIGENCIA_MOTO_NOTURNO = '2026-07-14';
+const REGRAS_PAGAMENTO_MOTO = {
+    noiteLegado: { valorDiaria: 60, valorPorEntrega: 5, versao: 'noturno-legado-60-5' },
+    noiteAtual: { valorDiaria: 40, valorPorEntrega: 4, versao: 'noturno-2026-07-14-40-4' },
+    dia: { valorDiaria: 0, valorPorEntrega: 9, versao: 'diurno-0-9' }
+};
+const operacoesEmAndamento = new Set();
+
+function obterRegraPagamentoMoto(turno, dataEntrega) {
+    if (turno !== 'Noite') return REGRAS_PAGAMENTO_MOTO.dia;
+    return dataEntrega >= DATA_VIGENCIA_MOTO_NOTURNO
+        ? REGRAS_PAGAMENTO_MOTO.noiteAtual
+        : REGRAS_PAGAMENTO_MOTO.noiteLegado;
+}
+
+function normalizarStatusVale(status) {
+    return status === 'PENDENTE' ? 'PENDENTE' : 'PAGO';
+}
+
+function pagamentoDescontaSaldo(pagamento) {
+    return pagamento.tipo !== 'Vale' || normalizarStatusVale(pagamento.status) !== 'PENDENTE';
+}
+
+function iniciarOperacao(chave, botao = null, textoSalvando = 'Salvando...') {
+    if (operacoesEmAndamento.has(chave)) return null;
+    operacoesEmAndamento.add(chave);
+
+    const textoOriginal = botao ? botao.innerText : '';
+    if (botao) {
+        botao.dataset.saving = 'true';
+        botao.disabled = true;
+        botao.innerText = textoSalvando;
+    }
+    return { chave, botao, textoOriginal };
+}
+
+function finalizarOperacao(operacao, colecao = null) {
+    if (!operacao) return;
+    operacoesEmAndamento.delete(operacao.chave);
+
+    if (operacao.botao) {
+        delete operacao.botao.dataset.saving;
+        operacao.botao.innerText = operacao.textoOriginal;
+        const estado = colecao && window.__rhFirebaseState;
+        operacao.botao.disabled = estado
+            ? estado.readyCollections[colecao] !== true
+            : false;
+    }
+}
 
 function clonarDados(valor) {
     if (valor === undefined || valor === null) return valor;
@@ -67,11 +116,11 @@ function normalizarDbState(origem = {}) {
     return base;
 }
 
-async function salvarRegistro(area, id, dados) {
+async function salvarRegistro(area, id, dados, opcoes = {}) {
     if (typeof window.salvarItemNuvem !== 'function') {
         throw new Error(`Salvar indisponível para ${area}/${id}. Firebase ainda não inicializado.`);
     }
-    return window.salvarItemNuvem(area, String(id), dados);
+    return window.salvarItemNuvem(area, String(id), dados, opcoes);
 }
 
 async function deletarRegistro(area, id) {
@@ -81,23 +130,49 @@ async function deletarRegistro(area, id) {
     return window.deletarItemNuvem(area, String(id));
 }
 // --- SISTEMA DE LOG (AUDITORIA) ---
+function escaparHtml(valor) {
+    return String(valor ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+}
+
+function dataDoLog(log) {
+    if (log && log.createdAt && typeof log.createdAt.toDate === 'function') return log.createdAt.toDate();
+    if (log && log.createdAt) return new Date(log.createdAt);
+    if (log && log.data) return new Date(log.data);
+    return new Date(0);
+}
+
 function registrarLog(acao, detalhes) {
+    if (!window.currentUser || !window.currentUser.uid) {
+        console.error('Auditoria ignorada: não há UID autenticado.');
+        return null;
+    }
+
     const log = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        data: new Date().toISOString(),
-        user: window.currentUser ? window.currentUser.user : 'desconhecido',
-        acao: acao,
-        detalhes: detalhes
+        createdAt: new Date().toISOString(),
+        uid: window.currentUser.uid,
+        acao: String(acao || '').slice(0, 80),
+        detalhes: String(detalhes || '').slice(0, 1000)
     };
     upsertDbItem('audit', log);
 
     if (window.db.audit.length > 200) {
         window.db.audit = window.db.audit
-            .sort((a, b) => new Date(a.data) - new Date(b.data))
+            .sort((a, b) => dataDoLog(a) - dataDoLog(b))
             .slice(-200);
     }
 
-    salvarRegistro(FIREBASE_AREAS.audit, log.id, log).catch(erro => {
+    if (typeof window.registrarAuditoriaNuvem !== 'function') {
+        console.error('Falha ao persistir auditoria: serviço autenticado indisponível.');
+        return log;
+    }
+
+    window.registrarAuditoriaNuvem(log.acao, log.detalhes).catch(erro => {
         console.error('Falha ao persistir log de auditoria:', erro);
     });
 
@@ -112,12 +187,12 @@ function renderizarAudit() {
         tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:#aaa;">Nenhum registro encontrado.</td></tr>';
         return;
     }
-    const logs = [...window.db.audit].sort((a,b) => new Date(b.data) - new Date(a.data)).slice(0, 100);
+    const logs = [...window.db.audit].sort((a,b) => dataDoLog(b) - dataDoLog(a)).slice(0, 100);
 
     const linhas = logs.map(l => {
-        const d = new Date(l.data);
+        const d = dataDoLog(l);
         const dataFmt = d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR');
-        return `<tr><td>${dataFmt}</td><td><strong>${l.user}</strong></td><td>${l.acao}</td><td>${l.detalhes}</td></tr>`;
+        return `<tr><td>${dataFmt}</td><td><code>${escaparHtml(l.uid || 'legado-sem-uid')}</code></td><td>${escaparHtml(l.acao)}</td><td>${escaparHtml(l.detalhes)}</td></tr>`;
     });
     tbody.innerHTML = linhas.join('');
 }
@@ -148,25 +223,16 @@ window.atualizarInfoMoto = function() { window.calcularMotoPreview(); }
 
 window.calcularMotoPreview = function() {
     const turno = document.getElementById('selMotoTurno').value;
+    const dataEntrega = document.getElementById('dataMoto').value || new Date().toISOString().split('T')[0];
     const ifood = parseInt(document.getElementById('qtdIfood').value) || 0;
     const app99 = parseInt(document.getElementById('qtd99').value) || 0;
     const zap = parseInt(document.getElementById('qtdZap').value) || 0;
-    
+
     const totalEntregas = ifood + app99 + zap;
-    let valorFixo = 0;
-    let valorPorEntrega = 0;
-
-    if (turno === 'Noite') {
-        valorFixo = 60;
-        valorPorEntrega = 5;
-    } else {
-        valorFixo = 0;
-        valorPorEntrega = 9;
-    }
-
-    const totalReceber = valorFixo + (totalEntregas * valorPorEntrega);
+    const regra = obterRegraPagamentoMoto(turno, dataEntrega);
+    const totalReceber = regra.valorDiaria + (totalEntregas * regra.valorPorEntrega);
     document.getElementById('previewMotoTotal').innerText = totalReceber.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
-    return { totalEntregas, totalReceber };
+    return { totalEntregas, totalReceber, regra };
 }
 
 window.lancarEntregaMoto = async function() {
@@ -190,6 +256,10 @@ window.lancarEntregaMoto = async function() {
         return alert("Não é possível lançar diária para funcionário inativo.");
     }
 
+    const botaoSalvar = document.getElementById('btnSalvarMoto');
+    const operacao = iniciarOperacao('lancar-entrega-moto', botaoSalvar, '💾 Salvando...');
+    if (!operacao) return;
+
     const novoRegistro = {
         id: Date.now(),
         idFunc: String(idFunc),
@@ -200,18 +270,19 @@ window.lancarEntregaMoto = async function() {
         app99: parseInt(document.getElementById('qtd99').value) || 0,
         zap: parseInt(document.getElementById('qtdZap').value) || 0,
         totalEntregas: calc.totalEntregas,
-        valorTotal: calc.totalReceber
+        valorTotal: calc.totalReceber,
+        valorDiariaAplicado: calc.regra.valorDiaria,
+        valorPorEntregaAplicado: calc.regra.valorPorEntrega,
+        regraPagamento: calc.regra.versao
     };
 
     if(!window.db.entregas) window.db.entregas = [];
 
+    let salvo = false;
     try {
         await salvarRegistro(FIREBASE_AREAS.entregas, novoRegistro.id, novoRegistro);
-
-        window.db.entregas.push(novoRegistro);
+        upsertDbItem('entregas', novoRegistro);
         registrarLog('Motoboy', `Lançou diária de ${fmtMoeda(calc.totalReceber)} para ${func.nome}`);
-
-        alert("Fechamento do Motoboy salvo na nuvem com sucesso!");
 
         document.getElementById('qtdIfood').value = '';
         document.getElementById('qtd99').value = '';
@@ -219,10 +290,15 @@ window.lancarEntregaMoto = async function() {
 
         window.renderizarMotoboys();
         window.atualizarDashboard();
+        salvo = true;
     } catch (erro) {
         console.error("Falha real ao salvar motoboy:", erro);
         alert("❌ ERRO: não foi possível salvar a diária do motoboy na nuvem. Nada foi confirmado.");
+    } finally {
+        finalizarOperacao(operacao, FIREBASE_AREAS.entregas);
     }
+
+    if (salvo) alert("Fechamento do Motoboy salvo na nuvem com sucesso!");
 }
 window.renderizarMotoboys = function() {
     const grid = document.getElementById('gridMotoboys');
@@ -384,9 +460,9 @@ window.imprimirFolhaPonto = function(idFunc) {
 
 // --- SISTEMA DE RECIBOS ---
 window.gerarRecibo = function(idPagamento) {
-    const pag = window.db.pagamentos.find(p => p.id === idPagamento);
+    const pag = window.db.pagamentos.find(p => String(p.id) === String(idPagamento));
     if (!pag) return;
-    const func = window.db.funcionarios.find(f => f.id === pag.idFunc);
+    const func = window.db.funcionarios.find(f => String(f.id) === String(pag.idFunc));
     
     document.getElementById('recibo-funcionario').innerText = pag.nomeFunc;
     document.getElementById('recibo-valor').innerText = pag.valor.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
@@ -410,38 +486,40 @@ window.togglePermBoxes = function() {
 }
 
 window.abrirGestaoUsuarios = function() {
-    const senha = prompt("🔒 Área Restrita.\nDigite sua SENHA DE ADMINISTRADOR:");
-    if(!senha) return;
-    const adminEncontrado = window.db.users.find(u => u.pass === senha && u.isAdmin === true);
-    if(adminEncontrado) {
-        document.getElementById('modalUsers').style.display = 'flex';
-        renderizarListaUsuarios();
-        cancelarEdicaoUser();
-    } else {
-        alert("❌ Acesso Negado: Senha incorreta ou usuário não é admin.");
+    if (!window.currentUser || window.currentUser.isAdmin !== true) {
+        return alert('⛔ Apenas administradores autenticados podem gerenciar acessos.');
     }
+    document.getElementById('modalUsers').style.display = 'flex';
+    renderizarListaUsuarios();
+    cancelarEdicaoUser();
 }
 
 window.renderizarListaUsuarios = function() {
     const lista = document.getElementById('listaUsuarios');
     lista.innerHTML = '';
     window.db.users.forEach((u, index) => {
-        const badge = u.isAdmin ? '<span class="badge-admin">ADMIN</span>' : '<span style="font-size:0.7rem; background:#ccc; padding:2px 5px; border-radius:4px;">USER</span>';
-        
-        const btnPass = `<button onclick="alert('Senha: ${u.pass}')" style="background:#3498db; color:white; border:none; border-radius:4px; cursor:pointer; padding:5px 10px; margin-right:5px;">👁️</button>`;
+        const badge = u.active === false
+            ? '<span style="font-size:0.7rem; background:#7f8c8d; color:white; padding:2px 5px; border-radius:4px;">DESATIVADO</span>'
+            : (u.isAdmin
+                ? '<span class="badge-admin">ADMIN</span>'
+                : '<span style="font-size:0.7rem; background:#ccc; padding:2px 5px; border-radius:4px;">USER</span>');
         const btnEdit = `<button onclick="editarUsuario(${index})" style="background:#f39c12; color:white; border:none; border-radius:4px; cursor:pointer; padding:5px 10px; margin-right:5px;">✏️</button>`;
-        
-        lista.innerHTML += `<div class="user-list-item"><div><strong>${u.user}</strong> ${badge}</div><div>${btnPass}${btnEdit}<button onclick="removerUsuario(${index})" style="background:#e74c3c; color:white; border:none; border-radius:4px; cursor:pointer; padding:5px 10px;">🗑️</button></div></div>`;
+        const podeDesativar = u.active !== false && u.uid !== window.currentUser?.uid;
+        const btnDisable = podeDesativar ? `<button onclick="removerUsuario(${index})" style="background:#e74c3c; color:white; border:none; border-radius:4px; cursor:pointer; padding:5px 10px;">⛔</button>` : '';
+
+        lista.innerHTML += `<div class="user-list-item"><div><strong>${escaparHtml(u.user)}</strong> ${badge}<br><small>UID: ${escaparHtml(u.uid)}</small></div><div>${btnEdit}${btnDisable}</div></div>`;
     });
 }
 
 window.salvarUsuario = async function() {
     const user = document.getElementById('novoUser').value.toLowerCase().trim();
-    const pass = document.getElementById('novaSenha').value.trim();
+    const password = document.getElementById('novaSenha').value;
     const isAdmin = document.getElementById('checkIsAdmin').checked;
     const editIndex = document.getElementById('editUserIndex').value;
 
-    if(!user || !pass) return alert("Preencha usuário e senha!");
+    if (!/^[a-z0-9._-]{3,40}$/.test(user)) return alert('Use de 3 a 40 caracteres: letras, números, ponto, hífen ou sublinhado.');
+    if (editIndex === '' && password.length < 6) return alert('A senha precisa ter pelo menos 6 caracteres.');
+    if (editIndex !== '' && password.length > 0 && password.length < 6) return alert('A nova senha precisa ter pelo menos 6 caracteres.');
     if(editIndex === "" && window.db.users.find(u => u.user === user)) return alert("Usuário já existe!");
 
     const perms = {
@@ -456,41 +534,41 @@ window.salvarUsuario = async function() {
         const userAntigo = window.db.users[editIndex];
         if (!userAntigo) return alert("Usuário não encontrado para edição.");
 
-        const usuarioAtualizado = {
-            id: userAntigo?.id || Date.now(),
+        const payload = {
+            uid: userAntigo.uid,
             user,
-            pass,
+            password,
             isAdmin,
+            active: userAntigo.active !== false,
             perms
         };
 
         try {
-            await salvarRegistro(FIREBASE_AREAS.users, usuarioAtualizado.id, usuarioAtualizado);
+            if (typeof window.atualizarUsuarioAuth !== 'function') throw new Error('Serviço administrativo indisponível.');
+            const usuarioAtualizado = await window.atualizarUsuarioAuth(payload);
             window.db.users[editIndex] = usuarioAtualizado;
-            registrarLog('Admin', `Editou usuário ${user}`);
             alert("Usuário atualizado com sucesso!");
         } catch (erro) {
             console.error("Falha ao atualizar usuário:", erro);
-            alert("❌ ERRO: o usuário não foi atualizado na nuvem.");
+            alert(`❌ ERRO: ${erro.message || 'o usuário não foi atualizado.'}`);
             return;
         }
     } else {
-        const novoObjeto = {
-            id: Date.now(),
+        const payload = {
             user,
-            pass,
+            password,
             isAdmin,
             perms
         };
 
         try {
-            await salvarRegistro(FIREBASE_AREAS.users, novoObjeto.id, novoObjeto);
-            window.db.users.push(novoObjeto);
-            registrarLog('Admin', `Criou usuário ${user}`);
+            if (typeof window.criarUsuarioAuth !== 'function') throw new Error('Serviço administrativo indisponível.');
+            const novoUsuario = await window.criarUsuarioAuth(payload);
+            upsertDbItem('users', novoUsuario);
             alert("Usuário criado!");
         } catch (erro) {
             console.error("Falha ao criar usuário:", erro);
-            alert("❌ ERRO: o usuário não foi salvo na nuvem.");
+            alert(`❌ ERRO: ${erro.message || 'o usuário não foi criado.'}`);
             return;
         }
     }
@@ -503,7 +581,7 @@ window.editarUsuario = function(index) {
     const u = window.db.users[index];
     document.getElementById('editUserIndex').value = index;
     document.getElementById('novoUser').value = u.user;
-    document.getElementById('novaSenha').value = u.pass;
+    document.getElementById('novaSenha').value = '';
     document.getElementById('checkIsAdmin').checked = u.isAdmin;
     
     if(u.perms) {
@@ -539,19 +617,17 @@ window.cancelarEdicaoUser = function() {
 }
 
 window.removerUsuario = async function(index) {
-    if(confirm("Tem certeza que deseja apagar este usuário?")) {
+    if(confirm("Tem certeza que deseja DESATIVAR este acesso? O histórico será preservado.")) {
         const u = window.db.users[index];
         if (!u) return;
 
         try {
-            if (u.id) {
-                await deletarRegistro(FIREBASE_AREAS.users, u.id);
-            }
-            registrarLog('Admin', `Excluiu usuário ${u.user}`);
-            window.db.users.splice(index, 1);
+            if (typeof window.desativarUsuarioAuth !== 'function') throw new Error('Serviço administrativo indisponível.');
+            await window.desativarUsuarioAuth(u.uid);
+            window.db.users[index] = { ...u, active: false };
         } catch (erro) {
             console.error("Falha ao excluir usuário:", erro);
-            alert("❌ ERRO: o usuário não foi excluído da nuvem.");
+            alert(`❌ ERRO: ${erro.message || 'o acesso não foi desativado.'}`);
             return;
         }
 
@@ -563,61 +639,88 @@ window.removerUsuario = async function(index) {
     }
 }
 
-window.checkLogin = function() {
-    if (window.__rhFirebaseState && window.__rhFirebaseState.readyCollections && !window.__rhFirebaseState.readyCollections.rh_users) {
-        document.getElementById('loginError').innerText = 'Aguardando carregamento dos usuários...';
-        document.getElementById('loginError').style.display = 'block';
-        return;
+window.mostrarErroLogin = function(mensagem = 'Usuário ou senha inválidos!') {
+    const loginError = document.getElementById('loginError');
+    if (!loginError) return;
+    loginError.innerText = mensagem;
+    loginError.style.display = 'block';
+}
+
+window.checkLogin = async function() {
+    const inputUser = document.getElementById('loginUser').value.toLowerCase().trim();
+    const inputPass = document.getElementById('loginPass').value;
+    const botao = document.getElementById('btnLogin');
+    if (!inputUser || !inputPass) return window.mostrarErroLogin('Preencha usuário e senha.');
+
+    const textoOriginal = botao ? botao.innerText : '';
+    if (botao) {
+        botao.disabled = true;
+        botao.innerText = 'Entrando...';
     }
 
-    const inputUser = document.getElementById('loginUser').value.toLowerCase().trim();
-    const inputPass = document.getElementById('loginPass').value.trim();
-    const usuarioEncontrado = window.db.users.find(u => u.user === inputUser && u.pass === inputPass);
-    
-    if (usuarioEncontrado) {
-        window.currentUser = usuarioEncontrado; 
-        document.getElementById('login-screen').style.display = 'none';
-        
-        const badge = document.getElementById('user-badge');
-        const btnSeguranca = document.getElementById('btnSeguranca');
-        const btnBoletos = document.getElementById('btnMenuBoletos'); // O botão novo
-
-        if (usuarioEncontrado.isAdmin) {
-            badge.innerHTML = `👑 ${inputUser.toUpperCase()} (ADMIN)`;
-            badge.style.color = '#f1c40f';
-            btnSeguranca.style.display = 'flex';
-            btnBoletos.style.display = 'flex'; // Admin vê tudo
-        } else {
-            badge.innerHTML = `👤 ${inputUser.toUpperCase()}`;
-            badge.style.color = 'white';
-            btnSeguranca.style.display = 'none';
-
-            // Verifica se o usuário comum tem permissão
-            if(usuarioEncontrado.perms && usuarioEncontrado.perms.boletos) {
-                btnBoletos.style.display = 'flex';
-            } else {
-                btnBoletos.style.display = 'none';
-            }
-        }
-
+    try {
+        if (typeof window.entrarComFirebase !== 'function') throw new Error('Serviço de autenticação indisponível.');
+        await window.entrarComFirebase(inputUser, inputPass);
         const loginError = document.getElementById('loginError');
-        if (loginError) {
-            loginError.style.display = 'none';
-            loginError.innerText = 'Usuário ou senha inválidos!';
+        if (loginError) loginError.style.display = 'none';
+    } catch (erro) {
+        console.error('Falha no login autenticado:', erro);
+        window.mostrarErroLogin('Usuário ou senha inválidos!');
+    } finally {
+        if (botao) {
+            botao.disabled = false;
+            botao.innerText = textoOriginal;
         }
+    }
+}
 
-        if (typeof window.renderizarTudo === 'function') {
-            window.renderizarTudo();
-        } else {
-            if (window.atualizarInterface) window.atualizarInterface();
-            if (window.atualizarDashboard) window.atualizarDashboard();
-        }
+window.aplicarSessaoAutenticada = function(usuario) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('loginPass').value = '';
+
+    const badge = document.getElementById('user-badge');
+    const btnSeguranca = document.getElementById('btnSeguranca');
+    const btnGestaoUsuarios = document.getElementById('btnGestaoUsuarios');
+    const btnBoletos = document.getElementById('btnMenuBoletos');
+    const btnSair = document.getElementById('btnSair');
+
+    if (usuario.isAdmin === true) {
+        badge.innerHTML = `👑 ${escaparHtml(usuario.user).toUpperCase()} (ADMIN)`;
+        badge.style.color = '#f1c40f';
+        btnSeguranca.style.display = 'flex';
+        btnGestaoUsuarios.style.display = 'flex';
+        btnBoletos.style.display = 'flex';
     } else {
-        const loginError = document.getElementById('loginError');
-        if (loginError) {
-            loginError.innerText = 'Usuário ou senha inválidos!';
-            loginError.style.display = 'block';
-        }
+        badge.innerHTML = `👤 ${escaparHtml(usuario.user).toUpperCase()}`;
+        badge.style.color = 'white';
+        btnSeguranca.style.display = 'none';
+        btnGestaoUsuarios.style.display = 'none';
+        btnBoletos.style.display = usuario.perms && usuario.perms.boletos ? 'flex' : 'none';
+    }
+    btnSair.style.display = 'flex';
+
+    if (typeof window.renderizarTudo === 'function') window.renderizarTudo();
+}
+
+window.aplicarSessaoDesconectada = function() {
+    window.currentUser = null;
+    window.db = normalizarDbState();
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('user-badge').innerText = 'Visitante';
+    document.getElementById('btnSeguranca').style.display = 'none';
+    document.getElementById('btnGestaoUsuarios').style.display = 'none';
+    document.getElementById('btnSair').style.display = 'none';
+    document.getElementById('modalUsers').style.display = 'none';
+    if (typeof window.renderizarTudo === 'function') window.renderizarTudo();
+}
+
+window.sairDoSistema = async function() {
+    if (typeof window.sairFirebase !== 'function') return;
+    try {
+        await window.sairFirebase();
+    } catch (erro) {
+        console.error('Falha ao encerrar a sessão:', erro);
+        alert('Não foi possível encerrar a sessão. Tente novamente.');
     }
 }
 
@@ -942,7 +1045,7 @@ window.carregarListaPresenca = function() {
         .sort((a, b) => a.nome.localeCompare(b.nome)); 
     
     funcionariosFiltrados.forEach(f => {
-        const saved = registroDia.find(r => r.id === f.id);
+        const saved = registroDia.find(r => String(r.id) === String(f.id));
         
         // --- LÓGICA DO STATUS ---
         const status = saved ? saved.status : ''; 
@@ -1160,7 +1263,7 @@ window.calcularSaldoGlobal = function(f, dataRefStr) {
 
     // 1. Soma Histórico de Pagamentos (Apenas o que foi pago ATÉ a data selecionada)
     window.db.pagamentos.forEach(p => {
-        if (p.idFunc == f.id && p.data <= dataRefStr) {
+        if (p.idFunc == f.id && p.data <= dataRefStr && pagamentoDescontaSaldo(p)) {
             totalPagos += p.valor;
         }
     });
@@ -1420,9 +1523,12 @@ window.getTotalPagoNoMes = function(idFunc, dataReferencia) {
     const mesRef = dataRef.getUTCMonth(); 
     const anoRef = dataRef.getUTCFullYear();
     
-    return window.db.pagamentos.filter(p => { 
-        const d = new Date(p.data); 
-        return p.idFunc == idFunc && d.getUTCMonth() == mesRef && d.getUTCFullYear() == anoRef; 
+    return window.db.pagamentos.filter(p => {
+        const d = new Date(p.data);
+        return p.idFunc == idFunc
+            && d.getUTCMonth() == mesRef
+            && d.getUTCFullYear() == anoRef
+            && pagamentoDescontaSaldo(p);
     }).reduce((acc, p) => acc + p.valor, 0);
 }
 // --- CORREÇÃO DO SALDO ANTERIOR (OLHANDO O MÊS CHEIO) ---
@@ -1482,7 +1588,7 @@ window.getSaldoMesAnterior = function(idFunc, dataRefStr) {
     window.db.pagamentos.forEach(p => {
         if (p.idFunc == idFunc && p.data.startsWith(`${anoAnt}-${String(mesAnt).padStart(2, '0')}`)) {
             if (p.tipo === 'Passagem') pagoPassagem += p.valor;
-            else pagoSalario += p.valor; // Salário e Vale descontam do Salário
+            else if (pagamentoDescontaSaldo(p)) pagoSalario += p.valor;
         }
     });
 
@@ -1498,11 +1604,11 @@ window.removerPagamento = async function(id) {
     if(!checkPerm('fin')) return; 
 
     if(confirm("Cancelar este lançamento?")) {
-        const pag = window.db.pagamentos.find(p => p.id === id);
+        const pag = window.db.pagamentos.find(p => String(p.id) === String(id));
         try {
             await deletarRegistro(FIREBASE_AREAS.pagamentos, id);
             if(pag) registrarLog('Financeiro', `Excluiu ${pag.tipo} de ${fmtMoeda(pag.valor)} de ${pag.nomeFunc}`);
-            window.db.pagamentos = window.db.pagamentos.filter(p => p.id !== id);
+            removerDbItem('pagamentos', id);
             window.atualizarPainelPagamentos(); 
             window.atualizarDashboard();
         } catch (erro) {
@@ -2248,7 +2354,7 @@ window.mostrarDetalhesCalculo = function(idFunc, dataStr) {
 }
 
 window.salvarPresencaDia = async function() {
-    if(!checkPerm('pres')) return; 
+    if(!checkPerm('pres')) return;
 
     const data = document.getElementById('dataPresenca').value;
     if(!data) return alert("Selecione uma data!");
@@ -2256,28 +2362,24 @@ window.salvarPresencaDia = async function() {
     const cards = document.querySelectorAll('.presenca-card');
     if(cards.length === 0) return alert("Nenhum funcionário listado para salvar.");
 
-    const listaExistente = window.db.presencas[data] || [];
-    const mapaPresenca = new Map();
-
-    listaExistente.forEach(p => {
-        const idSeguro = parseInt(p.id);
-        if (!isNaN(idSeguro)) mapaPresenca.set(idSeguro, p);
-    });
+    if (typeof window.salvarPresencaNuvem !== 'function') {
+        return alert("A conexão da presença ainda não foi inicializada. Aguarde e tente novamente.");
+    }
 
     let contador = 0;
+    const alteracoesVisiveis = [];
 
     cards.forEach(card => {
-        const idCard = parseInt(card.getAttribute('data-id'));
-
-        if (!isNaN(idCard)) {
+        const idTexto = card.getAttribute('data-id');
+        if (idTexto !== null && idTexto !== '') {
             const select = card.querySelector('.status-presenca');
             const status = select ? select.value : '';
-
             const inputObs = card.querySelector('.obs-presenca');
             const obs = inputObs ? inputObs.value : '';
 
-            mapaPresenca.set(idCard, {
-                id: idCard,
+            const funcionario = window.db.funcionarios.find(f => String(f.id) === String(idTexto));
+            alteracoesVisiveis.push({
+                id: funcionario ? funcionario.id : idTexto,
                 status: status,
                 obs: obs
             });
@@ -2286,32 +2388,34 @@ window.salvarPresencaDia = async function() {
         }
     });
 
-    const listaFinal = Array.from(mapaPresenca.values());
-    const anterior = clonarDados(window.db.presencas[data] || []);
+    const btnSalvar = document.getElementById('btnSalvarTopo');
+    const operacao = iniciarOperacao(`salvar-presenca:${data}`, btnSalvar, '💾 Salvando...');
+    if (!operacao) return;
 
+    let listaFinal = null;
     try {
-        await salvarRegistro(FIREBASE_AREAS.presencas, data, {
-            data: data,
-            registros: listaFinal
-        });
+        listaFinal = await window.salvarPresencaNuvem(data, alteracoesVisiveis);
         window.db.presencas[data] = listaFinal;
         registrarLog('Presenca', `Salvou chamada de ${fmtData(data)} (${contador} registros)`);
     } catch (erro) {
         console.error("Falha ao salvar presença:", erro);
-        window.db.presencas[data] = anterior;
         alert("❌ ERRO: a presença não foi confirmada na nuvem.");
-        return;
+    } finally {
+        finalizarOperacao(operacao, FIREBASE_AREAS.presencas);
     }
 
-    const btnSalvar = document.getElementById('btnSalvarTopo');
+    if (!listaFinal) return;
+
     if(btnSalvar) {
-        const textoOriginal = btnSalvar.innerText;
+        const textoOriginal = operacao.textoOriginal;
         btnSalvar.innerText = "✅ Salvo!";
         btnSalvar.style.backgroundColor = "#27ae60";
 
         setTimeout(() => {
-            btnSalvar.innerText = textoOriginal;
-            btnSalvar.style.backgroundColor = "";
+            if (btnSalvar.dataset.saving !== 'true') {
+                btnSalvar.innerText = textoOriginal;
+                btnSalvar.style.backgroundColor = "";
+            }
         }, 2000);
     } else {
         alert("✅ Lista Salva com Sucesso!");
@@ -2402,7 +2506,10 @@ window.calcularGanhosRange = function(idFunc, startStr, endStr) {
 // 3. Soma Pagamentos (Vales) SÓ dentro das datas
 window.getPagamentosRange = function(idFunc, startStr, endStr) {
     return window.db.pagamentos.reduce((acc, p) => {
-        if (String(p.idFunc) === String(idFunc) && p.data >= startStr && p.data <= endStr) {
+        if (String(p.idFunc) === String(idFunc)
+            && p.data >= startStr
+            && p.data <= endStr
+            && pagamentoDescontaSaldo(p)) {
             return acc + p.valor;
         }
         return acc;
@@ -2807,8 +2914,8 @@ window.atualizarPainelPagamentos = function() {
             pagamentosDesteCara.push(p);
             if(p.tipo === 'Passagem') pagoPassagem += p.valor;
             else if(p.tipo === 'Vale') {
-                if(p.status === 'PENDENTE') totalValesAbertos += p.valor;
-                else totalValesDescontados += p.valor; 
+                if(normalizarStatusVale(p.status) === 'PENDENTE') totalValesAbertos += p.valor;
+                else totalValesDescontados += p.valor;
             }
             else pagoSalario += p.valor;
         }
@@ -2991,7 +3098,7 @@ window.lancarPagamento = async function() {
         tipo = 'Pagamento';
     }
 
-    if(!idFunc || !valor || !data) return alert("Preencha todos os campos obrigatórios!");
+    if(!idFunc || !Number.isFinite(valor) || valor <= 0 || !data) return alert("Preencha os campos obrigatórios com um valor maior que zero!");
 
     const func = window.db.funcionarios.find(f => f.id == idFunc);
     if(!func) return alert("Funcionário não encontrado!");
@@ -3008,22 +3115,31 @@ window.lancarPagamento = async function() {
         status: statusVale || 'PAGO'
     };
 
+    const botaoRegistrar = document.getElementById('btnRegistrarPagamento');
+    const operacao = iniciarOperacao('lancar-pagamento', botaoRegistrar, '💾 Salvando...');
+    if (!operacao) return;
+
+    let salvo = false;
     try {
         await salvarRegistro(FIREBASE_AREAS.pagamentos, novoPag.id, novoPag);
-        window.db.pagamentos.push(novoPag);
+        upsertDbItem('pagamentos', novoPag);
         registrarLog('Financeiro', `Lançou ${tipo} de ${fmtMoeda(valor)} para ${func.nome}`);
-        alert("Operação Registrada!");
+        salvo = true;
     } catch (erro) {
         console.error("Falha ao salvar pagamento:", erro);
         alert("❌ ERRO: a operação não foi salva na nuvem.");
-        return;
+    } finally {
+        finalizarOperacao(operacao, FIREBASE_AREAS.pagamentos);
     }
+
+    if (!salvo) return;
 
     document.getElementById('valorPagamento').value = '';
     document.getElementById('descPagamento').value = '';
 
     window.atualizarPainelPagamentos();
     window.atualizarDashboard();
+    alert("Operação registrada e confirmada na nuvem!");
 }
 
 window.renderizarCardsPagamento = function(lista) {
@@ -3033,9 +3149,9 @@ window.renderizarCardsPagamento = function(lista) {
     lista.forEach(p => {
         let cardClass = '', valorClass = '', icone = '';
         let botoesExtras = ''; // O Botão de Descontar do Vale
-        
+
         if(p.tipo === 'Vale') {
-            if (p.status === 'PENDENTE') {
+            if (normalizarStatusVale(p.status) === 'PENDENTE') {
                 cardClass = 'pagamento-card pag-vale'; 
                 valorClass = 'pag-valor valor-vale'; 
                 icone = '⏳ VALE (AGUARDANDO DESCONTO)';
@@ -3056,7 +3172,7 @@ window.renderizarCardsPagamento = function(lista) {
         const card = document.createElement('div'); card.className = cardClass;
         
         // Deixa o card cinza/transparente se o vale já foi descontado
-        if(p.tipo === 'Vale' && p.status !== 'PENDENTE') {
+        if(p.tipo === 'Vale' && normalizarStatusVale(p.status) !== 'PENDENTE') {
             card.style.opacity = '0.7';
             card.style.borderTopColor = '#7f8c8d';
         }
@@ -3085,9 +3201,7 @@ async function sincronizarBackupNaNuvem(estadoAnterior, estadoNovo) {
         { chave: 'funcionarios', area: FIREBASE_AREAS.funcionarios },
         { chave: 'pagamentos', area: FIREBASE_AREAS.pagamentos },
         { chave: 'extras', area: FIREBASE_AREAS.extras },
-        { chave: 'users', area: FIREBASE_AREAS.users },
         { chave: 'entregas', area: FIREBASE_AREAS.entregas },
-        { chave: 'audit', area: FIREBASE_AREAS.audit },
         { chave: 'boletos', area: FIREBASE_AREAS.boletos }
     ];
 
@@ -3136,8 +3250,14 @@ window.baixarBackupLocal = function() {
     const horaStr = agora.getHours() + "h" + agora.getMinutes();
     const nomeArquivo = `BACKUP_RH_${dataStr}_${horaStr}.json`;
 
-    // Transforma os dados do sistema em texto
-    const dadosTexto = JSON.stringify(window.db, null, 2);
+    // Perfis de acesso e auditoria não pertencem ao backup restaurável de dados.
+    const estado = normalizarDbState(window.db);
+    const { users: _users, audit: _audit, ...dadosNegocio } = estado;
+    const dadosTexto = JSON.stringify({
+        formatoBackup: 2,
+        geradoEm: new Date().toISOString(),
+        ...dadosNegocio
+    }, null, 2);
 
     // Cria um link invisível para baixar
     const blob = new Blob([dadosTexto], { type: "application/json" });
@@ -3155,8 +3275,7 @@ window.baixarBackupLocal = function() {
 
 // 2. FUNÇÃO PARA LER O ARQUIVO E RESTAURAR (IMPORTAR)
 window.restaurarBackupLocal = function() {
-    // Só deixa restaurar se tiver permissão de Admin (Financeiro)
-    if(!checkPerm('fin')) return alert("Apenas Administradores podem restaurar backups.");
+    if(!window.currentUser || window.currentUser.isAdmin !== true) return alert("Apenas Administradores podem restaurar backups.");
 
     if(!confirm("⚠️ PERIGO: Isso vai SUBSTITUIR todos os dados atuais da tela pelos dados do arquivo que você selecionar.\n\nDeseja continuar?")) return;
 
@@ -3182,6 +3301,10 @@ window.restaurarBackupLocal = function() {
                 }
 
                 const estadoAnterior = clonarDados(normalizarDbState(window.db));
+
+                // Um backup antigo nunca pode recriar senhas, perfis ou logs de auditoria.
+                dadosRestaurados.users = clonarDados(estadoAnterior.users);
+                dadosRestaurados.audit = clonarDados(estadoAnterior.audit);
 
                 // CARREGA OS DADOS NA TELA
                 window.db = dadosRestaurados;
@@ -3252,21 +3375,31 @@ window.toggleStatusValePagamento = async function(id) {
 
     if(p.tipo !== 'Vale') return;
 
-    const atualizado = { ...p };
-    const acao = atualizado.status === 'PENDENTE'
+    const statusAtual = normalizarStatusVale(p.status);
+    const novoStatus = statusAtual === 'PENDENTE' ? 'PAGO' : 'PENDENTE';
+    const atualizado = { ...p, status: novoStatus };
+    const acao = statusAtual === 'PENDENTE'
         ? `Quitou vale de ${fmtMoeda(p.valor)} para ${p.nomeFunc}`
         : `Reabriu vale de ${fmtMoeda(p.valor)} para ${p.nomeFunc}`;
 
-    atualizado.status = atualizado.status === 'PENDENTE' ? 'PAGO' : 'PENDENTE';
+    const operacao = iniciarOperacao(`toggle-vale:${String(id)}`);
+    if (!operacao) return;
 
     try {
-        await salvarRegistro(FIREBASE_AREAS.pagamentos, atualizado.id, atualizado);
-        Object.assign(p, atualizado);
+        await salvarRegistro(
+            FIREBASE_AREAS.pagamentos,
+            atualizado.id,
+            { status: novoStatus },
+            { merge: true }
+        );
+        upsertDbItem('pagamentos', atualizado);
         registrarLog('Financeiro', acao);
         window.atualizarPainelPagamentos();
         window.atualizarDashboard();
     } catch (erro) {
         console.error("Falha ao atualizar status do vale:", erro);
         alert("❌ ERRO: o status do vale não foi confirmado na nuvem.");
+    } finally {
+        finalizarOperacao(operacao, FIREBASE_AREAS.pagamentos);
     }
 }

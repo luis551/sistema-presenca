@@ -63,7 +63,8 @@
                 <input type="hidden" id="editUserIndex" value="">
                 <label style="font-weight:bold; font-size:0.9rem;" id="tituloFormUser">Adicionar Novo Usuário</label>
                 <input type="text" id="novoUser" placeholder="Nome de Usuário" style="margin:5px 0;">
-                <input type="password" id="novaSenha" placeholder="Senha" style="margin:5px 0;">
+                <input type="password" id="novaSenha" placeholder="Senha (mínimo 6 caracteres)" autocomplete="new-password" style="margin:5px 0;">
+                <small style="display:block; color:var(--text-sub); margin-bottom:8px;">Na edição, deixe a senha vazia para mantê-la.</small>
                 <div style="margin: 10px 0;">
                     <input type="checkbox" id="checkIsAdmin" style="width:auto;" onchange="togglePermBoxes()"> 
                     <label for="checkIsAdmin" style="cursor:pointer; display:inline;">É Administrador (Acesso Total)?</label>
@@ -92,12 +93,11 @@
 
     <div id="login-screen">
         <div class="login-box">
-            <button class="btn-config-login" onclick="abrirGestaoUsuarios()">⚙️</button>
             <h2 style="color: var(--primary);">🔐 Acesso Administrativo</h2>
             <p style="color:var(--text-sub); margin-bottom: 15px;">Painel RH - Identifique-se:</p>
-            <input type="text" id="loginUser" placeholder="Usuário" onkeyup="if(event.key==='Enter') document.getElementById('loginPass').focus()">
-            <input type="password" id="loginPass" placeholder="Senha" onkeyup="if(event.key==='Enter') checkLogin()">
-            <button class="action-btn" onclick="checkLogin()" style="width:100%; margin-top:15px;">Acessar</button>
+            <input type="text" id="loginUser" placeholder="Usuário" autocomplete="username" onkeyup="if(event.key==='Enter') document.getElementById('loginPass').focus()">
+            <input type="password" id="loginPass" placeholder="Senha" autocomplete="current-password" onkeyup="if(event.key==='Enter') checkLogin()">
+            <button class="action-btn" id="btnLogin" onclick="checkLogin()" style="width:100%; margin-top:15px;">Acessar</button>
             <p id="loginError" style="color: red; display: none; margin-top: 10px; font-size:0.9rem;">Usuário ou senha inválidos!</p>
         </div>
     </div>
@@ -124,7 +124,9 @@
 
         <div class="menu-category">Sistema</div>
         <button class="menu-btn" id="btnSeguranca" onclick="showSection('seguranca', this)">🛡️ Segurança (Audit)</button>
+        <button class="menu-btn" id="btnGestaoUsuarios" onclick="abrirGestaoUsuarios()" style="display:none;">👥 Gestão de Acessos</button>
         <button class="menu-btn" onclick="toggleDarkMode()">🌙 Modo Escuro</button>
+        <button class="menu-btn" id="btnSair" onclick="sairDoSistema()" style="display:none;">🚪 Sair</button>
 
         <div class="system-controls">
             <div id="status-connection">⏳ Conectando...</div>
@@ -164,11 +166,11 @@
                     <div class="form-group">
                         <label>Turno de Trabalho</label>
                         <select id="selMotoTurno" onchange="atualizarInfoMoto()">
-                            <option value="Noite">🌙 Noite (Fixa 60 + 5/entrega)</option>
+                            <option value="Noite">🌙 Noite (R$ 40 diária + R$ 4/entrega desde 14/07/2026)</option>
                             <option value="Dia">☀️ Dia (Sem Fixa + 9/entrega)</option>
                         </select>
                     </div>
-                    <div class="form-group"><label>Data</label><input type="date" id="dataMoto"></div>
+                    <div class="form-group"><label>Data</label><input type="date" id="dataMoto" onchange="calcularMotoPreview()"></div>
                 </div>
                 <div class="form-grid" style="margin-top:15px; background:rgba(0,0,0,0.05); padding:10px; border-radius:5px;">
                     <div class="form-group"><label>Qtd. iFood 🔴</label><input type="number" id="qtdIfood" placeholder="0" oninput="calcularMotoPreview()"></div>
@@ -177,7 +179,7 @@
                 </div>
                 <div style="margin-top:20px; text-align:right;">
                     <span style="font-size:1.2rem; margin-right:15px;">Total a Receber: <strong id="previewMotoTotal" style="color:var(--moto);">R$ 0,00</strong></span>
-                    <button class="action-btn" style="background-color: var(--moto);" onclick="lancarEntregaMoto()">Salvar Diária</button>
+                    <button class="action-btn" id="btnSalvarMoto" style="background-color: var(--moto);" onclick="lancarEntregaMoto()">Salvar Diária</button>
                 </div>
             </div>
            <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; margin-bottom: 15px; background: rgba(0,0,0,0.03); padding: 10px; border-radius: 8px;">
@@ -475,7 +477,7 @@
 
         <div id="avisoSaldo" class="alert-box"></div>
         
-        <button class="action-btn" style="width: 100%; margin-top:15px;" onclick="lancarPagamento()">Registrar Operação</button>
+        <button class="action-btn" id="btnRegistrarPagamento" style="width: 100%; margin-top:15px;" onclick="lancarPagamento()">Registrar Operação</button>
         <button class="action-btn btn-excel" onclick="exportarExcel()">📥 Baixar Relatório</button>
     </div>
 
@@ -572,7 +574,7 @@
                         <thead>
                             <tr>
                                 <th width="20%">Data/Hora</th>
-                                <th width="15%">Usuário</th>
+                                <th width="20%">UID autenticado</th>
                                 <th width="20%">Ação</th>
                                 <th>Detalhes</th>
                             </tr>
@@ -586,124 +588,179 @@
 
    <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import {
+            browserLocalPersistence,
+            connectAuthEmulator,
+            getAuth,
+            onAuthStateChanged,
+            setPersistence,
+            signInWithEmailAndPassword,
+            signOut
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import {
+            collection,
+            connectFirestoreEmulator,
+            deleteDoc,
+            doc,
+            getDoc,
+            getFirestore,
+            onSnapshot,
+            runTransaction,
+            serverTimestamp,
+            setDoc
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import {
+            connectFunctionsEmulator,
+            getFunctions,
+            httpsCallable
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js";
 
-        const firebaseConfig = { 
-            apiKey: "AIzaSyBQFsxlyyyLVTpIAdbjdoIOyFA6zIj9Ka4", 
-            authDomain: "sistema-presenca-99791.firebaseapp.com", 
-            projectId: "sistema-presenca-99791", 
-            storageBucket: "sistema-presenca-99791.firebasestorage.app", 
-            messagingSenderId: "205211862116", 
+        const firebaseConfig = {
+            apiKey: "AIzaSyBQFsxlyyyLVTpIAdbjdoIOyFA6zIj9Ka4",
+            authDomain: "sistema-presenca-99791.firebaseapp.com",
+            projectId: "sistema-presenca-99791",
+            storageBucket: "sistema-presenca-99791.firebasestorage.app",
+            messagingSenderId: "205211862116",
             appId: "1:205211862116:web:090e6efe0ec4d8c71a8b71"
         };
 
-        const app = initializeApp(firebaseConfig); 
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
         const dbFirestore = getFirestore(app, "sera");
+        const functions = getFunctions(app, "us-central1");
+        const usarEmuladores = ['localhost', '127.0.0.1'].includes(location.hostname)
+            && new URLSearchParams(location.search).get('emulator') === '1';
+
+        if (usarEmuladores) {
+            connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+            connectFirestoreEmulator(dbFirestore, '127.0.0.1', 8080);
+            connectFunctionsEmulator(functions, '127.0.0.1', 5001);
+        }
 
         const statusEl = document.getElementById('status-connection');
-        if(statusEl) statusEl.innerHTML = "🔄 Conectando aos novos reinos...";
+        const colecoesPrincipais = [
+            'rh_funcionarios',
+            'rh_pagamentos',
+            'rh_presencas',
+            'rh_extras',
+            'rh_entregas',
+            'rh_boletos'
+        ];
+        const colecoesProtegidas = new Set(['rh_users', 'rh_audit']);
+        const mapaColecoesDb = {
+            rh_funcionarios: 'funcionarios',
+            rh_pagamentos: 'pagamentos',
+            rh_extras: 'extras',
+            rh_entregas: 'entregas',
+            rh_boletos: 'boletos',
+            rh_users: 'users',
+            rh_audit: 'audit'
+        };
 
-        // 👁️ 1. VIGÍLIA CONSTANTE NAS 7 COLEÇÕES
-        const colecoes = ['rh_funcionarios', 'rh_pagamentos', 'rh_presencas', 'rh_extras', 'rh_entregas', 'rh_boletos', 'rh_users'];
+        const estadoFirebase = {
+            authReady: false,
+            profileReady: false,
+            readyCollections: Object.fromEntries([
+                ...colecoesPrincipais,
+                'rh_users',
+                'rh_audit'
+            ].map(nome => [nome, false])),
+            collectionErrors: {},
+            pendingWrites: new Set()
+        };
+        window.__rhFirebaseState = estadoFirebase;
+
         let refreshTimer = null;
+        let cancelarListeners = [];
+        let geracaoSessao = 0;
+
+        function normalizarUsuario(value) {
+            const username = String(value || '').trim().toLowerCase();
+            if (!/^[a-z0-9._-]{3,40}$/.test(username)) {
+                throw new Error('Use de 3 a 40 caracteres: letras, números, ponto, hífen ou sublinhado.');
+            }
+            return username;
+        }
+
+        function emailInternoDoUsuario(username) {
+            return `${normalizarUsuario(username)}@painelrh.invalid`;
+        }
+
+        function encerrarListeners() {
+            cancelarListeners.forEach(cancelar => cancelar());
+            cancelarListeners = [];
+            Object.keys(estadoFirebase.readyCollections).forEach(nome => {
+                estadoFirebase.readyCollections[nome] = false;
+            });
+            estadoFirebase.collectionErrors = {};
+        }
+
+        function atualizarControlesNuvem() {
+            const controles = [
+                ['btnSalvarTopo', 'rh_presencas'],
+                ['btnRegistrarPagamento', 'rh_pagamentos'],
+                ['btnSalvarMoto', 'rh_entregas']
+            ];
+
+            controles.forEach(([id, colecao]) => {
+                const botao = document.getElementById(id);
+                if (!botao || botao.dataset.saving === 'true') return;
+                const pronto = Boolean(window.currentUser)
+                    && estadoFirebase.profileReady
+                    && estadoFirebase.readyCollections[colecao] === true;
+                botao.disabled = !pronto;
+                botao.title = pronto ? '' : 'Faça login e aguarde a confirmação dos dados no servidor.';
+            });
+        }
+
+        function atualizarStatusConexao() {
+            const falhas = Object.keys(estadoFirebase.collectionErrors);
+            const pendentes = colecoesPrincipais.filter(nome => !estadoFirebase.readyCollections[nome]);
+
+            if (statusEl) {
+                if (!estadoFirebase.authReady) {
+                    statusEl.innerHTML = '⏳ Verificando acesso...';
+                } else if (!window.currentUser) {
+                    statusEl.innerHTML = '🔒 Login necessário';
+                } else if (!estadoFirebase.profileReady) {
+                    statusEl.innerHTML = '🔐 Validando permissões...';
+                } else if (falhas.length > 0) {
+                    statusEl.innerHTML = `🔴 Falha de conexão (${falhas.length})`;
+                } else if (estadoFirebase.pendingWrites.size > 0) {
+                    statusEl.innerHTML = '💾 Salvando na nuvem...';
+                } else if (pendentes.length > 0) {
+                    statusEl.innerHTML = `🔄 Carregando dados (${colecoesPrincipais.length - pendentes.length}/${colecoesPrincipais.length})`;
+                } else {
+                    statusEl.innerHTML = '🟢 Online — acesso autenticado';
+                }
+            }
+
+            atualizarControlesNuvem();
+        }
 
         function agendarAtualizacaoVisual() {
-         clearTimeout(refreshTimer);
-         refreshTimer = setTimeout(() => {
-               if (window.atualizarInterface) window.atualizarInterface();
-              if (window.atualizarDashboard) window.atualizarDashboard();
+            clearTimeout(refreshTimer);
+            refreshTimer = setTimeout(() => {
+                if (window.atualizarInterface) window.atualizarInterface();
+                if (window.atualizarDashboard) window.atualizarDashboard();
 
-             const secaoAtiva = document.querySelector('.section.active')?.id;
-
-               if (secaoAtiva === 'pagamentos' && window.atualizarPainelPagamentos) {
-               window.atualizarPainelPagamentos();
-            }
-              if (secaoAtiva === 'motoboys' && window.renderizarMotoboys) {
-             window.renderizarMotoboys();
-            }
-                 if (secaoAtiva === 'extras' && window.renderizarExtras) {
-                 window.renderizarExtras();
-            }
-                  if (secaoAtiva === 'boletos' && window.renderizarBoletos) {
-               window.renderizarBoletos();
-            }
-                if (secaoAtiva === 'seguranca' && window.renderizarAudit) {
-                 window.renderizarAudit();
-            }
-
-                 const statusEl = document.getElementById('status-connection');
-                if (statusEl) statusEl.innerHTML = "🟢 Online (Nível 99)";
-              }, 80);
-         }   
-        colecoes.forEach(nomeCol => {
-            onSnapshot(collection(dbFirestore, nomeCol), (snapshot) => {
-                const tempArray = [];
-                snapshot.forEach(docSnap => tempArray.push(docSnap.data()));
-
-                // Atualiza o banco local dependendo de qual coleção mudou
-                if (nomeCol === 'rh_funcionarios') window.db.funcionarios = tempArray;
-                if (nomeCol === 'rh_pagamentos') window.db.pagamentos = tempArray;
-                if (nomeCol === 'rh_extras') window.db.extras = tempArray;
-                if (nomeCol === 'rh_entregas') window.db.entregas = tempArray;
-                if (nomeCol === 'rh_boletos') window.db.boletos = tempArray;
-                if (nomeCol === 'rh_users') window.db.users = tempArray;
-
-                // A Presença tem aquela mecânica de objeto especial separada por dia
-                if (nomeCol === 'rh_presencas') {
-                    const presObj = {};
-                    tempArray.forEach(item => { presObj[item.data] = item.registros; });
-                    window.db.presencas = presObj;
-                }
-
-                agendarAtualizacaoVisual();
-            });
-        });
-
-       window.salvarItemNuvem = async function(colecao, idDocumento, dados) {
-    try {
-        await setDoc(doc(dbFirestore, colecao, String(idDocumento)), dados);
-        return true;
-    } catch(e) {
-        console.error("Erro no ataque (Salvar):", e);
-        throw e;
-    }
-    };
-
-        window.deletarItemNuvem = async function(colecao, idDocumento) {
-            try {
-                await deleteDoc(doc(dbFirestore, colecao, String(idDocumento)));
-            } catch(e) { console.error("Erro na exclusão:", e); }
-        };
-
-        // 🛡️ 3. DESATIVA O FEITIÇO ANTIGO PRA NÃO DAR RUIM
-        window.salvarNuvem = function() {
-            console.warn("🛡️ A magia antiga salvarNuvem() foi aposentada! Agora o sistema salva direto nas coleções.");
-        };
-    </script>
-    <script type="module">
-        import { getApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-        const appAtual = getApps().length ? getApp() : null;
-        const dbFirestore = appAtual ? getFirestore(appAtual, "sera") : null;
-        const statusEl = document.getElementById('status-connection');
+                const secaoAtiva = document.querySelector('.section.active')?.id;
+                if (secaoAtiva === 'pagamentos' && window.atualizarPainelPagamentos) window.atualizarPainelPagamentos();
+                if (secaoAtiva === 'motoboys' && window.renderizarMotoboys) window.renderizarMotoboys();
+                if (secaoAtiva === 'extras' && window.renderizarExtras) window.renderizarExtras();
+                if (secaoAtiva === 'boletos' && window.renderizarBoletos) window.renderizarBoletos();
+                if (secaoAtiva === 'seguranca' && window.renderizarAudit) window.renderizarAudit();
+            }, 120);
+        }
 
         function criarDebounce(fn, wait = 120) {
             if (typeof fn !== 'function') return fn;
             let timer = null;
-            let ultimoThis = null;
-            let ultimoArgs = null;
-
             const debounced = function(...args) {
-                ultimoThis = this;
-                ultimoArgs = args;
+                const contexto = this;
                 clearTimeout(timer);
-                timer = setTimeout(() => {
-                    timer = null;
-                    fn.apply(ultimoThis, ultimoArgs);
-                }, wait);
+                timer = setTimeout(() => fn.apply(contexto, args), wait);
             };
-
             debounced.__rhWrapped = true;
             return debounced;
         }
@@ -716,56 +773,211 @@
 
         ['atualizarInterface', 'atualizarDashboard', 'atualizarPainelPagamentos', 'renderizarMotoboys', 'renderizarExtras', 'renderizarBoletos', 'renderizarAudit', 'atualizarPrevisao'].forEach(nome => protegerRender(nome));
 
-        if (dbFirestore) {
-            onSnapshot(
-                collection(dbFirestore, 'rh_audit'),
-                (snapshot) => {
-                    const audit = [];
-                    snapshot.forEach(docSnap => audit.push(docSnap.data()));
-                    window.db.audit = audit;
-
-                    if (document.querySelector('.section.active')?.id === 'seguranca' && typeof window.renderizarAudit === 'function') {
-                        window.renderizarAudit();
-                    }
-
-                    if (statusEl) statusEl.innerHTML = 'Online';
-                },
-                (erro) => {
-                    console.error('Erro no snapshot de auditoria:', erro);
-                    if (statusEl) statusEl.innerHTML = 'Falha na auditoria';
-                }
-            );
-
-            window.salvarItemNuvem = async function(colecao, idDocumento, dados) {
-                try {
-                    await setDoc(doc(dbFirestore, colecao, String(idDocumento)), dados);
-                    if (statusEl) statusEl.innerHTML = 'Online';
-                    return true;
-                } catch (erro) {
-                    console.error(`Erro ao salvar em ${colecao}/${idDocumento}:`, erro);
-                    if (statusEl) statusEl.innerHTML = 'Erro ao salvar';
-                    throw erro;
-                }
-            };
-
-            window.deletarItemNuvem = async function(colecao, idDocumento) {
-                try {
-                    await deleteDoc(doc(dbFirestore, colecao, String(idDocumento)));
-                    if (statusEl) statusEl.innerHTML = 'Online';
-                    return true;
-                } catch (erro) {
-                    console.error(`Erro ao excluir em ${colecao}/${idDocumento}:`, erro);
-                    if (statusEl) statusEl.innerHTML = 'Erro ao excluir';
-                    throw erro;
-                }
-            };
+        function exigirColecaoPronta(nomeColecao) {
+            if (!auth.currentUser || !window.currentUser || !estadoFirebase.profileReady) {
+                throw new Error('Sua sessão não está autenticada. Faça login novamente.');
+            }
+            if (estadoFirebase.collectionErrors[nomeColecao]) {
+                throw new Error(`A coleção ${nomeColecao} está com erro de conexão.`);
+            }
+            if (!estadoFirebase.readyCollections[nomeColecao]) {
+                throw new Error(`A coleção ${nomeColecao} ainda não foi confirmada pelo servidor.`);
+            }
         }
 
+        async function executarEscrita(chave, operacao) {
+            if (estadoFirebase.pendingWrites.has(chave)) {
+                throw new Error('Esta operação já está sendo salva. Aguarde a conclusão.');
+            }
+
+            estadoFirebase.pendingWrites.add(chave);
+            atualizarStatusConexao();
+            try {
+                return await operacao();
+            } finally {
+                estadoFirebase.pendingWrites.delete(chave);
+                atualizarStatusConexao();
+            }
+        }
+
+        function escutarColecao(nomeCol, geracao) {
+            const cancelar = onSnapshot(
+                collection(dbFirestore, nomeCol),
+                { includeMetadataChanges: true },
+                snapshot => {
+                    if (geracao !== geracaoSessao || !auth.currentUser || !window.currentUser) return;
+                    const tempArray = [];
+                    snapshot.forEach(docSnap => {
+                        const dados = docSnap.data();
+                        tempArray.push(dados.id === undefined ? { ...dados, id: docSnap.id } : dados);
+                    });
+
+                    if (nomeCol === 'rh_presencas') {
+                        const presObj = {};
+                        tempArray.forEach(item => {
+                            if (item && item.data) presObj[item.data] = Array.isArray(item.registros) ? item.registros : [];
+                        });
+                        window.db.presencas = presObj;
+                    } else {
+                        const chaveDb = mapaColecoesDb[nomeCol];
+                        if (chaveDb) window.db[chaveDb] = tempArray;
+                    }
+
+                    if (!snapshot.metadata.fromCache) {
+                        estadoFirebase.readyCollections[nomeCol] = true;
+                        delete estadoFirebase.collectionErrors[nomeCol];
+                    }
+
+                    atualizarStatusConexao();
+                    agendarAtualizacaoVisual();
+                },
+                erro => {
+                    if (geracao !== geracaoSessao) return;
+                    estadoFirebase.readyCollections[nomeCol] = false;
+                    estadoFirebase.collectionErrors[nomeCol] = erro;
+                    console.error(`Erro ao carregar ${nomeCol}:`, erro);
+                    atualizarStatusConexao();
+                }
+            );
+            cancelarListeners.push(cancelar);
+        }
+
+        function iniciarListeners(profile, geracao) {
+            colecoesPrincipais.forEach(nome => escutarColecao(nome, geracao));
+            if (profile.isAdmin === true) {
+                escutarColecao('rh_users', geracao);
+                escutarColecao('rh_audit', geracao);
+            } else {
+                window.db.users = [profile];
+                window.db.audit = [];
+            }
+        }
+
+        window.salvarItemNuvem = async function(nomeColecao, idDocumento, dados, opcoes = {}) {
+            if (colecoesProtegidas.has(nomeColecao)) {
+                throw new Error(`A coleção ${nomeColecao} só pode ser alterada pelo fluxo de segurança.`);
+            }
+            exigirColecaoPronta(nomeColecao);
+            const chave = `salvar:${nomeColecao}:${String(idDocumento)}`;
+            return executarEscrita(chave, async () => {
+                const referencia = doc(dbFirestore, nomeColecao, String(idDocumento));
+                if (opcoes.merge === true) await setDoc(referencia, dados, { merge: true });
+                else await setDoc(referencia, dados);
+                return true;
+            });
+        };
+
+        window.salvarPresencaNuvem = async function(data, alteracoesVisiveis) {
+            exigirColecaoPronta('rh_presencas');
+            const chave = `presenca:${data}`;
+
+            return executarEscrita(chave, () => runTransaction(dbFirestore, async transaction => {
+                const referencia = doc(dbFirestore, 'rh_presencas', String(data));
+                const snapshot = await transaction.get(referencia);
+                const dadosAtuais = snapshot.exists() ? snapshot.data() : {};
+                const registrosAtuais = Array.isArray(dadosAtuais.registros) ? dadosAtuais.registros : [];
+                const mapa = new Map();
+
+                registrosAtuais.forEach(item => {
+                    if (item && item.id !== undefined && item.id !== null) mapa.set(String(item.id), item);
+                });
+                alteracoesVisiveis.forEach(item => {
+                    if (item && item.id !== undefined && item.id !== null) mapa.set(String(item.id), item);
+                });
+
+                const registros = Array.from(mapa.values());
+                transaction.set(referencia, { data: String(data), registros });
+                return registros;
+            }));
+        };
+
+        window.deletarItemNuvem = async function(nomeColecao, idDocumento) {
+            if (colecoesProtegidas.has(nomeColecao)) {
+                throw new Error(`A coleção ${nomeColecao} só pode ser alterada pelo fluxo de segurança.`);
+            }
+            exigirColecaoPronta(nomeColecao);
+            const chave = `excluir:${nomeColecao}:${String(idDocumento)}`;
+            return executarEscrita(chave, async () => {
+                await deleteDoc(doc(dbFirestore, nomeColecao, String(idDocumento)));
+                return true;
+            });
+        };
+
+        window.registrarAuditoriaNuvem = async function(acao, detalhes) {
+            if (!auth.currentUser || !window.currentUser || !estadoFirebase.profileReady) {
+                throw new Error('Não há usuário autenticado para registrar a auditoria.');
+            }
+            const referencia = doc(collection(dbFirestore, 'rh_audit'));
+            const chave = `auditoria:${referencia.id}`;
+            const registro = {
+                uid: auth.currentUser.uid,
+                acao: String(acao || '').slice(0, 80),
+                detalhes: String(detalhes || '').slice(0, 1000),
+                createdAt: serverTimestamp()
+            };
+            await executarEscrita(chave, () => setDoc(referencia, registro));
+            return { ...registro, id: referencia.id };
+        };
+
+        const criarUsuario = httpsCallable(functions, 'createRhUser');
+        const atualizarUsuario = httpsCallable(functions, 'updateRhUser');
+        const desativarUsuario = httpsCallable(functions, 'disableRhUser');
+
+        window.criarUsuarioAuth = async dados => (await criarUsuario(dados)).data;
+        window.atualizarUsuarioAuth = async dados => (await atualizarUsuario(dados)).data;
+        window.desativarUsuarioAuth = async uid => (await desativarUsuario({ uid })).data;
+
+        window.entrarComFirebase = async function(username, password) {
+            await setPersistence(auth, browserLocalPersistence);
+            return signInWithEmailAndPassword(auth, emailInternoDoUsuario(username), password);
+        };
+
+        window.sairFirebase = () => signOut(auth);
+
+        onAuthStateChanged(auth, async firebaseUser => {
+            const geracaoAtual = ++geracaoSessao;
+            estadoFirebase.authReady = true;
+            estadoFirebase.profileReady = false;
+            encerrarListeners();
+
+            if (!firebaseUser) {
+                window.currentUser = null;
+                if (window.aplicarSessaoDesconectada) window.aplicarSessaoDesconectada();
+                atualizarStatusConexao();
+                return;
+            }
+
+            try {
+                const snapshot = await getDoc(doc(dbFirestore, 'rh_users', firebaseUser.uid));
+                if (!snapshot.exists() || snapshot.data().active !== true) {
+                    throw new Error('Seu perfil não existe ou está desativado.');
+                }
+
+                const profile = {
+                    ...snapshot.data(),
+                    uid: firebaseUser.uid,
+                    email: firebaseUser.email || snapshot.data().email || ''
+                };
+                window.currentUser = profile;
+                window.db.users = [profile];
+                estadoFirebase.profileReady = true;
+                iniciarListeners(profile, geracaoAtual);
+                if (window.aplicarSessaoAutenticada) window.aplicarSessaoAutenticada(profile);
+            } catch (erro) {
+                console.error('Falha ao validar o perfil autenticado:', erro);
+                if (window.mostrarErroLogin) window.mostrarErroLogin(erro.message);
+                await signOut(auth);
+            }
+
+            atualizarStatusConexao();
+        });
+
         window.salvarNuvem = function() {
-            const erro = new Error('Fluxo legado salvarNuvem() foi desativado. Use salvamento por colecao.');
+            const erro = new Error('Fluxo legado salvarNuvem() foi desativado. Use salvamento por coleção.');
             console.error(erro);
             throw erro;
         };
+        atualizarStatusConexao();
     </script>
     
 <div id="modalDetalhes">

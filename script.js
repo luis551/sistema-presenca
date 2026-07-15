@@ -37,7 +37,9 @@ function obterRegraPagamentoMoto(turno, dataEntrega) {
 }
 
 function normalizarStatusVale(status) {
-    return status === 'PENDENTE' ? 'PENDENTE' : 'PAGO';
+    return window.ValeStatus
+        ? window.ValeStatus.normalizarStatus(status)
+        : (status === 'PENDENTE' ? 'PENDENTE' : 'PAGO');
 }
 
 function pagamentoDescontaSaldo(pagamento) {
@@ -3218,7 +3220,14 @@ async function sincronizarBackupNaNuvem(estadoAnterior, estadoNovo) {
 
         for (const item of depois) {
             if (!item || item.id === undefined) continue;
-            await salvarRegistro(area, item.id, item);
+            if (chave === 'pagamentos') {
+                if (typeof window.restaurarPagamentoNuvem !== 'function') {
+                    throw new Error('Restauração segura de pagamentos ainda não foi inicializada.');
+                }
+                await window.restaurarPagamentoNuvem(item.id, item);
+            } else {
+                await salvarRegistro(area, item.id, item);
+            }
         }
     }
 
@@ -3374,25 +3383,22 @@ window.toggleStatusValePagamento = async function(id) {
     if(!p) return;
 
     if(p.tipo !== 'Vale') return;
+    if (typeof window.salvarStatusValeNuvem !== 'function') {
+        return alert('A conexão segura do vale ainda não foi inicializada. Aguarde e tente novamente.');
+    }
 
     const statusAtual = normalizarStatusVale(p.status);
     const novoStatus = statusAtual === 'PENDENTE' ? 'PAGO' : 'PENDENTE';
-    const atualizado = { ...p, status: novoStatus };
     const acao = statusAtual === 'PENDENTE'
-        ? `Quitou vale de ${fmtMoeda(p.valor)} para ${p.nomeFunc}`
-        : `Reabriu vale de ${fmtMoeda(p.valor)} para ${p.nomeFunc}`;
+        ? `Vale ${String(id)}: PENDENTE → PAGO; ${fmtMoeda(p.valor)} para ${p.nomeFunc}`
+        : `Vale ${String(id)}: PAGO → PENDENTE; ${fmtMoeda(p.valor)} para ${p.nomeFunc}`;
 
     const operacao = iniciarOperacao(`toggle-vale:${String(id)}`);
     if (!operacao) return;
 
     try {
-        await salvarRegistro(
-            FIREBASE_AREAS.pagamentos,
-            atualizado.id,
-            { status: novoStatus },
-            { merge: true }
-        );
-        upsertDbItem('pagamentos', atualizado);
+        const confirmado = await window.salvarStatusValeNuvem(p.id, novoStatus);
+        upsertDbItem('pagamentos', confirmado);
         registrarLog('Financeiro', acao);
         window.atualizarPainelPagamentos();
         window.atualizarDashboard();

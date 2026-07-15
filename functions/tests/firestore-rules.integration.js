@@ -82,6 +82,12 @@ async function seed() {
   }
   await adminAuth.createUser({uid: "uid-no-profile", email: "noprofile@painelrh.invalid", password: PASSWORD});
   await adminDb.collection("rh_funcionarios").doc("seed").set({id: "seed", nome: "Teste"});
+  await adminDb.collection("rh_pagamentos").doc("vale-status").set({
+    id: "vale-status",
+    tipo: "Vale",
+    status: "PENDENTE",
+    valor: 50,
+  });
   return adminDb;
 }
 
@@ -112,7 +118,32 @@ async function run() {
 
     const finance = await clientFor("finance", "finance@painelrh.invalid");
     clients.push(finance);
-    await expectAllowed(setDoc(doc(finance.firestore, "rh_pagamentos", "p2"), {id: "p2"}), "financeiro grava pagamento");
+    await expectAllowed(setDoc(doc(finance.firestore, "rh_pagamentos", "p2"), {
+      id: "p2",
+      tipo: "Pagamento",
+      status: "PAGO",
+    }), "financeiro grava pagamento");
+    const valeRef = doc(finance.firestore, "rh_pagamentos", "vale-status");
+    await expectDenied(updateDoc(valeRef, {status: "PAGO"}), "versão antiga altera status sem controle");
+    await expectAllowed(updateDoc(valeRef, {
+      status: "PAGO",
+      statusVersion: 1,
+      statusUpdatedAt: serverTimestamp(),
+      statusUpdatedBy: profiles.finance.uid,
+    }), "financeiro altera status com versão, horário e UID");
+    await expectAllowed(updateDoc(valeRef, {desc: "ajuste sem mudar status"}), "financeiro edita vale preservando status");
+    await expectDenied(updateDoc(valeRef, {
+      status: "PENDENTE",
+      statusVersion: 1,
+      statusUpdatedAt: serverTimestamp(),
+      statusUpdatedBy: profiles.finance.uid,
+    }), "financeiro reutiliza versão de status");
+    await expectDenied(updateDoc(valeRef, {
+      status: "PENDENTE",
+      statusVersion: 2,
+      statusUpdatedAt: serverTimestamp(),
+      statusUpdatedBy: profiles.admin.uid,
+    }), "financeiro informa UID diferente do autenticado");
     await expectAllowed(setDoc(doc(finance.firestore, "rh_extras", "e1"), {id: "e1"}), "financeiro grava extra");
     await expectDenied(setDoc(doc(finance.firestore, "rh_presencas", "2026-07-15"), {data: "2026-07-15"}), "financeiro grava presença");
 
@@ -151,7 +182,7 @@ async function run() {
     const storedAudit = await adminDb.collection("rh_audit").doc(auditRef.id).get();
     assert.equal(storedAudit.data().uid, profiles.presence.uid, "UID persistido deve ser o UID autenticado");
     assert.ok(storedAudit.data().createdAt, "timestamp do servidor deve existir");
-    console.log("22 testes de regras passaram para o banco nomeado 'sera'.");
+    console.log("27 testes de regras passaram para o banco nomeado 'sera'.");
   } finally {
     await Promise.all(clients.map(({app}) => deleteApp(app)));
   }

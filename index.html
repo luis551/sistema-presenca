@@ -584,6 +584,7 @@
                 </div>
             </div>
         </div>
+    <script src="vale-status.js"></script>
     <script src="script.js"></script>
 
    <script type="module">
@@ -603,6 +604,7 @@
             deleteDoc,
             doc,
             getDoc,
+            getDocFromServer,
             getFirestore,
             onSnapshot,
             runTransaction,
@@ -888,6 +890,53 @@
                 const registros = Array.from(mapa.values());
                 transaction.set(referencia, { data: String(data), registros });
                 return registros;
+            }));
+        };
+
+        window.salvarStatusValeNuvem = async function(idDocumento, statusDesejado) {
+            exigirColecaoPronta('rh_pagamentos');
+            if (!window.ValeStatus) throw new Error('Validação de vale não inicializada.');
+
+            const id = String(idDocumento);
+            const referencia = doc(dbFirestore, 'rh_pagamentos', id);
+            const chave = `vale-status:${id}`;
+
+            await executarEscrita(chave, () => runTransaction(dbFirestore, async transaction => {
+                const snapshot = await transaction.get(referencia);
+                if (!snapshot.exists()) throw new Error('Vale não encontrado no servidor.');
+
+                const decisao = window.ValeStatus.calcularAtualizacao(
+                    snapshot.data(),
+                    statusDesejado,
+                    auth.currentUser?.uid,
+                    serverTimestamp()
+                );
+                if (decisao.changed) transaction.update(referencia, decisao.patch);
+            }));
+
+            const confirmado = await getDocFromServer(referencia);
+            if (!confirmado.exists()) throw new Error('Vale desapareceu após a atualização.');
+            const dadosConfirmados = confirmado.data();
+            if (window.ValeStatus.normalizarStatus(dadosConfirmados.status) !== statusDesejado) {
+                throw new Error('O servidor não confirmou o novo status do vale.');
+            }
+            return dadosConfirmados.id === undefined ? { ...dadosConfirmados, id } : dadosConfirmados;
+        };
+
+        window.restaurarPagamentoNuvem = async function(idDocumento, dadosBackup) {
+            exigirColecaoPronta('rh_pagamentos');
+            if (!window.ValeStatus) throw new Error('Validação de vale não inicializada.');
+
+            const id = String(idDocumento);
+            const referencia = doc(dbFirestore, 'rh_pagamentos', id);
+            const chave = `restaurar-pagamento:${id}`;
+
+            return executarEscrita(chave, () => runTransaction(dbFirestore, async transaction => {
+                const snapshot = await transaction.get(referencia);
+                const dadosAtuais = snapshot.exists() ? snapshot.data() : null;
+                const dadosProtegidos = window.ValeStatus.protegerRestauracao(dadosAtuais, dadosBackup);
+                transaction.set(referencia, dadosProtegidos);
+                return dadosProtegidos;
             }));
         };
 

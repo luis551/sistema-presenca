@@ -21,20 +21,7 @@ const FIREBASE_AREAS = {
     audit: 'rh_audit',
     boletos: 'rh_boletos'
 };
-const DATA_VIGENCIA_MOTO_NOTURNO = '2026-07-14';
-const REGRAS_PAGAMENTO_MOTO = {
-    noiteLegado: { valorDiaria: 60, valorPorEntrega: 5, versao: 'noturno-legado-60-5' },
-    noiteAtual: { valorDiaria: 40, valorPorEntrega: 4, versao: 'noturno-2026-07-14-40-4' },
-    dia: { valorDiaria: 0, valorPorEntrega: 9, versao: 'diurno-0-9' }
-};
 const operacoesEmAndamento = new Set();
-
-function obterRegraPagamentoMoto(turno, dataEntrega) {
-    if (turno !== 'Noite') return REGRAS_PAGAMENTO_MOTO.dia;
-    return dataEntrega >= DATA_VIGENCIA_MOTO_NOTURNO
-        ? REGRAS_PAGAMENTO_MOTO.noiteAtual
-        : REGRAS_PAGAMENTO_MOTO.noiteLegado;
-}
 
 function normalizarStatusVale(status) {
     return window.ValeStatus
@@ -224,17 +211,23 @@ window.toggleDarkMode = function() {
 window.atualizarInfoMoto = function() { window.calcularMotoPreview(); }
 
 window.calcularMotoPreview = function() {
+    if (!window.MotoPaymentRules) {
+        throw new Error('As regras de pagamento dos motoboys não foram inicializadas.');
+    }
+
     const turno = document.getElementById('selMotoTurno').value;
     const dataEntrega = document.getElementById('dataMoto').value || new Date().toISOString().split('T')[0];
     const ifood = parseInt(document.getElementById('qtdIfood').value) || 0;
     const app99 = parseInt(document.getElementById('qtd99').value) || 0;
     const zap = parseInt(document.getElementById('qtdZap').value) || 0;
 
-    const totalEntregas = ifood + app99 + zap;
-    const regra = obterRegraPagamentoMoto(turno, dataEntrega);
-    const totalReceber = regra.valorDiaria + (totalEntregas * regra.valorPorEntrega);
-    document.getElementById('previewMotoTotal').innerText = totalReceber.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
-    return { totalEntregas, totalReceber, regra };
+    const calculo = window.MotoPaymentRules.calcularPagamento(
+        turno,
+        dataEntrega,
+        ifood + app99 + zap
+    );
+    document.getElementById('previewMotoTotal').innerText = calculo.totalReceber.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+    return calculo;
 }
 
 window.lancarEntregaMoto = async function() {

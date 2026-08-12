@@ -10,6 +10,7 @@
     "test:rules": "npx -y firebase-tools --config ../firebase.json emulators:exec --project demo-painelrh --only auth,firestore \"node tests/firestore-rules.integration.js\"",
     "test:functions": "npx -y firebase-tools --config ../firebase.json emulators:exec --project demo-painelrh --only auth,firestore,functions \"node tests/admin-functions.integration.js\"",
     "test:vale": "node --test tests/vale-status.logic.test.js",
+    "test:moto": "node --test tests/moto-payment-rules.logic.test.js",
     "migrate:preflight": "node scripts/migrate-legacy-users.js --preflight",
     "migrate:stage": "node scripts/migrate-legacy-users.js --stage",
     "migrate:verify": "node scripts/migrate-legacy-users.js --verify",

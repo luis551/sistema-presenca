@@ -63,7 +63,7 @@
                 <input type="hidden" id="editUserIndex" value="">
                 <label style="font-weight:bold; font-size:0.9rem;" id="tituloFormUser">Adicionar Novo Usuário</label>
                 <input type="text" id="novoUser" placeholder="Nome de Usuário" style="margin:5px 0;">
-                <input type="password" id="novaSenha" placeholder="Senha (mínimo 6 caracteres)" autocomplete="new-password" style="margin:5px 0;">
+                <input type="password" id="novaSenha" placeholder="Senha (mínimo 4 caracteres)" autocomplete="new-password" style="margin:5px 0;">
                 <small style="display:block; color:var(--text-sub); margin-bottom:8px;">Na edição, deixe a senha vazia para mantê-la.</small>
                 <div style="margin: 10px 0;">
                     <input type="checkbox" id="checkIsAdmin" style="width:auto;" onchange="togglePermBoxes()"> 
@@ -689,6 +689,12 @@
             return `${normalizarUsuario(username)}@painelrh.invalid`;
         }
 
+        // O Firebase exige senhas com 6+ caracteres; PINs curtos (4-5) recebem um sufixo fixo.
+        function senhaParaAuth(password) {
+            const senha = String(password || '');
+            return senha.length > 0 && senha.length < 6 ? `${senha}#painelrh-pin` : senha;
+        }
+
         function encerrarListeners() {
             cancelarListeners.forEach(cancelar => cancelar());
             cancelarListeners = [];
@@ -973,13 +979,13 @@
         const atualizarUsuario = httpsCallable(functions, 'updateRhUser');
         const desativarUsuario = httpsCallable(functions, 'disableRhUser');
 
-        window.criarUsuarioAuth = async dados => (await criarUsuario(dados)).data;
-        window.atualizarUsuarioAuth = async dados => (await atualizarUsuario(dados)).data;
+        window.criarUsuarioAuth = async dados => (await criarUsuario({ ...dados, password: senhaParaAuth(dados.password) })).data;
+        window.atualizarUsuarioAuth = async dados => (await atualizarUsuario({ ...dados, password: senhaParaAuth(dados.password) })).data;
         window.desativarUsuarioAuth = async uid => (await desativarUsuario({ uid })).data;
 
         window.entrarComFirebase = async function(username, password) {
             await setPersistence(auth, browserLocalPersistence);
-            return signInWithEmailAndPassword(auth, emailInternoDoUsuario(username), password);
+            return signInWithEmailAndPassword(auth, emailInternoDoUsuario(username), senhaParaAuth(password));
         };
 
         window.sairFirebase = () => signOut(auth);

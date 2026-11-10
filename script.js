@@ -513,8 +513,8 @@ window.salvarUsuario = async function() {
     const editIndex = document.getElementById('editUserIndex').value;
 
     if (!/^[a-z0-9._-]{3,40}$/.test(user)) return alert('Use de 3 a 40 caracteres: letras, números, ponto, hífen ou sublinhado.');
-    if (editIndex === '' && password.length < 6) return alert('A senha precisa ter pelo menos 6 caracteres.');
-    if (editIndex !== '' && password.length > 0 && password.length < 6) return alert('A nova senha precisa ter pelo menos 6 caracteres.');
+    if (editIndex === '' && password.length < 4) return alert('A senha precisa ter pelo menos 4 caracteres.');
+    if (editIndex !== '' && password.length > 0 && password.length < 4) return alert('A nova senha precisa ter pelo menos 4 caracteres.');
     if(editIndex === "" && window.db.users.find(u => u.user === user)) return alert("Usuário já existe!");
 
     const perms = {

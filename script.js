@@ -202,23 +202,13 @@ function checkPerm(tipo) {
 }
 
 // --- DARK MODE ---
-// A escolha fica salva neste navegador; sem acesso ao armazenamento, o tema só não é lembrado.
-const CHAVE_TEMA = 'painelrh_tema';
-
-function aplicarTema(escuro) {
-    document.body.classList.toggle('dark-theme', escuro);
-    const botao = document.getElementById('btnModoEscuro');
-    if (botao) botao.innerText = escuro ? '☀️ Modo Claro' : '🌙 Modo Escuro';
+// O sistema usa só o modo escuro (classe dark-theme fixa no <body>).
+// Os gráficos leem as cores do style.css para combinar com o resto da tela.
+function corTema(nome) {
+    return getComputedStyle(document.body).getPropertyValue(nome).trim();
 }
+if (window.Chart) Chart.defaults.font.family = 'Manrope, "Segoe UI", sans-serif';
 
-window.toggleDarkMode = function() {
-    const escuro = !document.body.classList.contains('dark-theme');
-    aplicarTema(escuro);
-    try { localStorage.setItem(CHAVE_TEMA, escuro ? 'escuro' : 'claro'); } catch (erro) {}
-    window.atualizarDashboard();
-}
-
-try { aplicarTema(localStorage.getItem(CHAVE_TEMA) === 'escuro'); } catch (erro) {}
 
 // --- MOTOBOY LOGIC ---
 window.atualizarInfoMoto = function() { window.calcularMotoPreview(); }
@@ -605,7 +595,7 @@ window.editarUsuario = function(index) {
     togglePermBoxes();
 
     document.getElementById('tituloFormUser').innerText = "✏️ Editando Usuário: " + u.user;
-    document.getElementById('tituloFormUser').style.color = "#e67e22";
+    document.getElementById('tituloFormUser').style.color = "var(--orange)";
     document.getElementById('btnSalvarUser').innerText = "💾 Salvar Alterações";
     document.getElementById('btnCancelarUser').style.display = "block";
 }
@@ -694,7 +684,7 @@ window.aplicarSessaoAutenticada = function(usuario) {
 
     if (usuario.isAdmin === true) {
         badge.innerHTML = `👑 ${escaparHtml(usuario.user).toUpperCase()} (ADMIN)`;
-        badge.style.color = '#f1c40f';
+        badge.style.color = 'var(--gold-text)';
         btnSeguranca.style.display = 'flex';
         btnGestaoUsuarios.style.display = 'flex';
         btnBoletos.style.display = 'flex';
@@ -947,7 +937,7 @@ window.prepararEdicao = function(id) {
     document.getElementById('fEnd').value = func.end || '';
     editingId = id;
     document.getElementById('tituloFormFunc').innerText = "✏️ Editando Funcionário";
-    document.getElementById('tituloFormFunc').style.color = "#2980b9";
+    document.getElementById('tituloFormFunc').style.color = "var(--blue)";
     document.getElementById('btnSalvarFunc').innerText = "💾 Salvar Alterações";
     document.getElementById('btnCancelarEdit').style.display = "block";
     document.getElementById('formFuncionarioCard').scrollIntoView({ behavior: 'smooth' });
@@ -959,7 +949,7 @@ window.cancelarEdicao = function() {
     document.getElementById('fStatusFuncionario').value = STATUS_FUNCIONARIO_ATIVO;
     toggleTipoPagamento();
     document.getElementById('tituloFormFunc').innerText = "Cadastrar Novo Funcionário";
-    document.getElementById('tituloFormFunc').style.color = "var(--dark)";
+    document.getElementById('tituloFormFunc').style.color = "var(--text-main)";
     document.getElementById('btnSalvarFunc').innerText = "+ Cadastrar Funcionário";
     document.getElementById('btnCancelarEdit').style.display = "none";
 }
@@ -1632,15 +1622,15 @@ window.renderizarGraficos = function(dados) {
     if(chartPizza) chartPizza.destroy(); if(chartBarra) chartBarra.destroy();
     chartPizza = new Chart(ctxPizza, {
         type: 'doughnut',
-        data: { labels: ['Salários Pagos', 'Comissões', 'Motoboys', 'Despesas Loja'], datasets: [{ data: [dados.salarios, dados.comissoes, dados.moto, dados.despesas], backgroundColor: ['#27ae60', '#8e44ad', '#d35400', '#c0392b'], borderWidth: 0 }] },
-        options: { responsive: true, plugins: { title: { display: true, text: 'Para onde foi o dinheiro?', color: '#7f8c8d' }, legend: {labels: {color: '#7f8c8d'}} } }
+        data: { labels: ['Salários Pagos', 'Comissões', 'Motoboys', 'Despesas Loja'], datasets: [{ data: [dados.salarios, dados.comissoes, dados.moto, dados.despesas], backgroundColor: [corTema('--success'), corTema('--purple'), corTema('--moto'), corTema('--danger')], borderWidth: 0 }] },
+        options: { responsive: true, plugins: { title: { display: true, text: 'Para onde foi o dinheiro?', color: corTema('--text-sub') }, legend: {labels: {color: corTema('--text-sub')}} } }
     });
     const nomes = Object.keys(dados.ranking).slice(0, 5);
     const valores = Object.values(dados.ranking).slice(0, 5);
     chartBarra = new Chart(ctxBarra, {
         type: 'bar',
-        data: { labels: nomes, datasets: [{ label: 'Vendas Totais (R$)', data: valores, backgroundColor: '#f1c40f', borderRadius: 5 }] },
-        options: { responsive: true, plugins: { title: { display: true, text: 'Top Vendedores (XP)', color: '#7f8c8d' }, legend: {display: false} }, scales: { y: { beginAtZero: true, ticks: {color: '#7f8c8d'} }, x: {ticks: {color: '#7f8c8d'}} } }
+        data: { labels: nomes, datasets: [{ label: 'Vendas Totais (R$)', data: valores, backgroundColor: corTema('--gold'), borderRadius: 5 }] },
+        options: { responsive: true, plugins: { title: { display: true, text: 'Top Vendedores (XP)', color: corTema('--text-sub') }, legend: {display: false} }, scales: { y: { beginAtZero: true, ticks: {color: corTema('--text-sub')} }, x: {ticks: {color: corTema('--text-sub')}} } }
     });
 }
 window.atualizarDashboard = function() {
@@ -1669,6 +1659,11 @@ window.atualizarDashboard = function() {
         }
     });
 
+    // Mesmo recorte usado nas somas acima: o mês inteiro e todas as lojas.
+    const fimMes = new Date(Date.UTC(anoAtual, mesAtual + 1, 0)).getUTCDate();
+    const mm = String(mesAtual + 1).padStart(2, '0');
+    const elPeriodo = document.getElementById('dashPeriodo');
+    if (elPeriodo) elPeriodo.innerHTML = `<span>Período:</span><b>01/${mm} a ${fimMes}/${mm}/${anoAtual}</b><span>·</span><b>Todas as lojas</b>`;
     document.getElementById('dashSalarios').innerText = fmtMoeda(totalSalarios);
     document.getElementById('dashComissoes').innerText = fmtMoeda(totalComissoes);
     document.getElementById('dashMotoboys').innerText = fmtMoeda(totalMoto);
@@ -2243,7 +2238,7 @@ window.atualizarPrevisao = function() {
                             </div>
                             <div class="k-actions">
                                 <span class="k-value" style="color:${corTexto}">${fmtMoeda(b.valor)}</span>
-                                <button class="btn-pay-card" style="background:#e67e22" onclick="window.showSection('boletos', null)">VER</button>
+                                <button class="btn-pay-card" style="background:var(--orange)" onclick="window.showSection('boletos', null)">VER</button>
                             </div>
                         </div>
                     `;
@@ -2693,7 +2688,7 @@ window.filtrarGraficoExpandido = function() {
 
         labels = ['Salários', 'Comissões', 'Motoboys', 'Despesas'];
         valores = [sal, com, moto, loja];
-        cores = ['#27ae60', '#8e44ad', '#d35400', '#c0392b'];
+        cores = [corTema('--success'), corTema('--purple'), corTema('--moto'), corTema('--danger')];
         total = sal + com + moto + loja;
         resumo.innerHTML = `Gasto Total: <span style="color:var(--danger)">${total.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</span>`;
     
@@ -2710,7 +2705,7 @@ window.filtrarGraficoExpandido = function() {
         });
         const sorted = Object.entries(ranking).sort(([,a],[,b]) => b-a);
         labels = sorted.map(i=>i[0]); valores = sorted.map(i=>i[1]);
-        cores = valores.map(()=>'#f1c40f');
+        cores = valores.map(()=>corTema('--gold'));
         resumo.innerHTML = `Vendido: <span style="color:var(--warning)">${total.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</span>`;
     }
 
@@ -2934,14 +2929,15 @@ window.atualizarPainelPagamentos = function() {
 
     if(divAviso) {
         divAviso.style.display = 'block';
-        let htmlDetalhes = `<div style="margin-top:10px; padding-top:8px; border-top:1px solid rgba(0,0,0,0.1); font-size:0.85rem;">`;
+        let htmlDetalhes = `<div style="margin-top:10px; padding-top:8px; border-top:1px solid var(--border-color); font-size:0.85rem;">`;
 
         if(modoPagamentoAtual === 'Salario') {
-            const cor = saldoLiquidoSalario >= 0 ? '#d4edda' : '#f8d7da';
-            const textoCor = saldoLiquidoSalario >= 0 ? '#155724' : '#721c24';
+            const cor = saldoLiquidoSalario >= 0 ? 'var(--tint-green)' : 'var(--tint-red)';
+            const textoCor = 'var(--text-main)';
+            const corBorda = saldoLiquidoSalario >= 0 ? 'var(--success)' : 'var(--danger)';
             divAviso.style.backgroundColor = cor;
             divAviso.style.color = textoCor;
-            divAviso.style.border = `1px solid ${cor}`;
+            divAviso.style.border = `1px solid ${corBorda}`;
 
             if(saldoAnteriorSalario !== 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; font-weight:bold;"><span>${saldoAnteriorSalario > 0 ? '💚 Crédito Anterior' : '🔻 Dívida Anterior'}:</span> <span>${fmtMoeda(saldoAnteriorSalario)}</span></div>`;            
             if(salarioBase > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between;"><span>📅 Salário Base:</span> <span>${fmtMoeda(salarioBase)}</span></div>`;
@@ -2967,11 +2963,11 @@ window.atualizarPainelPagamentos = function() {
             if(inputVal && document.activeElement !== inputVal) inputVal.value = saldoLiquidoSalario > 0 ? saldoLiquidoSalario.toFixed(2) : '';
 
         } else if(modoPagamentoAtual === 'Vale') {
-            const cor = '#fcf3cf'; 
-            const textoCor = '#d35400';
+            const cor = 'var(--tint-orange)';
+            const textoCor = 'var(--text-main)';
             divAviso.style.backgroundColor = cor;
             divAviso.style.color = textoCor;
-            divAviso.style.border = `1px solid #f1c40f`;
+            divAviso.style.border = `1px solid var(--warning)`;
 
             htmlDetalhes += `<div style="display:flex; justify-content:space-between;"><span>💰 Saldo Total do Mês (Bruto):</span> <span>${fmtMoeda(ganhosSalarioTotal)}</span></div>`;
             if(pagoSalario > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:var(--danger);"><span>💸 Salário Já Pago:</span> <span>- ${fmtMoeda(pagoSalario)}</span></div>`;
@@ -2992,11 +2988,12 @@ window.atualizarPainelPagamentos = function() {
             if(inputVal && document.activeElement !== inputVal) inputVal.value = ''; 
         
         } else {
-            const cor = saldoLiquidoPassagem >= 0 ? '#e8daef' : '#f8d7da';
-            const textoCor = saldoLiquidoPassagem >= 0 ? '#8e44ad' : '#721c24';
+            const cor = saldoLiquidoPassagem >= 0 ? 'var(--tint-purple)' : 'var(--tint-red)';
+            const textoCor = 'var(--text-main)';
+            const corBorda = saldoLiquidoPassagem >= 0 ? 'var(--purple)' : 'var(--danger)';
             divAviso.style.backgroundColor = cor;
             divAviso.style.color = textoCor;
-            divAviso.style.border = `1px solid ${cor}`;
+            divAviso.style.border = `1px solid ${corBorda}`;
 
             if(saldoAnteriorPassagem !== 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; font-weight:bold;"><span>${saldoAnteriorPassagem > 0 ? '💚 Crédito Anterior' : '🔻 Dívida Anterior'}:</span> <span>${fmtMoeda(saldoAnteriorPassagem)}</span></div>`;
 

@@ -1,56 +1,88 @@
+/* ============================================================
+   === ESTILO NOTURNO DOURADO (cores do sistema) ===
+   Menu azul-noite com destaque dourado. Toda cor do sistema sai daqui.
+   ============================================================ */
 :root {
-    /* Cores Claras (Padrão) */
-    --primary: #2c3e50;
-    --secondary: #34495e;
-    --accent: #2980b9;
-    --success: #27ae60;
-    --warning: #f39c12;
-    --danger: #c0392b;
-    --purple: #8e44ad;
-    --orange: #e67e22;
-    --moto: #d35400; /* Laranja Motoboy */
-    
+    /* Cores principais */
+    --primary: #161c2d;      /* fundo do menu e da tela de login */
+    --secondary: #262e45;    /* detalhes do menu */
+    --accent: #1f2a44;       /* botões principais, foco */
+    --accent-fg: #ffffff;    /* texto em cima de --accent */
+    --gold: #d49628;
+    --gold-text: #f0b44c;    /* dourado para texto no menu */
+    --gold-soft: rgba(212, 150, 40, 0.16);
+    --blue: #2f64b0;
+    --success: #17804a;
+    --warning: #b7791f;
+    --danger: #b8342a;
+    --purple: #6f3fb0;
+    --orange: #c25e0c;
+    --moto: #b4560e; /* Laranja Motoboy */
+
     /* Variáveis de Tema */
-    --bg-body: #f4f7f6;
+    --bg-body: #eef0f5;
     --bg-card: #ffffff;
-    --text-main: #2c3e50;
-    --text-sub: #7f8c8d;
-    --border-color: #ecf0f1;
+    --text-main: #1a2033;
+    --text-sub: #5e667d;
+    --border-color: #e2e5ee;
     --input-bg: #ffffff;
     /* Superfícies e tons suaves (seguem o tema) */
-    --bg-soft: #f8f9fa;
-    --text-faint: #95a5a6;
-    --tint-red: #fff1f0;
-    --tint-blue: #e8f4fd;
-    --tint-orange: #fff4e5;
-    --tint-green: #e8f8f0;
-    --tint-teal: #e8f6f3;
-    --tint-purple: #f3e5f5;
-    --tint-info: #eaf2f8;
-    --btn-dark: #2c3e50;
+    --bg-soft: #f3f4f8;
+    --text-faint: #8b92a6;
+    --tint-red: #fae3e0;
+    --tint-blue: #e6edf8;
+    --tint-orange: #fbeadb;
+    --tint-green: #e2f3ea;
+    --tint-teal: #e3f2ef;
+    --tint-purple: #eee8f8;
+    --tint-info: #e6edf8;
+    --btn-dark: #1f2a44;
+    --ring: rgba(31, 42, 68, 0.18);
+
+    /* Forma */
+    --font: "Manrope", "Segoe UI", Tahoma, sans-serif;
+    --radius: 14px;
+    --radius-sm: 8px;
+    --shadow-card: 0 1px 2px rgba(22, 28, 45, 0.06), 0 6px 18px rgba(22, 28, 45, 0.06);
+
+    /* Menu lateral (sempre escuro) */
+    --side-fg: #c9cee0;
+    --side-sub: #6f7895;
+    --side-line: #262e45;
 }
 
 /* --- TEMA ESCURO (DARK MODE) --- */
 .dark-theme {
-    --primary: #121212;
-    --secondary: #1f1f1f;
-    --accent: #3498db;
-    --bg-body: #181818;
-    --bg-card: #252525;
-    --text-main: #e0e0e0;
-    --text-sub: #a0a0a0;
-    --border-color: #333333;
-    --input-bg: #333333;
-    --bg-soft: #2e2e2e;
-    --text-faint: #8c8c8c;
-    --tint-red: #3b2422;
-    --tint-blue: #1d3142;
-    --tint-orange: #3b2f1d;
-    --tint-green: #1d3528;
-    --tint-teal: #1e3431;
-    --tint-purple: #33233b;
-    --tint-info: #1d2c3a;
-    --btn-dark: #3d566e;
+    --primary: #0b0f19;
+    --secondary: #1d2436;
+    --accent: #d49628;
+    --accent-fg: #161c2d;
+    --blue: #7fa6e0;
+    --success: #22955a;
+    --warning: #d4a02a;
+    --danger: #d9534a;
+    --purple: #9a6ad6;
+    --orange: #d97a1f;
+    --moto: #d9741f;
+    --bg-body: #0f131e;
+    --bg-card: #171d2c;
+    --text-main: #e3e7f2;
+    --text-sub: #a0a8c0;
+    --border-color: #262e43;
+    --input-bg: #1d2435;
+    --bg-soft: #1d2435;
+    --text-faint: #7f88a2;
+    --tint-red: #3a2220;
+    --tint-blue: #1c2740;
+    --tint-orange: #382a1b;
+    --tint-green: #18301f;
+    --tint-teal: #17302c;
+    --tint-purple: #2a2240;
+    --tint-info: #1c2740;
+    --btn-dark: #2f3a5a;
+    --ring: rgba(212, 150, 40, 0.28);
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --side-line: #1d2436;
 }
 
 body {
@@ -719,3 +751,97 @@ button.action-btn[data-cor="amarelo"] { background-color: #f39c12; color: black;
 .btn-mini-editar { background: #f39c12; margin-right: 5px; }
 .btn-mini-desativar { background: #e74c3c; }
 .btn-link-perigo { background: none; border: none; color: var(--danger); width: 100%; margin-top: 5px; cursor: pointer; font-size: 0.8rem; }
+
+/* ============================================================
+   === ESTILO NOTURNO DOURADO (aparência das peças) ===
+   Fica no fim do arquivo de propósito: vale por cima das regras antigas.
+   ============================================================ */
+body, button, input, select, textarea { font-family: var(--font); }
+body { font-feature-settings: "tnum" 1; }
+
+/* Títulos */
+h1 { display: block; border-bottom: none; font-weight: 800; letter-spacing: -0.01em; padding-bottom: 0; margin-bottom: 6px; }
+h1::after { content: ""; display: block; width: 40px; height: 3px; border-radius: 3px; background: var(--gold); margin-top: 8px; }
+h2, h3 { font-weight: 800; letter-spacing: -0.005em; }
+.periodo-dash { color: var(--text-sub); font-size: 0.9rem; margin: 4px 0 20px; display: flex; flex-wrap: wrap; gap: 6px; }
+.periodo-dash b { color: var(--text-main); font-weight: 700; }
+
+/* Menu lateral */
+.sidebar { padding: 22px 14px; box-shadow: none; border-right: 1px solid var(--side-line); }
+.sidebar h2 { display: flex; align-items: center; gap: 10px; font-size: 1.15rem; margin: 0 8px 4px; color: #ffffff; }
+.marca-rh { width: 30px; height: 30px; border-radius: 8px; background: var(--gold); color: #161c2d; display: grid; place-items: center; font-size: 0.8rem; font-weight: 800; }
+#user-badge { text-align: left; color: var(--side-sub); font-size: 0.78rem; letter-spacing: 0.04em; margin: 0 8px 14px; padding-bottom: 16px; border-bottom: 1px solid var(--side-line); }
+.menu-category { color: var(--side-sub); font-size: 0.68rem; letter-spacing: 0.1em; margin-top: 16px; padding-left: 10px; }
+.menu-btn { color: var(--side-fg); padding: 9px 12px; font-size: 0.93rem; font-weight: 500; border-radius: 6px; margin-bottom: 2px; transition: background 0.15s, color 0.15s; }
+.menu-btn svg { width: 17px; height: 17px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; opacity: 0.85; }
+.menu-btn:hover { background-color: rgba(255, 255, 255, 0.05); color: #ffffff; padding-left: 12px; }
+.menu-btn.active { background-color: var(--gold-soft); color: var(--gold-text); font-weight: 700; padding-left: 12px; box-shadow: inset 3px 0 0 var(--gold-text); }
+.menu-btn:focus-visible { outline: 2px solid var(--gold-text); outline-offset: -2px; }
+.system-controls { border-top-color: var(--side-line); color: var(--side-sub); }
+.sidebar::-webkit-scrollbar-thumb:hover { background-color: var(--gold); }
+
+/* Cartões */
+.card, .chart-card, .dash-card, .ranking-list, .resumo-financeiro, .presenca-card, .pagamento-card,
+.extra-card, .moto-card, .boleto-card, .kanban-col, .glass-header, .prev-column, .detalhes-content, .login-box {
+    border-radius: var(--radius); box-shadow: var(--shadow-card);
+}
+.glass-header, .kanban-col, .prev-column { border-color: var(--border-color); }
+.kanban-col > :first-child { border-radius: var(--radius) var(--radius) 0 0; }
+.kanban-list { border-radius: 0 0 var(--radius) var(--radius); }
+
+/* Visão de Águia: cartões com faixa de cor em cima */
+.dash-card { text-align: left; border-top: 3px solid var(--k, var(--accent)); padding: 18px 20px; }
+.dash-card:has(.dash-green) { --k: var(--success); }
+.dash-card:has(.dash-purple) { --k: var(--purple); }
+.dash-card:has(.dash-moto) { --k: var(--moto); }
+.dash-card:has(.dash-red) { --k: var(--danger); }
+.dash-title { font-size: 0.78rem; letter-spacing: 0.05em; font-weight: 700; margin-bottom: 8px; }
+.dash-number { font-size: 1.6rem; letter-spacing: -0.01em; }
+.dash-card .dash-number { color: var(--text-main); }
+.ranking-item { padding: 12px 6px; }
+.rank-1 { color: var(--gold); }
+.rank-xp { color: var(--text-main); }
+
+/* Formulários */
+input, select, textarea { border-radius: var(--radius-sm); padding: 10px 12px; border-color: var(--border-color); }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
+.form-group label { font-weight: 700; font-size: 0.8rem; }
+
+/* Botões */
+button.action-btn { border-radius: var(--radius-sm); font-weight: 700; font-size: 0.95rem; color: var(--accent-fg); }
+button.action-btn[style*="background"], button.action-btn[data-cor], button.btn-save, button.btn-add-func,
+button.btn-excel, button.btn-neutral, button.btn-cancel-edit { color: #ffffff; }
+button.action-btn[data-cor="amarelo"] { color: #000000; }
+button.action-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.pay-tab { border-radius: var(--radius-sm); background: var(--bg-soft); color: var(--text-sub); }
+.pay-tab.active { background: var(--btn-dark); color: #ffffff; }
+.badge-count { background: var(--btn-dark); box-shadow: none; }
+.role-badge { background: var(--btn-dark); color: #ffffff; }
+.shift-noite { background: #1f2a44; }
+
+/* Tabelas */
+table { border-radius: var(--radius); box-shadow: var(--shadow-card); }
+th { background-color: transparent; color: var(--text-faint); font-size: 0.72rem; letter-spacing: 0.06em; font-weight: 800; border-bottom: 1px solid var(--border-color); }
+tr:hover { background-color: var(--bg-soft); }
+.info-empresa { color: var(--blue); }
+
+/* Etiquetas de tipo e situação */
+.tag-tipo { border: none !important; border-radius: 999px; padding: 3px 9px; font-size: 0.68rem; letter-spacing: 0.04em; }
+.tag-mensal { background: var(--tint-green); color: var(--success); }
+.tag-diaria { background: var(--tint-orange); color: var(--orange); }
+.tag-quinzenal { background: var(--tint-purple); color: var(--purple); }
+.tag-semanal { background: var(--tint-blue); color: var(--blue); }
+.tag-status-ativo { background: var(--tint-green); color: var(--success); }
+.tag-status-inativo { background: var(--tint-red); color: var(--danger); }
+.info-pix { color: var(--success); background: var(--tint-green); }
+
+/* Tela de login */
+.login-box { padding: 36px 32px; }
+.login-title { font-weight: 800; }
+/* Botões que ainda usavam as cores antigas */
+button.btn-excel { background-color: var(--success); }
+.badge-green { background: var(--success); }
+.badge-red { background: var(--danger); }
+.btn-pagar.pendente { background: var(--success); }
+.btn-pagar.desfazer { background: var(--text-faint); color: #ffffff; }
+.btn-pay-card { background: var(--success); }

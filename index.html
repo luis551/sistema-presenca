@@ -610,7 +610,10 @@
             getDoc,
             getDocFromServer,
             getFirestore,
+            limit,
             onSnapshot,
+            orderBy,
+            query,
             runTransaction,
             serverTimestamp,
             setDoc
@@ -677,6 +680,8 @@
         window.__rhFirebaseState = estadoFirebase;
 
         let refreshTimer = null;
+        let auditoriaIniciada = false;
+        const colecoesComDados = new Set();
         let cancelarListeners = [];
         let geracaoSessao = 0;
 
@@ -705,6 +710,7 @@
                 estadoFirebase.readyCollections[nome] = false;
             });
             estadoFirebase.collectionErrors = {};
+            auditoriaIniciada = false;
         }
 
         function atualizarControlesNuvem() {
@@ -812,12 +818,23 @@
             }
         }
 
-        function escutarColecao(nomeCol, geracao) {
+        function escutarColecao(nomeCol, geracao, consulta = null) {
             const cancelar = onSnapshot(
-                collection(dbFirestore, nomeCol),
+                consulta || collection(dbFirestore, nomeCol),
                 { includeMetadataChanges: true },
                 snapshot => {
                     if (geracao !== geracaoSessao || !auth.currentUser || !window.currentUser) return;
+                    // Aviso só de confirmação do servidor, sem dado novo: não precisa redesenhar as telas.
+                    const jaCarregada = colecoesComDados.has(nomeCol);
+                    if (jaCarregada && snapshot.docChanges().length === 0) {
+                        if (!snapshot.metadata.fromCache) {
+                            estadoFirebase.readyCollections[nomeCol] = true;
+                            delete estadoFirebase.collectionErrors[nomeCol];
+                        }
+                        atualizarStatusConexao();
+                        return;
+                    }
+                    colecoesComDados.add(nomeCol);
                     const tempArray = [];
                     snapshot.forEach(docSnap => {
                         const dados = docSnap.data();
@@ -855,15 +872,25 @@
         }
 
         function iniciarListeners(profile, geracao) {
+            colecoesComDados.clear();
             colecoesPrincipais.forEach(nome => escutarColecao(nome, geracao));
             if (profile.isAdmin === true) {
                 escutarColecao('rh_users', geracao);
-                escutarColecao('rh_audit', geracao);
+                // A auditoria só é baixada ao abrir a tela Segurança (ver carregarAuditoria).
+                window.db.audit = [];
             } else {
                 window.db.users = [profile];
                 window.db.audit = [];
             }
         }
+
+        // A tela Segurança mostra os 100 registros mais novos; baixar todos (milhares) travava a abertura.
+        window.carregarAuditoria = function() {
+            if (auditoriaIniciada || !window.currentUser || window.currentUser.isAdmin !== true) return;
+            auditoriaIniciada = true;
+            const recentes = query(collection(dbFirestore, 'rh_audit'), orderBy('createdAt', 'desc'), limit(200));
+            escutarColecao('rh_audit', geracaoSessao, recentes);
+        };
 
         window.salvarItemNuvem = async function(nomeColecao, idDocumento, dados, opcoes = {}) {
             if (colecoesProtegidas.has(nomeColecao)) {

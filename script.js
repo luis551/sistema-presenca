@@ -173,7 +173,7 @@ function renderizarAudit() {
 
     tbody.innerHTML = '';
     if(!window.db.audit || window.db.audit.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:#aaa;">Nenhum registro encontrado.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-faint);">Nenhum registro encontrado.</td></tr>';
         return;
     }
     const logs = [...window.db.audit].sort((a,b) => dataDoLog(b) - dataDoLog(a)).slice(0, 100);
@@ -202,10 +202,23 @@ function checkPerm(tipo) {
 }
 
 // --- DARK MODE ---
+// A escolha fica salva neste navegador; sem acesso ao armazenamento, o tema só não é lembrado.
+const CHAVE_TEMA = 'painelrh_tema';
+
+function aplicarTema(escuro) {
+    document.body.classList.toggle('dark-theme', escuro);
+    const botao = document.getElementById('btnModoEscuro');
+    if (botao) botao.innerText = escuro ? '☀️ Modo Claro' : '🌙 Modo Escuro';
+}
+
 window.toggleDarkMode = function() {
-    document.body.classList.toggle('dark-theme');
+    const escuro = !document.body.classList.contains('dark-theme');
+    aplicarTema(escuro);
+    try { localStorage.setItem(CHAVE_TEMA, escuro ? 'escuro' : 'claro'); } catch (erro) {}
     window.atualizarDashboard();
 }
+
+try { aplicarTema(localStorage.getItem(CHAVE_TEMA) === 'escuro'); } catch (erro) {}
 
 // --- MOTOBOY LOGIC ---
 window.atualizarInfoMoto = function() { window.calcularMotoPreview(); }
@@ -360,7 +373,7 @@ window.renderizarMotoboys = function() {
 
     // 4. Renderiza os Cards
     if (lista.length === 0) {
-        grid.innerHTML = '<p style="color:#aaa; width:100%; text-align:center;">Nenhum registro encontrado para esse guerreiro.</p>'; 
+        grid.innerHTML = '<p style="color:var(--text-faint); width:100%; text-align:center;">Nenhum registro encontrado para esse guerreiro.</p>'; 
         return; 
     }
 
@@ -434,7 +447,7 @@ window.imprimirFolhaPonto = function(idFunc) {
         }
         
         let statusShow = status ? `<b>${status.toUpperCase()}</b>` : '';
-        if(diaSemana === 'DOM') statusShow = '<span style="color:#aaa">DOMINGO</span>';
+        if(diaSemana === 'DOM') statusShow = '<span style="color:var(--text-faint)">DOMINGO</span>';
 
         html += `<tr>
             <td width="50">${diaStr}/${mes}</td>
@@ -494,13 +507,13 @@ window.renderizarListaUsuarios = function() {
     lista.innerHTML = '';
     window.db.users.forEach((u, index) => {
         const badge = u.active === false
-            ? '<span style="font-size:0.7rem; background:#7f8c8d; color:white; padding:2px 5px; border-radius:4px;">DESATIVADO</span>'
+            ? '<span class="badge-mini badge-desativado">DESATIVADO</span>'
             : (u.isAdmin
                 ? '<span class="badge-admin">ADMIN</span>'
-                : '<span style="font-size:0.7rem; background:#ccc; padding:2px 5px; border-radius:4px;">USER</span>');
-        const btnEdit = `<button onclick="editarUsuario(${index})" style="background:#f39c12; color:white; border:none; border-radius:4px; cursor:pointer; padding:5px 10px; margin-right:5px;">✏️</button>`;
+                : '<span class="badge-mini badge-user">USER</span>');
+        const btnEdit = `<button onclick="editarUsuario(${index})" class="btn-mini btn-mini-editar">✏️</button>`;
         const podeDesativar = u.active !== false && u.uid !== window.currentUser?.uid;
-        const btnDisable = podeDesativar ? `<button onclick="removerUsuario(${index})" style="background:#e74c3c; color:white; border:none; border-radius:4px; cursor:pointer; padding:5px 10px;">⛔</button>` : '';
+        const btnDisable = podeDesativar ? `<button onclick="removerUsuario(${index})" class="btn-mini btn-mini-desativar">⛔</button>` : '';
 
         lista.innerHTML += `<div class="user-list-item"><div><strong>${escaparHtml(u.user)}</strong> ${badge}<br><small>UID: ${escaparHtml(u.uid)}</small></div><div>${btnEdit}${btnDisable}</div></div>`;
     });
@@ -1214,7 +1227,7 @@ window.renderizarExtras = function() {
     
     lista.sort((a,b) => new Date(b.data) - new Date(a.data));
 
-    if (lista.length === 0) { grid.innerHTML = '<p style="color:#aaa; width:100%; text-align:center;">Nenhum registro encontrado.</p>'; return; }
+    if (lista.length === 0) { grid.innerHTML = '<p style="color:var(--text-faint); width:100%; text-align:center;">Nenhum registro encontrado.</p>'; return; }
 
     // OTIMIZAÇÃO: Limita a visualização a 50 itens
     const listaVisivel = lista.slice(0, 50);
@@ -1664,7 +1677,7 @@ window.atualizarDashboard = function() {
     window.renderizarGraficos(dadosGrafico);
     const sortedRank = Object.entries(rankingVendas).sort(([,a], [,b]) => b - a).slice(0, 5);
     const rankContainer = document.getElementById('rankingContainer'); rankContainer.innerHTML = '';
-    if (sortedRank.length === 0) rankContainer.innerHTML = '<p style="color:#aaa; text-align:center;">Nenhuma venda este mês.</p>';
+    if (sortedRank.length === 0) rankContainer.innerHTML = '<p style="color:var(--text-faint); text-align:center;">Nenhuma venda este mês.</p>';
     else sortedRank.forEach(([nome, vendas], index) => {
         const comissao = rankingComissoes[nome] || 0; const medalha = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index+1}`; const rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : '';
         rankContainer.innerHTML += `<div class="ranking-item"><span class="rank-pos ${rankClass}">${medalha}</span><span class="rank-name">${nome}</span><div style="text-align:right;"><div class="rank-xp">Vendeu: ${fmtMoeda(vendas)}</div><small style="color:var(--text-sub);">Comissão: ${fmtMoeda(comissao)}</small></div></div>`;
@@ -1805,13 +1818,13 @@ window.atualizarInterface = function() {
         if (mostrarTodosFuncionarios) {
             // Se o botão "Ver Todos" foi clicado, mostra TODO MUNDO
             listaParaTabela = funcsOrdenados;
-            mensagemRodape = `<button onclick="window.alternarVisualizacao()" style="cursor:pointer; background:none; border:none; color:#e67e22; font-weight:bold; padding:10px; width:100%;">⬆️ Ocultar Lista (Voltar ao modo rápido)</button>`;
+            mensagemRodape = `<button onclick="window.alternarVisualizacao()" style="cursor:pointer; background:none; border:none; color:var(--orange); font-weight:bold; padding:10px; width:100%;">⬆️ Ocultar Lista (Voltar ao modo rápido)</button>`;
         } else {
             // Modo Padrão: Mostra apenas os 5 primeiros
             listaParaTabela = funcsOrdenados.slice(0, 5);
             const totalOcultos = funcsOrdenados.length - 5;
             if (totalOcultos > 0) {
-                mensagemRodape = `<button onclick="window.alternarVisualizacao()" style="cursor:pointer; background:var(--secondary); border:none; color:white; border-radius:4px; padding:10px 20px; font-size:0.9rem; margin-top:5px;">⬇️ Ver Lista Completa (+${totalOcultos} funcionários)</button><br><small style="color:#7f8c8d;">(Pode demorar um pouquinho para carregar)</small>`;
+                mensagemRodape = `<button onclick="window.alternarVisualizacao()" style="cursor:pointer; background:var(--secondary); border:none; color:white; border-radius:4px; padding:10px 20px; font-size:0.9rem; margin-top:5px;">⬇️ Ver Lista Completa (+${totalOcultos} funcionários)</button><br><small style="color:var(--text-sub);">(Pode demorar um pouquinho para carregar)</small>`;
             }
         }
     }
@@ -1828,7 +1841,7 @@ window.atualizarInterface = function() {
         else infoPagamento = `<span style="font-weight:bold; color:var(--success)">${fmtMoeda(f.salario)}</span><br><span style="font-size:0.8em">+ Passagem: ${fmtMoeda(f.passagem || 0)}</span>`;
         
         const cpfDisplay = f.cpf ? `<br><span class="info-sub">CPF: ${f.cpf}</span>` : ''; 
-        const contatoDisplay = f.tel ? `📞 ${f.tel}` : '<span style="color:#ccc">Sem tel</span>'; 
+        const contatoDisplay = f.tel ? `📞 ${f.tel}` : '<span style="color:var(--text-faint)">Sem tel</span>'; 
         const pixDisplay = f.pix ? `<br><div class="info-pix">Pix: ${f.pix}</div> <button class="btn-copy" onclick="copiarTexto('${f.pix}')">Copiar</button>` : '';
         const enderecoDisplay = f.end ? `<div class="info-sub">🏠 ${f.end}</div>` : ''; 
         const nascDisplay = f.nasc ? `<div class="info-sub">🎂 ${fmtDataSimples(f.nasc)}</div>` : ''; 
@@ -1969,17 +1982,17 @@ window.renderizarBoletos = function() {
                         
                         <div style="text-align:right; display:flex; flex-direction:column; align-items:flex-end;">
                             <span class="bol-data ${badgeData}">${textoData}</span>
-                            <span style="font-size:0.7rem; color:#888; margin-top:3px; font-weight:bold;">Dia: ${dataFormatada}</span>
+                            <span style="font-size:0.7rem; color:var(--text-faint); margin-top:3px; font-weight:bold;">Dia: ${dataFormatada}</span>
                         </div>
 
                     </div>
                     <div style="font-weight:bold; font-size:1.1rem; margin-bottom:5px;">${b.desc}</div>
-                    ${b.codigo ? `<div style="font-size:0.75rem; color:#aaa; overflow:hidden; text-overflow:ellipsis; margin-bottom:5px;">📠 ${b.codigo}</div>` : ''}
+                    ${b.codigo ? `<div style="font-size:0.75rem; color:var(--text-faint); overflow:hidden; text-overflow:ellipsis; margin-bottom:5px;">📠 ${b.codigo}</div>` : ''}
                 </div>
                 <div>
                     <div class="bol-valor">${fmtMoeda(b.valor)}</div>
                     ${btnAcao}
-                    <button onclick="removerBoleto(${b.id})" style="background:none; border:none; color:#e74c3c; width:100%; margin-top:5px; cursor:pointer; font-size:0.8rem;">Excluir</button>
+                    <button onclick="removerBoleto(${b.id})" class="btn-link-perigo">Excluir</button>
                 </div>
             </div>`;
         grid.innerHTML += html;
@@ -2245,7 +2258,7 @@ window.atualizarPrevisao = function() {
     document.getElementById('sumWeekly').innerText = fmtMoeda(totalWeekly);
     document.getElementById('totalGeralPrev').innerText = "Total Previsto: " + fmtMoeda(totalUrgent + totalWeekly);
     
-    const vazio = '<div style="text-align:center;color:#ccc;padding:20px;font-style:italic">Nada pendente nesta lista</div>';
+    const vazio = '<div style="text-align:center;color:var(--text-faint);padding:20px;font-style:italic">Nada pendente nesta lista</div>';
     if(listUrgent.innerHTML === '') listUrgent.innerHTML = vazio;
     if(listWeekly.innerHTML === '') listWeekly.innerHTML = vazio;
 }
@@ -2309,13 +2322,13 @@ window.mostrarDetalhesCalculo = function(idFunc, dataStr) {
     // 2. Monta o HTML do Modal
     const el = document.getElementById('corpoDetalhes');
     
-    let html = `<div style="text-align:center; font-weight:bold; color:#7f8c8d; margin-bottom:15px; font-size:1.1rem; border-bottom:1px solid #eee; padding-bottom:10px;">
+    let html = `<div style="text-align:center; font-weight:bold; color:var(--text-sub); margin-bottom:15px; font-size:1.1rem; border-bottom:1px solid var(--border-color); padding-bottom:10px;">
         ${func.nome}<br><small style="font-weight:normal; font-size:0.8rem">Referência: ${mesRef}/${anoRef}</small>
     </div>`;
 
-    if(totalEntregas > 0) html += `<div class="detalhes-linha"><span>🏍️ Entregas (Motoboy)</span><span class="detalhes-destaque" style="color:#d35400;">+ ${fmtMoeda(totalEntregas)}</span></div>`;
+    if(totalEntregas > 0) html += `<div class="detalhes-linha"><span>🏍️ Entregas (Motoboy)</span><span class="detalhes-destaque" style="color:var(--moto);">+ ${fmtMoeda(totalEntregas)}</span></div>`;
     
-    if(totalComissoes > 0) html += `<div class="detalhes-linha"><span>⭐ Comissões</span><span class="detalhes-destaque" style="color:#8e44ad;">+ ${fmtMoeda(totalComissoes)}</span></div>`;
+    if(totalComissoes > 0) html += `<div class="detalhes-linha"><span>⭐ Comissões</span><span class="detalhes-destaque" style="color:var(--purple);">+ ${fmtMoeda(totalComissoes)}</span></div>`;
     
     // LINHA INTELIGENTE: Muda o texto dependendo se é Diarista ou Mensalista
     if(totalPresencaValor > 0) {
@@ -2326,20 +2339,20 @@ window.mostrarDetalhesCalculo = function(idFunc, dataStr) {
     if(salarioBase > 0) html += `<div class="detalhes-linha"><span>📅 Salário Base Fixo</span><span class="detalhes-destaque">+ ${fmtMoeda(salarioBase)}</span></div>`;
 
     // Linha de Soma Total Ganho
-    html += `<div class="detalhes-linha" style="background:#f9f9f9; font-weight:bold; margin-top:5px;"><span>∑ Total Ganho</span><span>${fmtMoeda(totalGanho)}</span></div>`;
+    html += `<div class="detalhes-linha" style="background:var(--bg-soft); font-weight:bold; margin-top:5px;"><span>∑ Total Ganho</span><span>${fmtMoeda(totalGanho)}</span></div>`;
 
     // Linha do que já foi pago
     if(totalPago > 0) {
-        html += `<div class="detalhes-linha" style="color:#c0392b;"><span>💸 Já Recebeu (Vales/Salário)</span><strong>- ${fmtMoeda(totalPago)}</strong></div>`;
+        html += `<div class="detalhes-linha" style="color:var(--danger);"><span>💸 Já Recebeu (Vales/Salário)</span><strong>- ${fmtMoeda(totalPago)}</strong></div>`;
     }
 
     // Saldo Final Grande
     html += `
-        <div class="detalhes-total" style="display: flex; justify-content: space-between; padding: 15px 0 0 0; margin-top: 10px; border-top: 2px solid #333; font-weight: 800; font-size: 1.3rem; color:${corSaldo}">
+        <div class="detalhes-total" style="display: flex; justify-content: space-between; padding: 15px 0 0 0; margin-top: 10px; border-top: 2px solid var(--text-main); font-weight: 800; font-size: 1.3rem; color:${corSaldo}">
             <span>DISPONÍVEL</span>
             <span>${fmtMoeda(saldoDisponivel)}</span>
         </div>
-        <p style="font-size:0.75rem; color:#aaa; text-align:center; margin-top:10px;">
+        <p style="font-size:0.75rem; color:var(--text-faint); text-align:center; margin-top:10px;">
             * Para Diaristas: Presente = 100% | Atrasado = 50% da diária.
         </p>
     `;
@@ -2682,7 +2695,7 @@ window.filtrarGraficoExpandido = function() {
         valores = [sal, com, moto, loja];
         cores = ['#27ae60', '#8e44ad', '#d35400', '#c0392b'];
         total = sal + com + moto + loja;
-        resumo.innerHTML = `Gasto Total: <span style="color:#c0392b">${total.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</span>`;
+        resumo.innerHTML = `Gasto Total: <span style="color:var(--danger)">${total.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</span>`;
     
     } else { // Vendas
         let ranking = {};
@@ -2698,7 +2711,7 @@ window.filtrarGraficoExpandido = function() {
         const sorted = Object.entries(ranking).sort(([,a],[,b]) => b-a);
         labels = sorted.map(i=>i[0]); valores = sorted.map(i=>i[1]);
         cores = valores.map(()=>'#f1c40f');
-        resumo.innerHTML = `Vendido: <span style="color:#f39c12">${total.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</span>`;
+        resumo.innerHTML = `Vendido: <span style="color:var(--warning)">${total.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</span>`;
     }
 
     const ctx = document.getElementById('canvasGraficozao').getContext('2d');
@@ -2804,7 +2817,7 @@ window.atualizarPainelPagamentos = function() {
     // 2. SE NINGUÉM ESTIVER SELECIONADO, ESCONDE TUDO
     if(!idFunc) { 
         if(divAviso) divAviso.style.display = 'none'; 
-        if(gridPag) gridPag.innerHTML = '<p style="text-align:center; width:100%; color:#999; margin-top: 20px;">🔍 Selecione um guerreiro acima para ver o histórico e o saldo.</p>';
+        if(gridPag) gridPag.innerHTML = '<p style="text-align:center; width:100%; color:var(--text-faint); margin-top: 20px;">🔍 Selecione um guerreiro acima para ver o histórico e o saldo.</p>';
         return; 
     }
 
@@ -2933,12 +2946,12 @@ window.atualizarPainelPagamentos = function() {
             if(saldoAnteriorSalario !== 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; font-weight:bold;"><span>${saldoAnteriorSalario > 0 ? '💚 Crédito Anterior' : '🔻 Dívida Anterior'}:</span> <span>${fmtMoeda(saldoAnteriorSalario)}</span></div>`;            
             if(salarioBase > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between;"><span>📅 Salário Base:</span> <span>${fmtMoeda(salarioBase)}</span></div>`;
             if(valorTotalDiarias > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between;"><span>☀️ Diárias (${diasContados}):</span> <span>${fmtMoeda(valorTotalDiarias)}</span></div>`;
-            if(totalComissoes > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#8e44ad;"><span>⭐ Comissões:</span> <span>${fmtMoeda(totalComissoes)}</span></div>`;
-            if(totalEntregas > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#d35400;"><span>🏍️ Entregas:</span> <span>${fmtMoeda(totalEntregas)}</span></div>`;
+            if(totalComissoes > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:var(--purple);"><span>⭐ Comissões:</span> <span>${fmtMoeda(totalComissoes)}</span></div>`;
+            if(totalEntregas > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:var(--moto);"><span>🏍️ Entregas:</span> <span>${fmtMoeda(totalEntregas)}</span></div>`;
             
-            if(totalValesAbertos > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#e67e22; font-weight:bold; margin-top:5px; border-top:1px dashed #ccc; padding-top:5px;"><span>⚠️ Vales Pendentes (NÃO descontado ainda):</span> <span>${fmtMoeda(totalValesAbertos)}</span></div>`;
-            if(totalValesDescontados > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#c0392b; font-weight:bold; margin-top:5px; border-top:1px dashed #ccc; padding-top:5px;"><span>🎫 Vales Já Descontados:</span> <span>- ${fmtMoeda(totalValesDescontados)}</span></div>`;
-            if(pagoSalario > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#c0392b; margin-top:5px; border-top:1px dashed #ccc; padding-top:5px;"><span>💸 Já Recebido:</span> <span>- ${fmtMoeda(pagoSalario)}</span></div>`;
+            if(totalValesAbertos > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:var(--orange); font-weight:bold; margin-top:5px; border-top:1px dashed var(--border-color); padding-top:5px;"><span>⚠️ Vales Pendentes (NÃO descontado ainda):</span> <span>${fmtMoeda(totalValesAbertos)}</span></div>`;
+            if(totalValesDescontados > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:var(--danger); font-weight:bold; margin-top:5px; border-top:1px dashed var(--border-color); padding-top:5px;"><span>🎫 Vales Já Descontados:</span> <span>- ${fmtMoeda(totalValesDescontados)}</span></div>`;
+            if(pagoSalario > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:var(--danger); margin-top:5px; border-top:1px dashed var(--border-color); padding-top:5px;"><span>💸 Já Recebido:</span> <span>- ${fmtMoeda(pagoSalario)}</span></div>`;
             
             htmlDetalhes += `</div>`;
 
@@ -2961,10 +2974,10 @@ window.atualizarPainelPagamentos = function() {
             divAviso.style.border = `1px solid #f1c40f`;
 
             htmlDetalhes += `<div style="display:flex; justify-content:space-between;"><span>💰 Saldo Total do Mês (Bruto):</span> <span>${fmtMoeda(ganhosSalarioTotal)}</span></div>`;
-            if(pagoSalario > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#c0392b;"><span>💸 Salário Já Pago:</span> <span>- ${fmtMoeda(pagoSalario)}</span></div>`;
+            if(pagoSalario > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:var(--danger);"><span>💸 Salário Já Pago:</span> <span>- ${fmtMoeda(pagoSalario)}</span></div>`;
             
-            htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#e67e22; font-weight:bold; margin-top:5px; border-top:1px dashed #e67e22; padding-top:5px;"><span>⚠️ Vales Pendentes:</span> <span>${fmtMoeda(totalValesAbertos)}</span></div>`;
-            if(totalValesDescontados > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#c0392b; font-weight:bold; margin-top:5px; border-top:1px dashed #e67e22; padding-top:5px;"><span>🎫 Vales Já Descontados:</span> <span>- ${fmtMoeda(totalValesDescontados)}</span></div>`;
+            htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:var(--orange); font-weight:bold; margin-top:5px; border-top:1px dashed #e67e22; padding-top:5px;"><span>⚠️ Vales Pendentes:</span> <span>${fmtMoeda(totalValesAbertos)}</span></div>`;
+            if(totalValesDescontados > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:var(--danger); font-weight:bold; margin-top:5px; border-top:1px dashed #e67e22; padding-top:5px;"><span>🎫 Vales Já Descontados:</span> <span>- ${fmtMoeda(totalValesDescontados)}</span></div>`;
 
             htmlDetalhes += `</div>`;
 
@@ -2973,7 +2986,7 @@ window.atualizarPainelPagamentos = function() {
                     <span style="font-size:1.4rem;">🎫 Total Pendente p/ Descontar: <strong>${fmtMoeda(totalValesAbertos)}</strong></span>
                 </div>
                 ${htmlDetalhes}
-                <div style="font-size:0.8rem; margin-top:5px; text-align:center; opacity:0.8; font-weight:bold; color:#e67e22;">(O vale listado NÃO desconta do salário até você clicar em "Descontar do Salário" lá embaixo)</div>
+                <div style="font-size:0.8rem; margin-top:5px; text-align:center; opacity:0.8; font-weight:bold; color:var(--orange);">(O vale listado NÃO desconta do salário até você clicar em "Descontar do Salário" lá embaixo)</div>
             `;
             const inputVal = document.getElementById('valorPagamento');
             if(inputVal && document.activeElement !== inputVal) inputVal.value = ''; 
@@ -2989,9 +3002,9 @@ window.atualizarPainelPagamentos = function() {
 
             if(valorTotalPassagem > 0) {
                 htmlDetalhes += `<div style="display:flex; justify-content:space-between;"><span>🚌 Passagem Acumulada (${diasContados}d):</span> <span>${fmtMoeda(valorTotalPassagem)}</span></div>`;
-                if (diasPassagemList.length > 0) htmlDetalhes += `<div style="font-size:0.75rem; color:#8e44ad; opacity:0.8; margin-top:2px; margin-bottom:5px; font-style:italic;">Dias computados: ${diasPassagemList.join(', ')}</div>`;
+                if (diasPassagemList.length > 0) htmlDetalhes += `<div style="font-size:0.75rem; color:var(--purple); opacity:0.8; margin-top:2px; margin-bottom:5px; font-style:italic;">Dias computados: ${diasPassagemList.join(', ')}</div>`;
             }
-            if(pagoPassagem > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:#c0392b;"><span>💸 Já Pago:</span> <span>- ${fmtMoeda(pagoPassagem)}</span></div>`;
+            if(pagoPassagem > 0) htmlDetalhes += `<div style="display:flex; justify-content:space-between; color:var(--danger);"><span>💸 Já Pago:</span> <span>- ${fmtMoeda(pagoPassagem)}</span></div>`;
             htmlDetalhes += `</div>`;
 
             divAviso.innerHTML = `
@@ -3019,7 +3032,7 @@ window.atualizarPainelPagamentos = function() {
         if (gridPag) {
             gridPag.innerHTML = '';
             if(pagamentosDesteCara.length === 0) {
-                 gridPag.innerHTML = '<p style="text-align:center; width:100%; color:#999; margin-top: 20px;">Nenhum pagamento registrado neste período.</p>';
+                 gridPag.innerHTML = '<p style="text-align:center; width:100%; color:var(--text-faint); margin-top: 20px;">Nenhum pagamento registrado neste período.</p>';
             } else {
                 pagamentosDesteCara.sort((a,b) => new Date(b.data) - new Date(a.data));
                 pagamentosDesteCara.forEach(pag => {
@@ -3139,7 +3152,7 @@ window.lancarPagamento = async function() {
 
 window.renderizarCardsPagamento = function(lista) {
     const grid = document.getElementById('gridPagamentos');
-    if (lista.length === 0) { grid.innerHTML = '<p style="color:#aaa; width:100%; text-align:center;">Nenhum registro.</p>'; return; }
+    if (lista.length === 0) { grid.innerHTML = '<p style="color:var(--text-faint); width:100%; text-align:center;">Nenhum registro.</p>'; return; }
     
     lista.forEach(p => {
         let cardClass = '', valorClass = '', icone = '';

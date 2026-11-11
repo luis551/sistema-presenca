@@ -28,8 +28,8 @@
                 <div class="assinatura-box">Assinatura do Recebedor (Funcionário)</div>
             </div>
             <div class="no-print" style="text-align:center; margin-top:30px;">
-                <button onclick="window.print()" style="padding:10px 20px; font-size:1.2rem; background:black; color:white; border:none; cursor:pointer;">IMPRIMIR AGORA</button>
-                <button onclick="document.getElementById('area-impressao').style.display='none'" style="padding:10px 20px; font-size:1.2rem; background:#ccc; border:none; cursor:pointer; margin-left:10px;">FECHAR</button>
+                <button onclick="window.print()" class="btn-print-now">IMPRIMIR AGORA</button>
+                <button onclick="document.getElementById('area-impressao').style.display='none'" class="btn-print-close">FECHAR</button>
             </div>
         </div>
     </div>
@@ -50,8 +50,8 @@
                 <div class="assinatura-box">Visto do Responsável</div>
             </div>
             <div class="no-print" style="text-align:center; margin-top:30px;">
-                <button onclick="window.print()" style="padding:10px 20px; font-size:1.2rem; background:black; color:white; border:none; cursor:pointer;">IMPRIMIR AGORA</button>
-                <button onclick="document.getElementById('area-ponto-print').style.display='none'" style="padding:10px 20px; font-size:1.2rem; background:#ccc; border:none; cursor:pointer; margin-left:10px;">FECHAR</button>
+                <button onclick="window.print()" class="btn-print-now">IMPRIMIR AGORA</button>
+                <button onclick="document.getElementById('area-ponto-print').style.display='none'" class="btn-print-close">FECHAR</button>
             </div>
         </div>
     </div>
@@ -59,7 +59,7 @@
     <div id="modalUsers">
         <div class="modal-content">
             <h2 style="margin-top:0;">⚙️ Gestão de Acesso</h2>
-            <div style="background:rgba(0,0,0,0.05); padding:15px; border-radius:8px; margin-bottom:20px;">
+            <div class="box-soft">
                 <input type="hidden" id="editUserIndex" value="">
                 <label style="font-weight:bold; font-size:0.9rem;" id="tituloFormUser">Adicionar Novo Usuário</label>
                 <input type="text" id="novoUser" placeholder="Nome de Usuário" style="margin:5px 0;">
@@ -82,23 +82,23 @@
 
                 <div style="display: flex; gap: 10px; margin-top: 10px;">
                     <button class="action-btn" id="btnSalvarUser" style="width:100%; font-size:0.9rem;" onclick="salvarUsuario()">+ Criar Usuário</button>
-                    <button class="action-btn" id="btnCancelarUser" style="width:100%; font-size:0.9rem; background:#95a5a6; display:none;" onclick="cancelarEdicaoUser()">Cancelar</button>
+                    <button class="action-btn btn-neutral btn-full-sm" id="btnCancelarUser" style="display:none;" onclick="cancelarEdicaoUser()">Cancelar</button>
                 </div>
             </div>
             <h4 style="margin-bottom:10px;">Usuários Cadastrados:</h4>
             <div id="listaUsuarios"></div>
-            <button onclick="document.getElementById('modalUsers').style.display='none'" style="width:100%; padding:10px; margin-top:20px; border:none; background:#ccc; cursor:pointer; border-radius:4px; color:#333;">Fechar</button>
+            <button onclick="document.getElementById('modalUsers').style.display='none'" class="btn-modal-close">Fechar</button>
         </div>
     </div>
 
     <div id="login-screen">
         <div class="login-box">
-            <h2 style="color: var(--primary);">🔐 Acesso Administrativo</h2>
+            <h2 class="login-title">🔐 Acesso Administrativo</h2>
             <p style="color:var(--text-sub); margin-bottom: 15px;">Painel RH - Identifique-se:</p>
             <input type="text" id="loginUser" placeholder="Usuário" autocomplete="username" onkeyup="if(event.key==='Enter') document.getElementById('loginPass').focus()">
             <input type="password" id="loginPass" placeholder="Senha" autocomplete="current-password" onkeyup="if(event.key==='Enter') checkLogin()">
             <button class="action-btn" id="btnLogin" onclick="checkLogin()" style="width:100%; margin-top:15px;">Acessar</button>
-            <p id="loginError" style="color: red; display: none; margin-top: 10px; font-size:0.9rem;">Usuário ou senha inválidos!</p>
+            <p id="loginError" class="login-error" style="display: none;">Usuário ou senha inválidos!</p>
         </div>
     </div>
 
@@ -125,7 +125,7 @@
         <div class="menu-category">Sistema</div>
         <button class="menu-btn" id="btnSeguranca" onclick="showSection('seguranca', this)">🛡️ Segurança (Audit)</button>
         <button class="menu-btn" id="btnGestaoUsuarios" onclick="abrirGestaoUsuarios()" style="display:none;">👥 Gestão de Acessos</button>
-        <button class="menu-btn" onclick="toggleDarkMode()">🌙 Modo Escuro</button>
+        <button class="menu-btn" id="btnModoEscuro" onclick="toggleDarkMode()">🌙 Modo Escuro</button>
         <button class="menu-btn" id="btnSair" onclick="sairDoSistema()" style="display:none;">🚪 Sair</button>
 
         <div class="system-controls">
@@ -138,13 +138,13 @@
         <div id="dashboard" class="section active">
             <h1>Visão de Águia 🦅</h1>
             <div class="chart-area">
-    <div class="chart-card" onclick="window.abrirGraficoBI('financeiro')" style="cursor:pointer; position:relative;" title="Clique para ampliar">
-        <div style="position:absolute; top:10px; right:10px; font-size:1.2rem;">🔍</div>
+    <div class="chart-card chart-card-click" onclick="window.abrirGraficoBI('financeiro')" title="Clique para ampliar">
+        <div class="chart-zoom-icon">🔍</div>
         <canvas id="graficoPizza"></canvas>
         </div>
     
-        <div class="chart-card" onclick="window.abrirGraficoBI('vendas')" style="cursor:pointer; position:relative;" title="Clique para ampliar">
-        <div style="position:absolute; top:10px; right:10px; font-size:1.2rem;">🔍</div>
+        <div class="chart-card chart-card-click" onclick="window.abrirGraficoBI('vendas')" title="Clique para ampliar">
+        <div class="chart-zoom-icon">🔍</div>
         <canvas id="graficoBarra"></canvas>
            </div>
          </div>
@@ -172,7 +172,7 @@
                     </div>
                     <div class="form-group"><label>Data</label><input type="date" id="dataMoto" onchange="calcularMotoPreview()"></div>
                 </div>
-                <div class="form-grid" style="margin-top:15px; background:rgba(0,0,0,0.05); padding:10px; border-radius:5px;">
+                <div class="form-grid box-soft-sm">
                     <div class="form-group"><label>Qtd. iFood 🔴</label><input type="number" id="qtdIfood" placeholder="0" oninput="calcularMotoPreview()"></div>
                     <div class="form-group"><label>Qtd. 99Food 🟡</label><input type="number" id="qtd99" placeholder="0" oninput="calcularMotoPreview()"></div>
                     <div class="form-group"><label>Qtd. Zap/Outros 🟢</label><input type="number" id="qtdZap" placeholder="0" oninput="calcularMotoPreview()"></div>
@@ -182,7 +182,7 @@
                     <button class="action-btn" id="btnSalvarMoto" style="background-color: var(--moto);" onclick="lancarEntregaMoto()">Salvar Diária</button>
                 </div>
             </div>
-           <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; margin-bottom: 15px; background: rgba(0,0,0,0.03); padding: 10px; border-radius: 8px;">
+           <div class="toolbar-soft">
     <h3 style="margin:0;">Histórico de Entregas</h3>
     
     <div style="display:flex; gap:10px; align-items:center;">
@@ -326,7 +326,7 @@
                     <option value="0.10">10%</option>
                 </select>
             </div>
-            <div style="margin-top: 10px; background: #f3e5f5; padding: 10px; border-radius: 5px; color: var(--purple); font-weight: bold; display: flex; justify-content: space-between;">
+            <div class="box-purple">
                 <span id="previewComissaoTexto">Comissão (7%):</span>
                 <span id="previewComissaoValor">R$ 0,00 (7%)</span>
             </div>
@@ -403,7 +403,7 @@
                 <input type="text" id="bolCodigo">
             </div>
         </div>
-        <button class="action-btn" onclick="lancarBoleto()" style="width:100%; margin-top:15px; background:var(--primary);">Registrar Conta</button>
+        <button class="action-btn" onclick="lancarBoleto()" style="width:100%; margin-top:15px;" data-cor="escuro">Registrar Conta</button>
     </div>
 
     <div style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center;">
@@ -429,7 +429,7 @@
         </div>
 
         <div class="form-grid" style="margin-top: 20px;">
-            <div class="form-group" style="grid-column: span 2; border-bottom: 1px dashed #ccc; padding-bottom: 15px; margin-bottom: 10px;">
+            <div class="form-group divider-dashed">
                 <label style="color:var(--purple); font-weight:bold;">📅 Período de Cálculo:</label>
                 <select id="filtroPeriodoPagamento" onchange="atualizarPainelPagamentos()" style="border: 2px solid var(--purple); color: var(--purple); font-weight: bold;">
                     <option value="MES">📅 Mês Completo (Acumulado)</option>
@@ -559,12 +559,12 @@
 </div>
         <div id="seguranca" class="section">
             <h1>🛡️ Log de Auditoria</h1>
-            <div class="card" style="border-left: 5px solid #2980b9; background:#eaf2f8; margin-bottom: 20px;">
-        <h3 style="color:#2980b9; margin-top:0;">💾 Backup de Segurança</h3>
-        <p style="font-size:0.9rem; color:#555;">Baixe uma cópia dos dados para seu computador ou restaure um arquivo antigo caso precise.</p>
+            <div class="card card-info">
+        <h3 class="card-info-title">💾 Backup de Segurança</h3>
+        <p class="card-info-text">Baixe uma cópia dos dados para seu computador ou restaure um arquivo antigo caso precise.</p>
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
-            <button class="action-btn" onclick="window.baixarBackupLocal()" style="background-color: #2980b9;">📥 Baixar Backup (.json)</button>
-            <button class="action-btn" onclick="window.restaurarBackupLocal()" style="background-color: #f39c12; color:black;">📤 Restaurar Arquivo</button>
+            <button class="action-btn" onclick="window.baixarBackupLocal()" data-cor="azul">📥 Baixar Backup (.json)</button>
+            <button class="action-btn" onclick="window.restaurarBackupLocal()" data-cor="amarelo">📤 Restaurar Arquivo</button>
             </div>
            </div>
             <div class="card">
@@ -1039,7 +1039,7 @@
 <div id="modalDetalhes">
     <div class="detalhes-content">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h3 style="margin:0; color:var(--primary);">🧾 Extrato</h3>
+            <h3 class="extrato-title">🧾 Extrato</h3>
             <span onclick="document.getElementById('modalDetalhes').style.display='none'" style="cursor:pointer; font-size:1.5rem;">&times;</span>
         </div>
         
@@ -1048,7 +1048,7 @@
         <button onclick="document.getElementById('modalDetalhes').style.display='none'" class="action-btn" style="width:100%; margin-top:20px; background:var(--secondary);">Fechar</button>
     </div>
 </div>
-<div id="modalGraficozao" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:20000; justify-content:center; align-items:center;">
+<div id="modalGraficozao" class="modal-escuro" style="display:none;">
     <div style="background:var(--bg-card); width:90%; height:90%; border-radius:15px; padding:20px; display:flex; flex-direction:column; position:relative; color:var(--text-main);">
         
         <div style="display:flex; flex-wrap:wrap; gap:15px; align-items:end; border-bottom:1px solid var(--border-color); padding-bottom:15px; margin-bottom:15px;">
@@ -1078,7 +1078,7 @@
             </div>
 
             <button onclick="window.filtrarGraficoExpandido()" class="action-btn" style="height:40px;">🔄 Atualizar</button>
-            <button onclick="document.getElementById('modalGraficozao').style.display='none'" style="background:var(--danger); color:white; border:none; padding:10px 15px; border-radius:5px; cursor:pointer;">❌ Fechar</button>
+            <button onclick="document.getElementById('modalGraficozao').style.display='none'" class="btn-danger-close">❌ Fechar</button>
         </div>
 
         <div style="flex:1; position:relative; width:100%; overflow:hidden;">

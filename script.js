@@ -505,7 +505,7 @@ window.renderizarListaUsuarios = function() {
         const podeDesativar = u.active !== false && u.uid !== window.currentUser?.uid;
         const btnDisable = podeDesativar ? `<button onclick="removerUsuario(${index})" class="btn-mini btn-mini-desativar">⛔</button>` : '';
 
-        lista.innerHTML += `<div class="user-list-item"><div><strong>${escaparHtml(u.user)}</strong> ${badge}<br><small>UID: ${escaparHtml(u.uid)}</small></div><div>${btnEdit}${btnDisable}</div></div>`;
+        lista.insertAdjacentHTML('beforeend', `<div class="user-list-item"><div><strong>${escaparHtml(u.user)}</strong> ${badge}<br><small>UID: ${escaparHtml(u.uid)}</small></div><div>${btnEdit}${btnDisable}</div></div>`);
     });
 }
 
@@ -798,7 +798,7 @@ function atualizarSelectMotoboyOperacional() {
 
     select.innerHTML = '<option value="">Selecione...</option>';
     funcionariosAtivos.forEach(f => {
-        select.innerHTML += `<option value="${f.id}">${f.nome}</option>`;
+        select.insertAdjacentHTML('beforeend', `<option value="${f.id}">${f.nome}</option>`);
     });
 
     select.value = funcionariosAtivos.some(f => String(f.id) === String(selecionadoAtual))
@@ -1226,7 +1226,7 @@ window.renderizarExtras = function() {
         const cor = item.tipo === 'Comissao' ? 'extra-comissao' : 'extra-despesa';
         const tituloCor = item.tipo === 'Comissao' ? 'txt-purple' : 'txt-orange';
         const html = `<div class="extra-card ${cor}"><div class="extra-info"><h4 class="${tituloCor}">${item.categoria} - ${item.beneficiario}</h4><span>📅 ${fmtData(item.data)} | ${item.obs}</span></div><div class="extra-val ${tituloCor}">${fmtMoeda(item.valor)}</div><button class="btn-delete-pag" onclick="removerExtra(${item.id})">🗑️</button></div>`;
-        grid.innerHTML += html;
+        grid.insertAdjacentHTML('beforeend', html);
     });
 }
 
@@ -1675,7 +1675,7 @@ window.atualizarDashboard = function() {
     if (sortedRank.length === 0) rankContainer.innerHTML = '<p style="color:var(--text-faint); text-align:center;">Nenhuma venda este mês.</p>';
     else sortedRank.forEach(([nome, vendas], index) => {
         const comissao = rankingComissoes[nome] || 0; const medalha = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index+1}`; const rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : '';
-        rankContainer.innerHTML += `<div class="ranking-item"><span class="rank-pos ${rankClass}">${medalha}</span><span class="rank-name">${nome}</span><div style="text-align:right;"><div class="rank-xp">Vendeu: ${fmtMoeda(vendas)}</div><small style="color:var(--text-sub);">Comissão: ${fmtMoeda(comissao)}</small></div></div>`;
+        rankContainer.insertAdjacentHTML('beforeend', `<div class="ranking-item"><span class="rank-pos ${rankClass}">${medalha}</span><span class="rank-name">${nome}</span><div style="text-align:right;"><div class="rank-xp">Vendeu: ${fmtMoeda(vendas)}</div><small style="color:var(--text-sub);">Comissão: ${fmtMoeda(comissao)}</small></div></div>`);
     });
 }
 window.exportarExcel = function() {
@@ -1713,7 +1713,10 @@ window.atualizarSecaoEspecifica = function(id) {
     if(id === 'previsao') window.atualizarPrevisao();
     if(id === 'extras') window.renderizarExtras();
     if(id === 'dashboard') window.atualizarDashboard();
-    if(id === 'seguranca') renderizarAudit();
+    if(id === 'seguranca') {
+        if (window.carregarAuditoria) window.carregarAuditoria();
+        renderizarAudit();
+    }
     if(id === 'pagamentos') window.atualizarPainelPagamentos();
     
     // --- LINHA NOVA PARA OS BOLETOS ---
@@ -1775,7 +1778,7 @@ window.atualizarInterface = function() {
     funcsAtivosOrdenados.forEach(f => {
         if(listContainer) {
             const inicial = f.nome.charAt(0);
-            listContainer.innerHTML += `
+            listContainer.insertAdjacentHTML('beforeend', `
                 <div class="custom-option-item" data-nome="${f.nome.toLowerCase()}" onclick="selecionarFuncionarioCustom('${f.id}', '${f.nome}')">
                     <div class="custom-opt-avatar">${inicial}</div>
                     <div class="custom-opt-info">
@@ -1786,17 +1789,17 @@ window.atualizarInterface = function() {
                         </span>
                     </div>
                 </div>
-            `;
+            `);
         }
-        if(selectPag) selectPag.innerHTML += `<option value="${f.id}">${f.nome}</option>`; 
-        if(selVendedor) selVendedor.innerHTML += `<option value="${f.id}">${f.nome}</option>`; 
-        if(selPrevisao) selPrevisao.innerHTML += `<option value="${f.id}">${f.nome}</option>`;
-        if(selMoto) selMoto.innerHTML += `<option value="${f.id}">${f.nome}</option>`;
+        if(selectPag) selectPag.insertAdjacentHTML('beforeend', `<option value="${f.id}">${f.nome}</option>`); 
+        if(selVendedor) selVendedor.insertAdjacentHTML('beforeend', `<option value="${f.id}">${f.nome}</option>`); 
+        if(selPrevisao) selPrevisao.insertAdjacentHTML('beforeend', `<option value="${f.id}">${f.nome}</option>`);
+        if(selMoto) selMoto.insertAdjacentHTML('beforeend', `<option value="${f.id}">${f.nome}</option>`);
     });
 
     // Filtros de histórico continuam exibindo todos os cadastros
     funcsOrdenados.forEach(f => {
-        if(selFiltroExtras) selFiltroExtras.innerHTML += `<option value="${f.id}">${f.nome}</option>`;
+        if(selFiltroExtras) selFiltroExtras.insertAdjacentHTML('beforeend', `<option value="${f.id}">${f.nome}</option>`);
     });
 
     // --- PARTE 2: Lógica Inteligente de Exibição ---
@@ -1848,12 +1851,12 @@ window.atualizarInterface = function() {
             ? `<button class="btn-status-toggle btn-status-disable" onclick="alterarStatusFuncionario(${f.id}, '${STATUS_FUNCIONARIO_INATIVO}')" title="Inativar">⏸️</button>`
             : `<button class="btn-status-toggle btn-status-enable" onclick="alterarStatusFuncionario(${f.id}, '${STATUS_FUNCIONARIO_ATIVO}')" title="Reativar">↩️</button>`;
 
-        tbFunc.innerHTML += `<tr class="${funcionarioAtivo ? '' : 'funcionario-inativo-row'}"><td><strong>${f.nome}</strong>${statusBadge}${cpfDisplay}</td><td>${f.cargo}<span class="info-empresa">🏢 ${f.empresa || '-'}</span>${entradaDisplay}</td><td>${contatoDisplay}${pixDisplay}${enderecoDisplay}${nascDisplay}</td><td><span class="tag-tipo ${tagClass}">${tagText}</span><br>${infoPagamento}</td><td><div class="table-actions"><button class="btn-edit" onclick="prepararEdicao(${f.id})" title="Editar">✏️</button>${btnStatus}<button class="btn-del" onclick="removerFuncionario(${f.id})" title="Excluir">🗑️</button>${btnPonto}</div></td></tr>`;
+        tbFunc.insertAdjacentHTML('beforeend', `<tr class="${funcionarioAtivo ? '' : 'funcionario-inativo-row'}"><td><strong>${f.nome}</strong>${statusBadge}${cpfDisplay}</td><td>${f.cargo}<span class="info-empresa">🏢 ${f.empresa || '-'}</span>${entradaDisplay}</td><td>${contatoDisplay}${pixDisplay}${enderecoDisplay}${nascDisplay}</td><td><span class="tag-tipo ${tagClass}">${tagText}</span><br>${infoPagamento}</td><td><div class="table-actions"><button class="btn-edit" onclick="prepararEdicao(${f.id})" title="Editar">✏️</button>${btnStatus}<button class="btn-del" onclick="removerFuncionario(${f.id})" title="Excluir">🗑️</button>${btnPonto}</div></td></tr>`);
     });
 
     // Adiciona o Botão ou Mensagem no final da tabela
     if (mensagemRodape) {
-        tbFunc.innerHTML += `<tr><td colspan="5" style="text-align:center; padding:15px;">${mensagemRodape}</td></tr>`;
+        tbFunc.insertAdjacentHTML('beforeend', `<tr><td colspan="5" style="text-align:center; padding:15px;">${mensagemRodape}</td></tr>`);
     }
 
     if(selectPag) {
@@ -1990,7 +1993,7 @@ window.renderizarBoletos = function() {
                     <button onclick="removerBoleto(${b.id})" class="btn-link-perigo">Excluir</button>
                 </div>
             </div>`;
-        grid.innerHTML += html;
+        grid.insertAdjacentHTML('beforeend', html);
     });
 
     // Atualiza os números no topo
@@ -2204,10 +2207,10 @@ window.atualizarPrevisao = function() {
             
             if (f.tipo === 'Diaria') {
                 totalUrgent += saldo;
-                listUrgent.innerHTML += htmlCard;
+                listUrgent.insertAdjacentHTML('beforeend', htmlCard);
             } else {
                 totalWeekly += saldo;
-                listWeekly.innerHTML += htmlCard;
+                listWeekly.insertAdjacentHTML('beforeend', htmlCard);
             }
         }
     });
@@ -2242,8 +2245,8 @@ window.atualizarPrevisao = function() {
                             </div>
                         </div>
                     `;
-                    if (isVencido || isHoje) { totalUrgent += b.valor; listUrgent.innerHTML += htmlBoleto; } 
-                    else { totalWeekly += b.valor; listWeekly.innerHTML += htmlBoleto; }
+                    if (isVencido || isHoje) { totalUrgent += b.valor; listUrgent.insertAdjacentHTML('beforeend', htmlBoleto); } 
+                    else { totalWeekly += b.valor; listWeekly.insertAdjacentHTML('beforeend', htmlBoleto); }
                 }
             }
         });
@@ -2732,7 +2735,7 @@ window.selecionarFuncionarioCustom = function(id, nome) {
         // 🚨 A MÁGICA SALVADORA: Se o <option> não existir no select escondido, a gente cria ele na marra!
         let optionExists = Array.from(selectOriginal.options).some(opt => opt.value === String(id));
         if (!optionExists) {
-            selectOriginal.innerHTML += `<option value="${id}">${nome}</option>`;
+            selectOriginal.insertAdjacentHTML('beforeend', `<option value="${id}">${nome}</option>`);
         }
         
         selectOriginal.value = id; // Agora a seleção funciona 100%
@@ -3037,7 +3040,7 @@ window.atualizarPainelPagamentos = function() {
                     if(pag.tipo === 'Vale') { icone = '🎫'; corBorda = 'var(--warning)'; corValor = 'var(--warning)'; }
                     if(pag.tipo === 'Passagem') { icone = '🚌'; corBorda = 'var(--purple)'; corValor = 'var(--purple)'; }
                     const d = pag.data ? pag.data.split('-').reverse().join('/') : '--/--/----';
-                    gridPag.innerHTML += `
+                    gridPag.insertAdjacentHTML('beforeend', `
                         <div class="pagamento-card" style="border-top-color: ${corBorda}; margin-bottom: 10px;">
                             <div class="pag-header">
                                 <span class="pag-date">📅 ${d}</span>
@@ -3050,7 +3053,7 @@ window.atualizarPainelPagamentos = function() {
                             <div class="pag-footer">
                                 <span class="pag-valor" style="color: ${corValor};">${fmtMoeda(pag.valor)}</span>
                             </div>
-                        </div>`;
+                        </div>`);
                 });
             }
         }

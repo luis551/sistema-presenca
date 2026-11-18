@@ -456,6 +456,12 @@ window.imprimirFolhaPonto = function(idFunc) {
     document.getElementById('area-ponto-print').style.display = 'flex';
 }
 
+// Vales lançados por outro sistema (ex.: Loja Nuvens) trazem o campo "origem".
+function seloOrigem(pag) {
+    if (!pag || !pag.origem) return '';
+    return `<span class="selo-origem" title="Lançado automaticamente por ${escaparHtml(pag.origem)}">🛍️ ${escaparHtml(pag.origem)}</span>`;
+}
+
 // --- SISTEMA DE RECIBOS ---
 window.gerarRecibo = function(idPagamento) {
     const pag = window.db.pagamentos.find(p => String(p.id) === String(idPagamento));
@@ -464,7 +470,8 @@ window.gerarRecibo = function(idPagamento) {
     
     document.getElementById('recibo-funcionario').innerText = pag.nomeFunc;
     document.getElementById('recibo-valor').innerText = pag.valor.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
-    document.getElementById('recibo-tipo').innerText = pag.tipo === 'Vale' ? 'Adiantamento / Vale' : 'Pagamento de Salário';
+    const tipoRecibo = pag.tipo === 'Vale' ? 'Adiantamento / Vale' : 'Pagamento de Salário';
+    document.getElementById('recibo-tipo').innerText = pag.origem ? `${tipoRecibo} (compra na ${pag.origem})` : tipoRecibo;
     document.getElementById('recibo-desc').innerText = pag.desc || 'Sem observações';
     document.getElementById('recibo-data').innerText = new Date().toLocaleDateString('pt-BR');
     document.getElementById('recibo-empresa').innerText = func ? func.empresa : 'Empresa';
@@ -1601,11 +1608,17 @@ window.getSaldoMesAnterior = function(idFunc, dataRefStr) {
 window.removerPagamento = async function(id) {
     if(!checkPerm('fin')) return; 
 
-    if(confirm("Cancelar este lançamento?")) {
-        const pag = window.db.pagamentos.find(p => String(p.id) === String(id));
+    const pag = window.db.pagamentos.find(p => String(p.id) === String(id));
+    const pergunta = pag && pag.origem
+        ? `Este vale foi lançado pela ${pag.origem} (venda registrada lá).\n\n`
+          + `Excluir aqui NÃO cancela a venda na loja, e os dois sistemas vão ficar diferentes. `
+          + `O certo é cancelar ou devolver a venda no sistema da loja.\n\nExcluir mesmo assim?`
+        : "Cancelar este lançamento?";
+
+    if(confirm(pergunta)) {
         try {
             await deletarRegistro(FIREBASE_AREAS.pagamentos, id);
-            if(pag) registrarLog('Financeiro', `Excluiu ${pag.tipo} de ${fmtMoeda(pag.valor)} de ${pag.nomeFunc}`);
+            if(pag) registrarLog('Financeiro', `Excluiu ${pag.tipo} de ${fmtMoeda(pag.valor)} de ${pag.nomeFunc}${pag.origem ? ` (lançado pela ${pag.origem})` : ''}`);
             removerDbItem('pagamentos', id);
             window.atualizarPainelPagamentos(); 
             window.atualizarDashboard();
@@ -3049,7 +3062,7 @@ window.atualizarPainelPagamentos = function() {
                                     <button class="btn-delete-pag" onclick="window.removerPagamento(${pag.id})" title="Apagar Lançamento">🗑️</button>
                                 </div>
                             </div>
-                            <div class="pag-nome">${icone} ${pag.tipo}</div>
+                            <div class="pag-nome">${icone} ${pag.tipo} ${seloOrigem(pag)}</div>
                             <div class="pag-footer">
                                 <span class="pag-valor" style="color: ${corValor};">${fmtMoeda(pag.valor)}</span>
                             </div>
@@ -3187,7 +3200,7 @@ window.renderizarCardsPagamento = function(lista) {
 
         card.innerHTML = `
             <div class="pag-header"><span class="pag-date">📅 ${fmtData(p.data)}</span><div class="pag-nome">${p.nomeFunc}</div></div>
-            <div class="pag-desc" style="font-weight:bold; font-size:0.8em; color:var(--text-sub);">${icone}</div>
+            <div class="pag-desc" style="font-weight:bold; font-size:0.8em; color:var(--text-sub);">${icone} ${seloOrigem(p)}</div>
             <div class="pag-desc">"${p.desc || 'Sem descrição'}"</div>
             ${botoesExtras}
             <div class="pag-footer">

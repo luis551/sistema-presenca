@@ -845,3 +845,5 @@ button.btn-excel { background-color: var(--success); }
 .btn-pagar.pendente { background: var(--success); }
 .btn-pagar.desfazer { background: var(--text-faint); color: #ffffff; }
 .btn-pay-card { background: var(--success); }
+/* Selo de vale lançado por outro sistema (ex.: Loja Nuvens) */
+.selo-origem { display: inline-block; margin-left: 6px; padding: 2px 8px; border-radius: 999px; background: var(--gold-soft); color: var(--gold-text); font-size: 0.72rem; font-weight: 700; font-style: normal; letter-spacing: 0.02em; vertical-align: middle; white-space: nowrap; }
